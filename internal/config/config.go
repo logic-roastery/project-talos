@@ -1,0 +1,117 @@
+package config
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+)
+
+type Config struct {
+	Server   ServerConfig
+	Database DatabaseConfig
+	Auth     AuthConfig
+	Docker   DockerConfig
+	Traefik  TraefikConfig
+	GitHub   GitHubConfig
+}
+
+type ServerConfig struct {
+	Host string
+	Port int
+}
+
+type DatabaseConfig struct {
+	Path string
+}
+
+type AuthConfig struct {
+	SessionSecret string
+	SessionMaxAge int // seconds
+}
+
+type DockerConfig struct {
+	Host    string
+	Network string
+}
+
+type TraefikConfig struct {
+	Image       string
+	DashboardOn bool
+	ConfigDir   string
+	DataDir     string
+}
+
+type GitHubConfig struct {
+	WebhookSecret string
+}
+
+func Load() (*Config, error) {
+	cfg := &Config{
+		Server: ServerConfig{
+			hostDefault("0.0.0.0"),
+			portDefault(3000),
+		},
+		Database: DatabaseConfig{
+			Path: envOrDefault("TALOS_DB_PATH", "data/talos.db"),
+		},
+		Auth: AuthConfig{
+			SessionSecret: mustEnv("TALOS_SESSION_SECRET"),
+			SessionMaxAge: intDefault("TALOS_SESSION_MAX_AGE", 86400*7), // 7 days
+		},
+		Docker: DockerConfig{
+			Host:    envOrDefault("TALOS_DOCKER_HOST", "unix:///var/run/docker.sock"),
+			Network: envOrDefault("TALOS_DOCKER_NETWORK", "talos"),
+		},
+		Traefik: TraefikConfig{
+			Image:       envOrDefault("TALOS_TRAEFIK_IMAGE", "traefik:v3.0"),
+			DashboardOn: boolDefault("TALOS_TRAEFIK_DASHBOARD", false),
+			ConfigDir:   envOrDefault("TALOS_TRAEFIK_CONFIG_DIR", "data/traefik/config"),
+			DataDir:     envOrDefault("TALOS_TRAEFIK_DATA_DIR", "data/traefik/data"),
+		},
+		GitHub: GitHubConfig{
+			WebhookSecret: envOrDefault("TALOS_GITHUB_WEBHOOK_SECRET", ""),
+		},
+	}
+	return cfg, nil
+}
+
+func mustEnv(key string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		panic(fmt.Sprintf("required environment variable %s is not set", key))
+	}
+	return v
+}
+
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
+func hostDefault(fallback string) string {
+	return envOrDefault("TALOS_HOST", fallback)
+}
+
+func portDefault(fallback int) int {
+	return intDefault("TALOS_PORT", fallback)
+}
+
+func intDefault(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+	}
+	return fallback
+}
+
+func boolDefault(key string, fallback bool) bool {
+	if v := os.Getenv(key); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
+		}
+	}
+	return fallback
+}
