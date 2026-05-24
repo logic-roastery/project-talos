@@ -6,7 +6,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/logic-roastery/project-talos/internal/auth"
+	"github.com/logic-roastery/project-talos/internal/config"
 	"github.com/logic-roastery/project-talos/internal/deploy"
+	"github.com/logic-roastery/project-talos/internal/domain"
 	"github.com/logic-roastery/project-talos/internal/github"
 	"github.com/logic-roastery/project-talos/internal/server/handlers"
 	"github.com/logic-roastery/project-talos/internal/store"
@@ -25,6 +27,8 @@ func New(
 	authSvc *auth.Service,
 	engine *deploy.Engine,
 	webhook *github.WebhookHandler,
+	ghClient *github.AppClient,
+	ghCfg config.GitHubConfig,
 	renderer *web.Renderer,
 	serverHost string,
 	logger *slog.Logger,
@@ -63,36 +67,89 @@ func New(
 			r.Post("/rollback", deployH.Rollback)
 		})
 		r.Get("/api/deploys/{deployID}", deployH.Get)
+
+		// GitHub integration routes
+		if ghClient != nil && ghClient.IsConfigured() {
+			ghH := handlers.NewGitHubHandler(apps, ghClient, ghCfg, serverHost, logger)
+			r.Get("/api/github/install", ghH.StartInstall)
+			r.Get("/api/github/callback", ghH.HandleCallback)
+			r.Post("/api/github/disconnect", ghH.Disconnect)
+		}
 	})
 
 	r.Post("/api/webhooks/github", func(w http.ResponseWriter, r *http.Request) {
-		payload, err := webhook.VerifyAndParse(r)
+		result, err := webhook.VerifyAndParse(r)
 		if err != nil {
 			logger.Warn("webhook verification failed", "error", err)
 			http.Error(w, "invalid webhook", http.StatusBadRequest)
 			return
 		}
 
-		if payload.Workflow.Status == "completed" && payload.Workflow.Conclusion == "success" {
-			a, err := apps.GetAppByName(r.Context(), payload.Repository.FullName)
+		switch result.Event {
+		case github.EventWorkflowRun:
+			payload, err := github.ParseWorkflowRun(result.Payload)
 			if err != nil {
-				logger.Warn("webhook: app not found", "repo", payload.Repository.FullName)
-				http.Error(w, "app not found", http.StatusNotFound)
+				logger.Warn("webhook: parse workflow_run failed", "error", err)
+				http.Error(w, "invalid payload", http.StatusBadRequest)
 				return
 			}
 
-			sha := payload.Workflow.HeadSHA
-			if len(sha) > 7 {
-				sha = sha[:7]
-			}
-			imageRef := payload.Repository.FullName + ":" + sha
+			if payload.Workflow.Status == "completed" && payload.Workflow.Conclusion == "success" {
+				// Try to find app by installation ID + repo ID first, fall back to name
+				var app *domain.App
+				if payload.Repository.ID > 0 {
+					// Look up by repo ID (requires GitHub App installation)
+					// For now, fall back to name-based lookup
+					app, err = apps.GetAppByName(r.Context(), payload.Repository.FullName)
+				} else {
+					app, err = apps.GetAppByName(r.Context(), payload.Repository.FullName)
+				}
 
-			_, err = engine.Deploy(r.Context(), a.ID, imageRef, payload.Workflow.HeadSHA, payload.Workflow.HeadBranch, "webhook")
+				if err != nil {
+					logger.Warn("webhook: app not found", "repo", payload.Repository.FullName)
+					http.Error(w, "app not found", http.StatusNotFound)
+					return
+				}
+
+				sha := payload.Workflow.HeadSHA
+				if len(sha) > 7 {
+					sha = sha[:7]
+				}
+
+				// Construct image ref using registry URL from app config
+				registry := app.RegistryURL
+				if registry == "" {
+					registry = "ghcr.io"
+				}
+				imageRef := registry + "/" + payload.Repository.FullName + ":" + sha
+
+				_, err = engine.Deploy(r.Context(), app.ID, imageRef, payload.Workflow.HeadSHA, payload.Workflow.HeadBranch, "webhook")
+				if err != nil {
+					logger.Error("webhook deploy failed", "error", err)
+					http.Error(w, "deploy failed", http.StatusInternalServerError)
+					return
+				}
+			}
+
+		case github.EventInstallation:
+			payload, err := github.ParseInstallation(result.Payload)
 			if err != nil {
-				logger.Error("webhook deploy failed", "error", err)
-				http.Error(w, "deploy failed", http.StatusInternalServerError)
+				logger.Warn("webhook: parse installation failed", "error", err)
+				http.Error(w, "invalid payload", http.StatusBadRequest)
 				return
 			}
+
+			switch payload.Action {
+			case "created":
+				logger.Info("github app installed", "installation_id", payload.Installation.ID, "repos", len(payload.Repositories))
+				// Installation tracking is handled by the callback flow
+			case "deleted":
+				logger.Info("github app uninstalled", "installation_id", payload.Installation.ID)
+				// TODO: Clear GitHubInstallationID on affected apps
+			}
+
+		default:
+			logger.Debug("webhook: unhandled event", "event", result.Event)
 		}
 
 		w.WriteHeader(http.StatusOK)

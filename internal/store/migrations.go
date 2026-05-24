@@ -46,6 +46,9 @@ var migrations = []string{
 		created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)`,
 	`CREATE INDEX IF NOT EXISTS idx_deploys_app_id ON deploys(app_id)`,
+	`ALTER TABLE apps ADD COLUMN github_installation_id INTEGER`,
+	`ALTER TABLE apps ADD COLUMN github_repo_id INTEGER`,
+	`ALTER TABLE apps ADD COLUMN registry_url TEXT NOT NULL DEFAULT ''`,
 }
 
 func (s *SQLiteStore) migrate() error {

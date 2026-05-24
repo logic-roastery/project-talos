@@ -43,6 +43,11 @@ type TraefikConfig struct {
 
 type GitHubConfig struct {
 	WebhookSecret string
+	AppID         int64
+	AppSlug       string
+	PrivateKey    string // PEM string or file path
+	ClientID      string
+	ClientSecret  string
 }
 
 func Load() (*Config, error) {
@@ -70,6 +75,11 @@ func Load() (*Config, error) {
 		},
 		GitHub: GitHubConfig{
 			WebhookSecret: envOrDefault("TALOS_GITHUB_WEBHOOK_SECRET", ""),
+			AppID:         int64Default("TALOS_GITHUB_APP_ID", 0),
+			AppSlug:       envOrDefault("TALOS_GITHUB_APP_SLUG", ""),
+			PrivateKey:    envOrDefault("TALOS_GITHUB_APP_PRIVATE_KEY", ""),
+			ClientID:      envOrDefault("TALOS_GITHUB_APP_CLIENT_ID", ""),
+			ClientSecret:  envOrDefault("TALOS_GITHUB_APP_CLIENT_SECRET", ""),
 		},
 	}
 	return cfg, nil
@@ -111,6 +121,15 @@ func boolDefault(key string, fallback bool) bool {
 	if v := os.Getenv(key); v != "" {
 		if b, err := strconv.ParseBool(v); err == nil {
 			return b
+		}
+	}
+	return fallback
+}
+
+func int64Default(key string, fallback int64) int64 {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+			return n
 		}
 	}
 	return fallback

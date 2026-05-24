@@ -54,13 +54,24 @@ func main() {
 	engine := deploy.NewEngine(db, db, dockerClient, proxy, logger)
 	webhook := github.NewWebhookHandler(cfg.GitHub.WebhookSecret)
 
+	// Initialize GitHub App client (optional)
+	var ghClient *github.AppClient
+	if cfg.GitHub.AppID != 0 {
+		ghClient, err = github.NewAppClient(cfg.GitHub)
+		if err != nil {
+			logger.Warn("github app client not initialized", "error", err)
+		} else {
+			logger.Info("github app configured", "app_id", cfg.GitHub.AppID)
+		}
+	}
+
 	renderer, err := web.NewRenderer()
 	if err != nil {
 		logger.Error("failed to create renderer", "error", err)
 		os.Exit(1)
 	}
 
-	srv := server.New(db, db, db, authSvc, engine, webhook, renderer, cfg.Server.Host, logger)
+	srv := server.New(db, db, db, authSvc, engine, webhook, ghClient, cfg.GitHub, renderer, cfg.Server.Host, logger)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	httpServer := &http.Server{
