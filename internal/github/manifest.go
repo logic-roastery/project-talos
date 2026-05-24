@@ -1,7 +1,6 @@
 package github
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 )
@@ -79,13 +78,13 @@ func GenerateManifest(cfg ManifestConfig) (*Manifest, error) {
 	return manifest, nil
 }
 
-// EncodeManifest encodes a manifest to base64 for the URL parameter.
+// EncodeManifest encodes a manifest to JSON for the URL parameter.
 func EncodeManifest(manifest *Manifest) (string, error) {
 	data, err := json.Marshal(manifest)
 	if err != nil {
 		return "", fmt.Errorf("marshal manifest: %w", err)
 	}
-	return base64.StdEncoding.EncodeToString(data), nil
+	return string(data), nil
 }
 
 // ManifestCallbackData contains the data returned by GitHub after app creation.

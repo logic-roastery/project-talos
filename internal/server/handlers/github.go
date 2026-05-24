@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -313,7 +314,7 @@ func (h *GitHubHandler) CreateManifest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectURL := fmt.Sprintf("https://github.com/settings/apps/new?manifest=%s", encoded)
+	redirectURL := fmt.Sprintf("https://github.com/settings/apps/new?manifest=%s", url.QueryEscape(encoded))
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
