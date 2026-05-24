@@ -77,6 +77,13 @@ func New(
 		}
 	})
 
+	// GitHub setup routes (always available, even without config)
+	ghH := handlers.NewGitHubHandler(apps, ghClient, ghCfg, serverHost, logger)
+	r.Get("/settings/github/setup", ghH.SetupPage)
+	r.Get("/settings/github/status", ghH.StatusPage)
+	r.Get("/api/github/create-manifest", ghH.CreateManifest)
+	r.Get("/api/github/setup-callback", ghH.SetupCallback)
+
 	r.Post("/api/webhooks/github", func(w http.ResponseWriter, r *http.Request) {
 		result, err := webhook.VerifyAndParse(r)
 		if err != nil {
@@ -156,7 +163,7 @@ func New(
 	})
 
 	// Page routes (HTML)
-	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, authSvc, engine, serverHost)
+	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, authSvc, engine, ghClient, serverHost)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/dashboard", http.StatusFound)

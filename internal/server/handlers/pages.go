@@ -9,6 +9,7 @@ import (
 	"github.com/logic-roastery/project-talos/internal/auth"
 	"github.com/logic-roastery/project-talos/internal/deploy"
 	"github.com/logic-roastery/project-talos/internal/domain"
+	"github.com/logic-roastery/project-talos/internal/github"
 	"github.com/logic-roastery/project-talos/internal/store"
 	"github.com/logic-roastery/project-talos/web"
 )
@@ -20,11 +21,12 @@ type PageHandler struct {
 	users    store.UserStore
 	authSvc  *auth.Service
 	engine   *deploy.Engine
+	ghClient *github.AppClient
 	host     string
 }
 
 func NewPageHandler(renderer *web.Renderer, apps store.AppStore, deploys store.DeployStore,
-	users store.UserStore, authSvc *auth.Service, engine *deploy.Engine, host string) *PageHandler {
+	users store.UserStore, authSvc *auth.Service, engine *deploy.Engine, ghClient *github.AppClient, host string) *PageHandler {
 	return &PageHandler{
 		renderer: renderer,
 		apps:     apps,
@@ -32,6 +34,7 @@ func NewPageHandler(renderer *web.Renderer, apps store.AppStore, deploys store.D
 		users:    users,
 		authSvc:  authSvc,
 		engine:   engine,
+		ghClient: ghClient,
 		host:     host,
 	}
 }
@@ -269,13 +272,15 @@ func (h *PageHandler) AppDetailPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		User    *web.UserData
-		App     *domain.App
-		Deploys []*domain.Deploy
+		User             *web.UserData
+		App              *domain.App
+		Deploys          []*domain.Deploy
+		GitHubConfigured bool
 	}{
-		User:    h.userData(r),
-		App:     app,
-		Deploys: deploys,
+		User:             h.userData(r),
+		App:              app,
+		Deploys:          deploys,
+		GitHubConfigured: h.ghClient != nil && h.ghClient.IsConfigured(),
 	}
 	h.renderer.Render(w, "app.html", app.Name, h.userData(r), data)
 }

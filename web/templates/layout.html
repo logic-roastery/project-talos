@@ -26,6 +26,7 @@
     <nav class="border-b border-gray-800 bg-gray-900/80 backdrop-blur px-6 py-3 flex items-center justify-between">
         <a href="/dashboard" class="text-lg font-bold text-green-400 tracking-tight">talos</a>
         <div class="flex items-center gap-4 text-sm">
+            <a href="/settings/github/status" class="text-gray-500 hover:text-gray-300 transition">GitHub</a>
             <span class="text-gray-500">{{.User.Username}}</span>
             <button hx-post="/logout" hx-push-url="true"
                 class="text-gray-400 hover:text-red-400 transition cursor-pointer">logout</button>
