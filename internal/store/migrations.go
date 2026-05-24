@@ -1,6 +1,9 @@
 package store
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 var migrations = []string{
 	`CREATE TABLE IF NOT EXISTS users (
@@ -46,6 +49,11 @@ var migrations = []string{
 		created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)`,
 	`CREATE INDEX IF NOT EXISTS idx_deploys_app_id ON deploys(app_id)`,
+}
+
+// alterMigrations are ALTER TABLE statements that may fail if columns already exist.
+// We ignore "duplicate column name" errors for these.
+var alterMigrations = []string{
 	`ALTER TABLE apps ADD COLUMN github_installation_id INTEGER`,
 	`ALTER TABLE apps ADD COLUMN github_repo_id INTEGER`,
 	`ALTER TABLE apps ADD COLUMN registry_url TEXT NOT NULL DEFAULT ''`,
@@ -57,5 +65,16 @@ func (s *SQLiteStore) migrate() error {
 			return fmt.Errorf("migration %d: %w", i, err)
 		}
 	}
+
+	// Run ALTER TABLE migrations, ignoring "duplicate column" errors
+	for _, m := range alterMigrations {
+		if _, err := s.db.Exec(m); err != nil {
+			if !strings.Contains(err.Error(), "duplicate column name") {
+				return fmt.Errorf("alter migration: %w", err)
+			}
+			// Ignore duplicate column errors
+		}
+	}
+
 	return nil
 }

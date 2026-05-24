@@ -28,7 +28,8 @@ run: build
 
 dev:
 	@echo "Running in development mode..."
-	@TALOS_PORT=4000 TALOS_SESSION_SECRET=dev-secret $(GO) run $(CMD_DIR)
+	@lsof -ti:4001 | xargs kill -9 2>/dev/null || true
+	@TALOS_PORT=4001 TALOS_SESSION_SECRET=dev-secret $(GO) run $(CMD_DIR)
 
 test:
 	@echo "Running tests..."

@@ -239,6 +239,20 @@ func (h *GitHubHandler) SetupPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Build a proper URL
+	scheme := "http"
+	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+		scheme = "https"
+	}
+	host := r.Host
+	if host == "" {
+		host = h.host
+	}
+	if host == "0.0.0.0" || host == "0.0.0.0:0" {
+		host = "localhost:4000"
+	}
+	talosURL := fmt.Sprintf("%s://%s", scheme, host)
+
 	// For now, return a simple HTML page
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, `<!DOCTYPE html>
@@ -248,6 +262,7 @@ func (h *GitHubHandler) SetupPage(w http.ResponseWriter, r *http.Request) {
 <h1>GitHub App Setup</h1>
 <p>Click the button below to create a GitHub App for auto-deployments.</p>
 <p>This will redirect you to GitHub where you can create and configure the app.</p>
+<p style="color:#6b7280;font-size:0.875rem;">Talos URL: %s</p>
 <br>
 <a href="/api/github/create-manifest" style="background:#4ade80;color:#030712;padding:0.75rem 1.5rem;text-decoration:none;border-radius:0.375rem;font-weight:bold;">
     Create GitHub App
@@ -258,14 +273,30 @@ func (h *GitHubHandler) SetupPage(w http.ResponseWriter, r *http.Request) {
     Talos will store them automatically.
 </p>
 </body>
-</html>`)
+</html>`, talosURL)
 }
 
 // CreateManifest generates a manifest and redirects to GitHub.
 func (h *GitHubHandler) CreateManifest(w http.ResponseWriter, r *http.Request) {
+	// Build a proper URL from the request
+	scheme := "http"
+	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+		scheme = "https"
+	}
+	host := r.Host
+	if host == "" {
+		host = h.host
+	}
+	// Replace 0.0.0.0 with localhost for GitHub compatibility
+	if host == "0.0.0.0" || host == "0.0.0.0:0" {
+		host = "localhost:4000"
+	}
+
+	talosURL := fmt.Sprintf("%s://%s", scheme, host)
+
 	manifestCfg := github.ManifestConfig{
 		AppName:  "talos-deploy",
-		TalosURL: fmt.Sprintf("http://%s", h.host),
+		TalosURL: talosURL,
 	}
 
 	manifest, err := github.GenerateManifest(manifestCfg)
