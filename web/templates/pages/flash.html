@@ -1,0 +1,6 @@
+{{define "flash.html"}}
+<div class="{{flashBg .Color}} border {{flashBorder .Color}} {{flashText .Color}} text-sm px-4 py-3 rounded flex items-center gap-2">
+    <span>{{.Message}}</span>
+    <button onclick="this.parentElement.remove()" class="ml-auto opacity-50 hover:opacity-100 cursor-pointer">&times;</button>
+</div>
+{{end}}

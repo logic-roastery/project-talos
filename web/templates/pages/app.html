@@ -1,0 +1,99 @@
+{{define "app.html"}}
+<div class="mb-6">
+    <a href="/dashboard" class="text-gray-500 hover:text-gray-300 text-sm transition">&larr; Back to dashboard</a>
+</div>
+
+<!-- App Info -->
+<div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
+    <div class="flex items-start justify-between mb-4">
+        <div>
+            <h1 class="text-xl font-bold">{{.App.Name}}</h1>
+            <p class="text-gray-500 text-sm mt-1">{{.App.RepoURL}}</p>
+        </div>
+        <span class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full {{statusBg .App.Status}} {{statusText .App.Status}} border {{statusBorder .App.Status}}">
+            <span class="w-1.5 h-1.5 rounded-full {{statusDot .App.Status}}"></span>
+            {{.App.Status}}
+        </span>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div>
+            <span class="text-gray-500 text-xs uppercase tracking-wider block mb-1">Branch</span>
+            <span class="text-gray-200">{{.App.Branch}}</span>
+        </div>
+        <div>
+            <span class="text-gray-500 text-xs uppercase tracking-wider block mb-1">Port</span>
+            <span class="text-gray-200">{{.App.InternalPort}}</span>
+        </div>
+        <div>
+            <span class="text-gray-500 text-xs uppercase tracking-wider block mb-1">Access</span>
+            {{if .App.AccessURL}}
+            <a href="{{.App.AccessURL}}" target="_blank" class="text-green-400 hover:text-green-300 transition">{{.App.AccessURL}}</a>
+            {{else}}
+            <span class="text-gray-600">—</span>
+            {{end}}
+        </div>
+        <div>
+            <span class="text-gray-500 text-xs uppercase tracking-wider block mb-1">Mode</span>
+            <span class="text-gray-200">{{.App.AccessMode}}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="flex items-end gap-3 mb-8">
+    <form hx-post="/apps/{{.App.ID}}/deploy" hx-target="#deploy-history" hx-swap="afterbegin"
+          class="flex items-end gap-2">
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Image Ref</label>
+            <input type="text" name="image_ref" required placeholder="user/app:tag"
+                value="{{.App.ImageRef}}"
+                class="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-gray-200 placeholder-gray-600 focus:border-green-400 focus:ring-1 focus:ring-green-400 focus:outline-none transition text-sm">
+        </div>
+        <input type="hidden" name="branch" value="{{.App.Branch}}">
+        <button type="submit"
+            class="bg-green-400 text-gray-950 font-bold px-4 py-2 rounded hover:bg-green-300 transition text-sm cursor-pointer whitespace-nowrap">
+            Deploy
+        </button>
+    </form>
+    <form hx-post="/apps/{{.App.ID}}/rollback" hx-target="#deploy-history" hx-swap="afterbegin">
+        <button type="submit" hx-confirm="Rollback to last successful deploy?"
+            class="bg-gray-800 text-gray-300 px-4 py-2 rounded hover:bg-gray-700 transition text-sm cursor-pointer">
+            Rollback
+        </button>
+    </form>
+    <div class="ml-auto">
+        <button hx-delete="/apps/{{.App.ID}}" hx-confirm="Delete {{.App.Name}}? This cannot be undone."
+            hx-on::after-request="if(event.detail.successful) window.location.href='/dashboard'"
+            class="text-gray-500 hover:text-red-400 transition text-sm cursor-pointer">
+            Delete App
+        </button>
+    </div>
+</div>
+
+<!-- Deploy History -->
+<h2 class="text-lg font-bold mb-4">Deploy History</h2>
+<div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="border-b border-gray-800 text-left text-xs text-gray-500 uppercase tracking-wider">
+                <th class="px-4 py-3">ID</th>
+                <th class="px-4 py-3">Image</th>
+                <th class="px-4 py-3">Status</th>
+                <th class="px-4 py-3">Triggered</th>
+                <th class="px-4 py-3">Commit</th>
+                <th class="px-4 py-3">Time</th>
+            </tr>
+        </thead>
+        <tbody id="deploy-history">
+            {{range .Deploys}}
+            {{template "deploy_row.html" dict "Deploy" . "AppID" $.App.ID}}
+            {{end}}
+            {{if not .Deploys}}
+            <tr>
+                <td colspan="6" class="px-4 py-8 text-center text-gray-600">No deploys yet.</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}

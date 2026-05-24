@@ -121,12 +121,8 @@ func (s *Service) ValidateSession(ctx context.Context, token string) (*domain.Us
 		return nil, domain.ErrUnauthorized
 	}
 
-	user, err := s.users.GetUserByUsername(ctx, "")
+	user, err := s.users.GetUserByID(ctx, userID)
 	if err != nil {
-		return nil, domain.ErrUnauthorized
-	}
-
-	if user.ID != userID {
 		return nil, domain.ErrUnauthorized
 	}
 

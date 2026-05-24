@@ -25,6 +25,20 @@ func (s *SQLiteStore) CreateUser(ctx context.Context, user *domain.User) error {
 	return nil
 }
 
+func (s *SQLiteStore) GetUserByID(ctx context.Context, id int64) (*domain.User, error) {
+	user := &domain.User{}
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, username, password_hash, created_at, updated_at FROM users WHERE id = ?`, id,
+	).Scan(&user.ID, &user.Username, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, domain.ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get user by id: %w", err)
+	}
+	return user, nil
+}
+
 func (s *SQLiteStore) GetUserByUsername(ctx context.Context, username string) (*domain.User, error) {
 	user := &domain.User{}
 	err := s.db.QueryRowContext(ctx,

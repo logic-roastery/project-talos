@@ -1,0 +1,24 @@
+{{define "app_row.html"}}
+<tr id="app-row-{{.ID}}" class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
+    <td class="px-4 py-3">
+        <a href="/apps/{{.ID}}" class="text-green-400 hover:text-green-300 font-medium">{{.Name}}</a>
+    </td>
+    <td class="px-4 py-3">
+        <span class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full {{statusBg .Status}} {{statusText .Status}} border {{statusBorder .Status}}">
+            <span class="w-1.5 h-1.5 rounded-full {{statusDot .Status}}"></span>
+            {{.Status}}
+        </span>
+    </td>
+    <td class="px-4 py-3 text-gray-400">{{.Branch}}</td>
+    <td class="px-4 py-3">
+        {{if .AccessURL}}
+        <a href="{{.AccessURL}}" target="_blank" class="text-gray-400 hover:text-green-400 transition text-xs">
+            {{.AccessURL}}
+        </a>
+        {{else}}
+        <span class="text-gray-600">—</span>
+        {{end}}
+    </td>
+    <td class="px-4 py-3 text-gray-500 text-xs">{{timeAgo .UpdatedAt}}</td>
+</tr>
+{{end}}

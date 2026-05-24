@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} — Talos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                fontFamily: {
+                    mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+                },
+            },
+        },
+    }
+    </script>
+    <style>
+        body { font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace; }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-950 text-gray-200">
+    {{if .User}}
+    <nav class="border-b border-gray-800 bg-gray-900/80 backdrop-blur px-6 py-3 flex items-center justify-between">
+        <a href="/dashboard" class="text-lg font-bold text-green-400 tracking-tight">talos</a>
+        <div class="flex items-center gap-4 text-sm">
+            <span class="text-gray-500">{{.User.Username}}</span>
+            <button hx-post="/logout" hx-push-url="true"
+                class="text-gray-400 hover:text-red-400 transition cursor-pointer">logout</button>
+        </div>
+    </nav>
+    {{end}}
+    <main class="mx-auto max-w-5xl px-6 py-8">
+        {{.Content}}
+    </main>
+    <div id="flash-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+</body>
+</html>

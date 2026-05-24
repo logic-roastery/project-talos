@@ -18,6 +18,7 @@ import (
 	"github.com/logic-roastery/project-talos/internal/runtime/docker"
 	"github.com/logic-roastery/project-talos/internal/server"
 	"github.com/logic-roastery/project-talos/internal/store"
+	"github.com/logic-roastery/project-talos/web"
 )
 
 func main() {
@@ -53,7 +54,13 @@ func main() {
 	engine := deploy.NewEngine(db, db, dockerClient, proxy, logger)
 	webhook := github.NewWebhookHandler(cfg.GitHub.WebhookSecret)
 
-	srv := server.New(db, db, db, authSvc, engine, webhook, cfg.Server.Host, logger)
+	renderer, err := web.NewRenderer()
+	if err != nil {
+		logger.Error("failed to create renderer", "error", err)
+		os.Exit(1)
+	}
+
+	srv := server.New(db, db, db, authSvc, engine, webhook, renderer, cfg.Server.Host, logger)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	httpServer := &http.Server{

@@ -38,6 +38,34 @@ func AuthMiddleware(authSvc *auth.Service) func(http.Handler) http.Handler {
 	}
 }
 
+func WebAuthMiddleware(authSvc *auth.Service) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			cookie, err := r.Cookie("talos_session")
+			if err != nil {
+				http.Redirect(w, r, "/login", http.StatusFound)
+				return
+			}
+
+			user, err := authSvc.ValidateSession(r.Context(), cookie.Value)
+			if err != nil {
+				http.SetCookie(w, &http.Cookie{
+					Name:     "talos_session",
+					Value:    "",
+					Path:     "/",
+					MaxAge:   -1,
+					HttpOnly: true,
+				})
+				http.Redirect(w, r, "/login", http.StatusFound)
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), handlers.UserCtxKey, user)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
 func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

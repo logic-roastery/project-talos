@@ -28,6 +28,7 @@ type DeployStore interface {
 
 type UserStore interface {
 	CreateUser(ctx context.Context, user *domain.User) error
+	GetUserByID(ctx context.Context, id int64) (*domain.User, error)
 	GetUserByUsername(ctx context.Context, username string) (*domain.User, error)
 	HasUsers(ctx context.Context) (bool, error)
 }

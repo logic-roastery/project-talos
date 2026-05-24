@@ -1,0 +1,13 @@
+{{define "deploy_status.html"}}
+<span class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full {{deployBg .Status}} {{deployText .Status}} border {{deployBorder .Status}}"
+    {{if or (eq .Status "running") (eq .Status "pending")}}
+    hx-get="/partials/deploy-status/{{.ID}}" hx-trigger="every 2s" hx-swap="outerHTML"
+    {{end}}>
+    {{if or (eq .Status "running") (eq .Status "pending")}}
+    <span class="w-1.5 h-1.5 rounded-full {{deployDot .Status}} animate-pulse"></span>
+    {{else}}
+    <span class="w-1.5 h-1.5 rounded-full {{deployDot .Status}}"></span>
+    {{end}}
+    {{.Status}}
+</span>
+{{end}}

@@ -1,0 +1,36 @@
+{{define "dashboard.html"}}
+<div class="flex items-center justify-between mb-8">
+    <h1 class="text-xl font-bold">Applications</h1>
+    <a href="/apps/new" class="bg-green-400 text-gray-950 font-bold px-4 py-2 rounded hover:bg-green-300 transition text-sm">
+        + New App
+    </a>
+</div>
+
+{{if .Apps}}
+<div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="border-b border-gray-800 text-left text-xs text-gray-500 uppercase tracking-wider">
+                <th class="px-4 py-3">Name</th>
+                <th class="px-4 py-3">Status</th>
+                <th class="px-4 py-3">Branch</th>
+                <th class="px-4 py-3">Access</th>
+                <th class="px-4 py-3">Last Deploy</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Apps}}
+            {{template "app_row.html" .}}
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{else}}
+<div class="bg-gray-900 border border-gray-800 rounded-lg p-12 text-center">
+    <p class="text-gray-500 mb-4">No applications yet.</p>
+    <a href="/apps/new" class="inline-block bg-green-400 text-gray-950 font-bold px-4 py-2 rounded hover:bg-green-300 transition text-sm">
+        Create your first app
+    </a>
+</div>
+{{end}}
+{{end}}
