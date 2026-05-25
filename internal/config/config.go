@@ -7,12 +7,13 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Auth     AuthConfig
-	Docker   DockerConfig
-	Traefik  TraefikConfig
-	GitHub   GitHubConfig
+	Server        ServerConfig
+	Database      DatabaseConfig
+	Auth          AuthConfig
+	Docker        DockerConfig
+	Traefik       TraefikConfig
+	GitHub        GitHubConfig
+	EncryptionKey string // base64-encoded 32-byte key, auto-generated if empty
 }
 
 type ServerConfig struct {
@@ -81,6 +82,7 @@ func Load() (*Config, error) {
 			ClientID:      envOrDefault("TALOS_GITHUB_APP_CLIENT_ID", ""),
 			ClientSecret:  envOrDefault("TALOS_GITHUB_APP_CLIENT_SECRET", ""),
 		},
+		EncryptionKey: envOrDefault("TALOS_ENCRYPTION_KEY", ""),
 	}
 	return cfg, nil
 }

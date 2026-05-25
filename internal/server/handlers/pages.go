@@ -19,6 +19,7 @@ type PageHandler struct {
 	apps     store.AppStore
 	deploys  store.DeployStore
 	users    store.UserStore
+	services store.ServiceStore
 	authSvc  *auth.Service
 	engine   *deploy.Engine
 	ghClient *github.AppClient
@@ -26,12 +27,13 @@ type PageHandler struct {
 }
 
 func NewPageHandler(renderer *web.Renderer, apps store.AppStore, deploys store.DeployStore,
-	users store.UserStore, authSvc *auth.Service, engine *deploy.Engine, ghClient *github.AppClient, host string) *PageHandler {
+	users store.UserStore, services store.ServiceStore, authSvc *auth.Service, engine *deploy.Engine, ghClient *github.AppClient, host string) *PageHandler {
 	return &PageHandler{
 		renderer: renderer,
 		apps:     apps,
 		deploys:  deploys,
 		users:    users,
+		services: services,
 		authSvc:  authSvc,
 		engine:   engine,
 		ghClient: ghClient,
@@ -380,6 +382,99 @@ func (h *PageHandler) DeployStatusPartial(w http.ResponseWriter, r *http.Request
 	}
 
 	h.renderer.RenderPartial(w, "deploy_status.html", d)
+}
+
+// --- Service Pages ---
+
+func (h *PageHandler) ServicesPage(w http.ResponseWriter, r *http.Request) {
+	svcs, err := h.services.ListServices(r.Context())
+	if err != nil {
+		http.Error(w, "failed to list services", http.StatusInternalServerError)
+		return
+	}
+	data := struct {
+		User     *web.UserData
+		Services []*domain.Service
+	}{
+		User:     h.userData(r),
+		Services: svcs,
+	}
+	h.renderer.Render(w, "services.html", "Services", h.userData(r), data)
+}
+
+func (h *PageHandler) ServiceCreatePage(w http.ResponseWriter, r *http.Request) {
+	data := struct {
+		User *web.UserData
+	}{
+		User: h.userData(r),
+	}
+	h.renderer.Render(w, "service_create.html", "Create Service", h.userData(r), data)
+}
+
+func (h *PageHandler) ServiceDetailPage(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r, "serviceID")
+	if err != nil {
+		http.Error(w, "invalid service id", http.StatusBadRequest)
+		return
+	}
+	svc, err := h.services.GetService(r.Context(), id)
+	if err != nil {
+		http.Error(w, "service not found", http.StatusNotFound)
+		return
+	}
+	svc.Credentials = ""
+
+	linkedApps, _ := h.services.GetLinkedApps(r.Context(), id)
+
+	data := struct {
+		User       *web.UserData
+		Service    *domain.Service
+		LinkedApps []*domain.AppService
+	}{
+		User:       h.userData(r),
+		Service:    svc,
+		LinkedApps: linkedApps,
+	}
+	h.renderer.Render(w, "service_detail.html", svc.Name, h.userData(r), data)
+}
+
+func (h *PageHandler) AppSettingsPage(w http.ResponseWriter, r *http.Request) {
+	appID, err := parseID(r, "appID")
+	if err != nil {
+		http.Error(w, "invalid app id", http.StatusBadRequest)
+		return
+	}
+	app, err := h.apps.GetApp(r.Context(), appID)
+	if err != nil {
+		http.Error(w, "app not found", http.StatusNotFound)
+		return
+	}
+
+	envVars, _ := h.services.GetAppEnvVars(r.Context(), appID)
+	links, _ := h.services.ListAppServices(r.Context(), appID)
+	allServices, _ := h.services.ListServices(r.Context())
+
+	// Mask secrets
+	for _, v := range envVars {
+		if v.IsSecret {
+			v.Value = "****"
+		}
+	}
+
+	data := struct {
+		User        *web.UserData
+		App         *domain.App
+		EnvVars     []*domain.AppEnvVar
+		Links       []*domain.AppService
+		AllServices []*domain.Service
+	}{
+		User:        h.userData(r),
+		App:         app,
+		EnvVars:     envVars,
+		Links:       links,
+		AllServices: allServices,
+	}
+	h.renderer.Render(w, "app_settings.html", app.Name+" Settings", h.userData(r), data)
 }
 
 func (h *PageHandler) AppRowPartial(w http.ResponseWriter, r *http.Request) {

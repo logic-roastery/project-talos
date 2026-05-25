@@ -89,6 +89,65 @@ func (c *Client) StartContainer(ctx context.Context, name, imageRef string, inte
 	return resp.ID, nil
 }
 
+// ContainerConfig holds advanced options for creating a container.
+type ContainerConfig struct {
+	Name         string
+	ImageRef     string
+	InternalPort int
+	Env          []string // KEY=VALUE pairs
+	Volumes      []string // hostPath:containerPath
+	HealthCheck  *container.HealthConfig
+	Labels       map[string]string
+}
+
+// StartContainerWithConfig creates and starts a container with full configuration
+// (volumes, env vars, custom health check, extra labels).
+func (c *Client) StartContainerWithConfig(ctx context.Context, cfg ContainerConfig) (string, error) {
+	c.EnsureNetwork(ctx)
+
+	labels := map[string]string{
+		"managed-by": "talos",
+	}
+	for k, v := range cfg.Labels {
+		labels[k] = v
+	}
+
+	exposedPorts := nat.PortSet{}
+	if cfg.InternalPort > 0 {
+		exposedPorts[nat.Port(fmt.Sprintf("%d/tcp", cfg.InternalPort))] = struct{}{}
+	}
+
+	config := &container.Config{
+		Image:        cfg.ImageRef,
+		ExposedPorts: exposedPorts,
+		Env:          cfg.Env,
+		Labels:       labels,
+	}
+	if cfg.HealthCheck != nil {
+		config.Healthcheck = cfg.HealthCheck
+	}
+
+	hostConfig := &container.HostConfig{
+		RestartPolicy: container.RestartPolicy{
+			Name: "unless-stopped",
+		},
+		NetworkMode: container.NetworkMode(c.network),
+		Binds:       cfg.Volumes,
+	}
+
+	resp, err := c.cli.ContainerCreate(ctx, config, hostConfig, nil, nil, cfg.Name)
+	if err != nil {
+		return "", fmt.Errorf("create container: %w", err)
+	}
+
+	if err := c.cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+		return "", fmt.Errorf("start container: %w", err)
+	}
+
+	c.logger.Info("container started", "id", resp.ID, "name", cfg.Name)
+	return resp.ID, nil
+}
+
 func (c *Client) WaitForHealth(ctx context.Context, containerID string, timeout time.Duration) error {
 	deadline := time.After(timeout)
 	ticker := time.NewTicker(1 * time.Second)

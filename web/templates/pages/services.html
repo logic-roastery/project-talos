@@ -1,0 +1,61 @@
+{{define "services.html"}}
+<div class="flex items-center justify-between mb-8">
+    <h1 class="text-xl font-bold">Managed Services</h1>
+    <a href="/services/new" class="bg-green-400 text-gray-950 font-bold px-4 py-2 rounded hover:bg-green-300 transition text-sm">
+        + New Service
+    </a>
+</div>
+
+{{if .Services}}
+<div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="border-b border-gray-800 text-left text-xs text-gray-500 uppercase tracking-wider">
+                <th class="px-4 py-3">Name</th>
+                <th class="px-4 py-3">Type</th>
+                <th class="px-4 py-3">Image</th>
+                <th class="px-4 py-3">Status</th>
+                <th class="px-4 py-3">Port</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Services}}
+            <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 cursor-pointer"
+                onclick="window.location='/services/{{.ID}}'">
+                <td class="px-4 py-3 font-medium text-gray-200">{{.Name}}</td>
+                <td class="px-4 py-3">
+                    <span class="text-xs px-2 py-1 rounded
+                        {{if eq .Type "postgres"}}bg-blue-900/50 text-blue-300
+                        {{else if eq .Type "mysql"}}bg-orange-900/50 text-orange-300
+                        {{else if eq .Type "redis"}}bg-red-900/50 text-red-300
+                        {{else if eq .Type "garage"}}bg-purple-900/50 text-purple-300
+                        {{else}}bg-gray-800 text-gray-400{{end}}">
+                        {{.Type}}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-gray-400 font-mono text-xs">{{.ImageRef}}</td>
+                <td class="px-4 py-3">
+                    <span class="text-xs px-2 py-1 rounded
+                        {{if eq .Status "active"}}bg-green-900/50 text-green-300
+                        {{else if eq .Status "provisioning"}}bg-yellow-900/50 text-yellow-300
+                        {{else if eq .Status "error"}}bg-red-900/50 text-red-300
+                        {{else if eq .Status "stopped"}}bg-gray-800 text-gray-400
+                        {{else}}bg-gray-800 text-gray-500{{end}}">
+                        {{.Status}}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-gray-400">{{.InternalPort}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{else}}
+<div class="bg-gray-900 border border-gray-800 rounded-lg p-12 text-center">
+    <p class="text-gray-500 mb-4">No managed services yet.</p>
+    <a href="/services/new" class="inline-block bg-green-400 text-gray-950 font-bold px-4 py-2 rounded hover:bg-green-300 transition text-sm">
+        Create your first service
+    </a>
+</div>
+{{end}}
+{{end}}

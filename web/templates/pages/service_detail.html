@@ -1,0 +1,111 @@
+{{define "service_detail.html"}}
+<div class="max-w-3xl mx-auto">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-xl font-bold">{{.Service.Name}}</h1>
+            <p class="text-sm text-gray-500">{{.Service.Type}} &middot; {{.Service.ImageRef}}</p>
+        </div>
+        <div class="flex gap-2">
+            {{if eq .Service.Status "active"}}
+            <button hx-post="/api/services/{{.Service.ID}}/stop"
+                hx-confirm="Stop this service?"
+                class="bg-yellow-900/50 text-yellow-300 px-4 py-2 rounded hover:bg-yellow-900 transition text-sm cursor-pointer">
+                Stop
+            </button>
+            {{else if eq .Service.Status "stopped"}}
+            <button hx-post="/api/services/{{.Service.ID}}/start"
+                class="bg-green-900/50 text-green-300 px-4 py-2 rounded hover:bg-green-900 transition text-sm cursor-pointer">
+                Start
+            </button>
+            {{end}}
+            <button hx-delete="/api/services/{{.Service.ID}}"
+                hx-confirm="Delete {{.Service.Name}}? This cannot be undone."
+                hx-on::after-request="if(event.detail.successful) window.location.href='/services'"
+                class="text-gray-500 hover:text-red-400 transition text-sm cursor-pointer">
+                Delete
+            </button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-6 mb-6">
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-6">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Status</h2>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Status</span>
+                    <span class="px-2 py-0.5 rounded text-xs
+                        {{if eq .Service.Status "active"}}bg-green-900/50 text-green-300
+                        {{else if eq .Service.Status "provisioning"}}bg-yellow-900/50 text-yellow-300
+                        {{else if eq .Service.Status "error"}}bg-red-900/50 text-red-300
+                        {{else if eq .Service.Status "stopped"}}bg-gray-800 text-gray-400
+                        {{else}}bg-gray-800 text-gray-500{{end}}">
+                        {{.Service.Status}}
+                    </span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Container ID</span>
+                    <span class="font-mono text-xs text-gray-300">{{if .Service.ContainerID}}{{.Service.ContainerID}}{{else}}—{{end}}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Port</span>
+                    <span class="text-gray-300">{{.Service.InternalPort}}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-6">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Credentials</h2>
+            <div id="creds-display" class="space-y-3 text-sm">
+                <button onclick="loadCredentials()" id="creds-btn"
+                    class="w-full bg-gray-800 text-gray-300 px-4 py-2 rounded hover:bg-gray-700 transition text-sm">
+                    Show Credentials
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-6">
+        <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Linked Apps</h2>
+        {{if .LinkedApps}}
+        <div class="space-y-2">
+            {{range .LinkedApps}}
+            <div class="flex items-center justify-between bg-gray-800 rounded px-4 py-2">
+                <span class="text-sm">App #{{.AppID}} &rarr; alias: <code class="text-green-400">{{.Alias}}</code></span>
+            </div>
+            {{end}}
+        </div>
+        {{else}}
+        <p class="text-sm text-gray-500">Not linked to any apps. Link from an app's Settings page.</p>
+        {{end}}
+    </div>
+</div>
+
+<script>
+async function loadCredentials() {
+    const res = await fetch('/api/services/{{.Service.ID}}/credentials');
+    if (!res.ok) { alert('Failed to load credentials'); return; }
+    const creds = await res.json();
+    const container = document.getElementById('creds-display');
+    container.innerHTML = '';
+    for (const [key, val] of Object.entries(creds)) {
+        if (!val) continue;
+        const row = document.createElement('div');
+        row.className = 'flex justify-between items-center';
+        row.innerHTML = '<span class="text-gray-500">' + key + '</span>' +
+            '<div class="flex items-center gap-2">' +
+            '<code class="text-xs text-gray-300 credential-value" data-value="' + val + '">••••••••</code>' +
+            '<button onclick="toggleCred(this)" class="text-gray-500 hover:text-gray-300 text-xs">👁</button>' +
+            '<button onclick="copyCred(\'' + val + '\')" class="text-gray-500 hover:text-gray-300 text-xs">📋</button>' +
+            '</div>';
+        container.appendChild(row);
+    }
+}
+
+function toggleCred(btn) {
+    const code = btn.parentElement.querySelector('.credential-value');
+    code.textContent = code.textContent === '••••••••' ? code.dataset.value : '••••••••';
+}
+
+function copyCred(val) { navigator.clipboard.writeText(val); }
+</script>
+{{end}}

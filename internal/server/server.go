@@ -12,6 +12,7 @@ import (
 	"github.com/logic-roastery/project-talos/internal/github"
 	"github.com/logic-roastery/project-talos/internal/runtime/docker"
 	"github.com/logic-roastery/project-talos/internal/server/handlers"
+	"github.com/logic-roastery/project-talos/internal/services"
 	"github.com/logic-roastery/project-talos/internal/store"
 	"github.com/logic-roastery/project-talos/web"
 )
@@ -25,8 +26,10 @@ func New(
 	apps store.AppStore,
 	deploys store.DeployStore,
 	users store.UserStore,
+	svcStore store.ServiceStore,
 	authSvc *auth.Service,
 	engine *deploy.Engine,
+	provisioner *services.Provisioner,
 	webhook *github.WebhookHandler,
 	ghClient *github.AppClient,
 	ghCfg config.GitHubConfig,
@@ -73,6 +76,28 @@ func New(
 		// Live log streaming
 		logH := handlers.NewLogHandler(apps, dockerClient, logger)
 		r.Get("/api/apps/{appID}/logs/stream", logH.StreamLogs)
+
+		// Service management
+		svcH := handlers.NewServiceHandler(svcStore, provisioner)
+		r.Route("/api/services", func(r chi.Router) {
+			r.Get("/", svcH.List)
+			r.Post("/", svcH.Create)
+			r.Get("/{serviceID}", svcH.Get)
+			r.Delete("/{serviceID}", svcH.Delete)
+			r.Post("/{serviceID}/stop", svcH.Stop)
+			r.Post("/{serviceID}/start", svcH.Start)
+			r.Get("/{serviceID}/credentials", svcH.GetCredentials)
+		})
+
+		// App-Service linking & env vars
+		r.Route("/api/apps/{appID}", func(r chi.Router) {
+			r.Post("/services", svcH.LinkAppService)
+			r.Delete("/services/{serviceID}", svcH.UnlinkAppService)
+			r.Get("/services", svcH.ListAppServices)
+			r.Get("/env", svcH.ListEnvVars)
+			r.Post("/env", svcH.SetEnvVar)
+			r.Delete("/env/{key}", svcH.DeleteEnvVar)
+		})
 
 		// GitHub integration routes
 		if ghClient != nil && ghClient.IsConfigured() {
@@ -169,7 +194,7 @@ func New(
 	})
 
 	// Page routes (HTML)
-	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, authSvc, engine, ghClient, serverHost)
+	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, svcStore, authSvc, engine, ghClient, serverHost)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/dashboard", http.StatusFound)
@@ -191,6 +216,10 @@ func New(
 		r.Delete("/apps/{appID}", pageH.DeleteApp)
 		r.Get("/partials/deploy-status/{deployID}", pageH.DeployStatusPartial)
 		r.Get("/partials/app-row/{appID}", pageH.AppRowPartial)
+		r.Get("/services", pageH.ServicesPage)
+		r.Get("/services/new", pageH.ServiceCreatePage)
+		r.Get("/services/{serviceID}", pageH.ServiceDetailPage)
+		r.Get("/apps/{appID}/settings", pageH.AppSettingsPage)
 		r.Post("/logout", pageH.Logout)
 	})
 

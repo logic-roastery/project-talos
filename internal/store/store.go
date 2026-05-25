@@ -33,3 +33,21 @@ type UserStore interface {
 	GetUserByUsername(ctx context.Context, username string) (*domain.User, error)
 	HasUsers(ctx context.Context) (bool, error)
 }
+
+type ServiceStore interface {
+	CreateService(ctx context.Context, svc *domain.Service) error
+	GetService(ctx context.Context, id int64) (*domain.Service, error)
+	GetServiceByName(ctx context.Context, name string) (*domain.Service, error)
+	ListServices(ctx context.Context) ([]*domain.Service, error)
+	UpdateService(ctx context.Context, svc *domain.Service) error
+	DeleteService(ctx context.Context, id int64) error
+
+	LinkAppService(ctx context.Context, appID, serviceID int64, alias string) error
+	UnlinkAppService(ctx context.Context, appID, serviceID int64) error
+	ListAppServices(ctx context.Context, appID int64) ([]*domain.AppService, error)
+	GetLinkedApps(ctx context.Context, serviceID int64) ([]*domain.AppService, error)
+
+	SetAppEnvVar(ctx context.Context, envVar *domain.AppEnvVar) error
+	GetAppEnvVars(ctx context.Context, appID int64) ([]*domain.AppEnvVar, error)
+	DeleteAppEnvVar(ctx context.Context, appID int64, key string) error
+}

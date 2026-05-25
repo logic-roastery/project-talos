@@ -7,16 +7,19 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/logic-roastery/project-talos/internal/auth"
 	"github.com/logic-roastery/project-talos/internal/config"
+	"github.com/logic-roastery/project-talos/internal/crypto"
 	"github.com/logic-roastery/project-talos/internal/deploy"
 	"github.com/logic-roastery/project-talos/internal/github"
 	"github.com/logic-roastery/project-talos/internal/proxy/traefik"
 	"github.com/logic-roastery/project-talos/internal/runtime/docker"
 	"github.com/logic-roastery/project-talos/internal/server"
+	"github.com/logic-roastery/project-talos/internal/services"
 	"github.com/logic-roastery/project-talos/internal/store"
 	"github.com/logic-roastery/project-talos/web"
 )
@@ -51,7 +54,17 @@ func main() {
 	}
 
 	authSvc := auth.NewService(db, cfg.Auth.SessionSecret, time.Duration(cfg.Auth.SessionMaxAge)*time.Second)
-	engine := deploy.NewEngine(db, db, dockerClient, proxy, logger)
+
+	// Initialize encryption key
+	encKey, err := crypto.DecodeKey(cfg.EncryptionKey)
+	if err != nil {
+		logger.Error("invalid encryption key", "error", err)
+		os.Exit(1)
+	}
+
+	dataDir := filepath.Dir(cfg.Database.Path)
+	provisioner := services.NewProvisioner(db, dockerClient, dataDir, encKey, logger)
+	engine := deploy.NewEngine(db, db, db, provisioner, dockerClient, proxy, logger)
 	webhook := github.NewWebhookHandler(cfg.GitHub.WebhookSecret)
 
 	// Initialize GitHub App client (optional)
@@ -71,7 +84,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := server.New(db, db, db, authSvc, engine, webhook, ghClient, cfg.GitHub, dockerClient, renderer, cfg.Server.Host, logger)
+	srv := server.New(db, db, db, db, authSvc, engine, provisioner, webhook, ghClient, cfg.GitHub, dockerClient, renderer, cfg.Server.Host, logger)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	httpServer := &http.Server{

@@ -93,6 +93,10 @@
             Rollback
         </button>
     </form>
+    <a href="/apps/{{.App.ID}}/settings"
+        class="bg-gray-800 text-gray-300 px-4 py-2 rounded hover:bg-gray-700 transition text-sm">
+        Settings
+    </a>
     <div class="ml-auto">
         <button hx-delete="/apps/{{.App.ID}}" hx-confirm="Delete {{.App.Name}}? This cannot be undone."
             hx-on::after-request="if(event.detail.successful) window.location.href='/dashboard'"

@@ -49,6 +49,35 @@ var migrations = []string{
 		created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)`,
 	`CREATE INDEX IF NOT EXISTS idx_deploys_app_id ON deploys(app_id)`,
+	`CREATE TABLE IF NOT EXISTS services (
+		id            INTEGER PRIMARY KEY AUTOINCREMENT,
+		name          TEXT    NOT NULL UNIQUE,
+		type          TEXT    NOT NULL,
+		image_ref     TEXT    NOT NULL,
+		status        TEXT    NOT NULL DEFAULT 'pending',
+		container_id  TEXT    DEFAULT '',
+		app_id        INTEGER REFERENCES apps(id) ON DELETE SET NULL,
+		volume_path   TEXT    NOT NULL DEFAULT '',
+		credentials   TEXT    NOT NULL DEFAULT '',
+		config        TEXT    NOT NULL DEFAULT '{}',
+		internal_port INTEGER NOT NULL DEFAULT 0,
+		created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`,
+	`CREATE TABLE IF NOT EXISTS app_services (
+		app_id     INTEGER NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
+		service_id INTEGER NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+		alias      TEXT    NOT NULL DEFAULT '',
+		PRIMARY KEY (app_id, service_id)
+	)`,
+	`CREATE TABLE IF NOT EXISTS app_env_vars (
+		id        INTEGER PRIMARY KEY AUTOINCREMENT,
+		app_id    INTEGER NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
+		key       TEXT    NOT NULL,
+		value     TEXT    NOT NULL DEFAULT '',
+		is_secret INTEGER NOT NULL DEFAULT 0,
+		UNIQUE(app_id, key)
+	)`,
 }
 
 // alterMigrations are ALTER TABLE statements that may fail if columns already exist.

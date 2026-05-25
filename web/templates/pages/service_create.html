@@ -1,0 +1,242 @@
+{{define "service_create.html"}}
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-xl font-bold mb-8">Create Service</h1>
+
+    <form id="create-service-form" class="space-y-6">
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Service Type</h2>
+            <div class="grid grid-cols-4 gap-3">
+                <button type="button" onclick="selectType('postgres')"
+                    class="type-btn bg-gray-800 border border-gray-700 rounded-lg p-4 text-center hover:border-blue-500 transition"
+                    data-type="postgres">
+                    <div class="text-lg mb-1">🐘</div>
+                    <div class="text-sm font-medium">PostgreSQL</div>
+                </button>
+                <button type="button" onclick="selectType('mysql')"
+                    class="type-btn bg-gray-800 border border-gray-700 rounded-lg p-4 text-center hover:border-orange-500 transition"
+                    data-type="mysql">
+                    <div class="text-lg mb-1">🐬</div>
+                    <div class="text-sm font-medium">MySQL</div>
+                </button>
+                <button type="button" onclick="selectType('redis')"
+                    class="type-btn bg-gray-800 border border-gray-700 rounded-lg p-4 text-center hover:border-red-500 transition"
+                    data-type="redis">
+                    <div class="text-lg mb-1">⚡</div>
+                    <div class="text-sm font-medium">Redis</div>
+                </button>
+                <button type="button" onclick="selectType('garage')"
+                    class="type-btn bg-gray-800 border border-gray-700 rounded-lg p-4 text-center hover:border-purple-500 transition"
+                    data-type="garage">
+                    <div class="text-lg mb-1">🪣</div>
+                    <div class="text-sm font-medium">Garage S3</div>
+                </button>
+            </div>
+            <input type="hidden" name="type" id="service-type" required>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Service Name</h2>
+            <div class="flex gap-2">
+                <input type="text" name="name" id="service-name" placeholder="auto-generated"
+                    class="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+                <button type="button" onclick="randomizeName()"
+                    class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Randomize">
+                    🎲
+                </button>
+            </div>
+        </div>
+
+        <!-- Database credentials (postgres/mysql) -->
+        <div id="creds-database" class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4 hidden">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Credentials</h2>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Database Name</label>
+                <input type="text" name="database" id="cred-database" value="app"
+                    class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Username</label>
+                <div class="flex gap-2">
+                    <input type="text" name="user" id="cred-user" value="postgres"
+                        class="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+                    <button type="button" onclick="randomizeField('cred-user', 12)"
+                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Randomize">
+                        🎲
+                    </button>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Password</label>
+                <div class="flex gap-2">
+                    <input type="password" name="password" id="cred-password"
+                        class="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+                    <button type="button" onclick="togglePassword('cred-password')"
+                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Show/Hide">
+                        👁
+                    </button>
+                    <button type="button" onclick="randomizeField('cred-password', 24)"
+                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Randomize">
+                        🎲
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Redis credentials -->
+        <div id="creds-redis" class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4 hidden">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Credentials</h2>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Password</label>
+                <div class="flex gap-2">
+                    <input type="password" name="redis-password" id="cred-redis-password"
+                        class="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+                    <button type="button" onclick="togglePassword('cred-redis-password')"
+                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Show/Hide">
+                        👁
+                    </button>
+                    <button type="button" onclick="randomizeField('cred-redis-password', 24)"
+                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Randomize">
+                        🎲
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Garage credentials -->
+        <div id="creds-garage" class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4 hidden">
+            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Credentials</h2>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Region</label>
+                <input type="text" name="region" id="cred-region" value="garage"
+                    class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Access Key</label>
+                <div class="flex gap-2">
+                    <input type="text" name="access_key" id="cred-access-key"
+                        class="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+                    <button type="button" onclick="randomizeField('cred-access-key', 20)"
+                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Randomize">
+                        🎲
+                    </button>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Secret Key</label>
+                <div class="flex gap-2">
+                    <input type="password" name="secret_key" id="cred-secret-key"
+                        class="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+                    <button type="button" onclick="togglePassword('cred-secret-key')"
+                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Show/Hide">
+                        👁
+                    </button>
+                    <button type="button" onclick="randomizeField('cred-secret-key', 40)"
+                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Randomize">
+                        🎲
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-3">
+            <a href="/services" class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition">Cancel</a>
+            <button type="submit" class="bg-green-400 text-gray-950 font-bold px-6 py-2 rounded hover:bg-green-300 transition text-sm">
+                Create Service
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+const TYPE_DEFAULTS = {
+    postgres: { user: 'postgres', database: 'app' },
+    mysql:    { user: 'mysql',    database: 'app' },
+    redis:    {},
+    garage:   { region: 'garage' }
+};
+
+function selectType(type) {
+    document.getElementById('service-type').value = type;
+    document.querySelectorAll('.type-btn').forEach(btn => {
+        btn.classList.toggle('border-green-500', btn.dataset.type === type);
+        btn.classList.toggle('border-gray-700', btn.dataset.type !== type);
+    });
+
+    document.getElementById('creds-database').classList.toggle('hidden', type !== 'postgres' && type !== 'mysql');
+    document.getElementById('creds-redis').classList.toggle('hidden', type !== 'redis');
+    document.getElementById('creds-garage').classList.toggle('hidden', type !== 'garage');
+
+    const defs = TYPE_DEFAULTS[type] || {};
+    if (defs.user) document.getElementById('cred-user').value = defs.user;
+    if (defs.database) document.getElementById('cred-database').value = defs.database;
+    if (defs.region) document.getElementById('cred-region').value = defs.region;
+
+    if (type === 'postgres' || type === 'mysql') {
+        randomizeField('cred-password', 24);
+    } else if (type === 'redis') {
+        randomizeField('cred-redis-password', 24);
+    } else if (type === 'garage') {
+        randomizeField('cred-access-key', 20);
+        randomizeField('cred-secret-key', 40);
+    }
+}
+
+function randomizeName() {
+    const type = document.getElementById('service-type').value || 'svc';
+    const prefix = type.substring(0, 4);
+    const suffix = Array.from(crypto.getRandomValues(new Uint8Array(4)))
+        .map(b => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
+    document.getElementById('service-name').value = prefix + '-' + suffix;
+}
+
+function randomizeField(id, length) {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    const arr = new Uint8Array(length);
+    crypto.getRandomValues(arr);
+    document.getElementById(id).value = Array.from(arr).map(b => chars[b % chars.length]).join('');
+}
+
+function togglePassword(id) {
+    const el = document.getElementById(id);
+    el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+document.getElementById('create-service-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const type = document.getElementById('service-type').value;
+    if (!type) { alert('Select a service type'); return; }
+
+    const body = { name: document.getElementById('service-name').value, type: type, credentials: {} };
+
+    if (type === 'postgres' || type === 'mysql') {
+        body.credentials = {
+            database: document.getElementById('cred-database').value,
+            user: document.getElementById('cred-user').value,
+            password: document.getElementById('cred-password').value
+        };
+    } else if (type === 'redis') {
+        body.credentials = { password: document.getElementById('cred-redis-password').value };
+    } else if (type === 'garage') {
+        body.credentials = {
+            region: document.getElementById('cred-region').value,
+            access_key: document.getElementById('cred-access-key').value,
+            secret_key: document.getElementById('cred-secret-key').value
+        };
+    }
+
+    const res = await fetch('/api/services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+
+    if (res.ok) {
+        const svc = await res.json();
+        window.location.href = '/services/' + svc.id;
+    } else {
+        const err = await res.json();
+        alert('Failed: ' + (err.error || 'unknown error'));
+    }
+});
+</script>
+{{end}}
