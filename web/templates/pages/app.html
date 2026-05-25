@@ -1,14 +1,14 @@
 {{define "app.html"}}
 <div class="mb-6">
-    <a href="/dashboard" class="text-gray-500 hover:text-gray-300 text-sm transition">&larr; Back to dashboard</a>
+    <a href="/dashboard" class="text-muted hover:text-gray-200 text-sm transition">&larr; Back to dashboard</a>
 </div>
 
 <!-- App Info -->
-<div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
+<div class="bg-night border border-hairline rounded-xl p-6 mb-6">
     <div class="flex items-start justify-between mb-4">
         <div>
-            <h1 class="text-xl font-bold">{{.App.Name}}</h1>
-            <p class="text-gray-500 text-sm mt-1">{{.App.RepoURL}}</p>
+            <h1 class="text-xl font-semibold text-gray-100">{{.App.Name}}</h1>
+            <p class="text-muted text-sm mt-1">{{.App.RepoURL}}</p>
         </div>
         <span class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full {{statusBg .App.Status}} {{statusText .App.Status}} border {{statusBorder .App.Status}}">
             <span class="w-1.5 h-1.5 rounded-full {{statusDot .App.Status}}"></span>
@@ -17,54 +17,54 @@
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
         <div>
-            <span class="text-gray-500 text-xs uppercase tracking-wider block mb-1">Branch</span>
+            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Branch</span>
             <span class="text-gray-200">{{.App.Branch}}</span>
         </div>
         <div>
-            <span class="text-gray-500 text-xs uppercase tracking-wider block mb-1">Port</span>
+            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Port</span>
             <span class="text-gray-200">{{.App.InternalPort}}</span>
         </div>
         <div>
-            <span class="text-gray-500 text-xs uppercase tracking-wider block mb-1">Access</span>
+            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Access</span>
             {{if .App.AccessURL}}
-            <a href="{{.App.AccessURL}}" target="_blank" class="text-green-400 hover:text-green-300 transition">{{.App.AccessURL}}</a>
+            <a href="{{.App.AccessURL}}" target="_blank" class="text-violet hover:text-lime-accent transition">{{.App.AccessURL}}</a>
             {{else}}
             <span class="text-gray-600">—</span>
             {{end}}
         </div>
         <div>
-            <span class="text-gray-500 text-xs uppercase tracking-wider block mb-1">Mode</span>
+            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Mode</span>
             <span class="text-gray-200">{{.App.AccessMode}}</span>
         </div>
     </div>
 </div>
 
 <!-- GitHub Integration -->
-<div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
-    <h2 class="text-lg font-bold mb-4">GitHub Integration</h2>
+<div class="bg-night border border-hairline rounded-xl p-6 mb-6">
+    <h2 class="text-lg font-semibold text-gray-100 mb-4">GitHub Integration</h2>
     {{if .App.GitHubInstallationID}}
     <div class="flex items-center gap-3 mb-4">
-        <span class="w-2 h-2 rounded-full bg-green-400"></span>
-        <span class="text-green-400 text-sm">Connected</span>
-        <span class="text-gray-500 text-sm">Repository ID: {{.App.GitHubRepoID}}</span>
+        <span class="w-2 h-2 rounded-full bg-lime-accent"></span>
+        <span class="text-lime-accent text-sm">Connected</span>
+        <span class="text-muted text-sm">Repository ID: {{.App.GitHubRepoID}}</span>
     </div>
     <p class="text-gray-400 text-sm mb-4">Auto-deploy is enabled. Pushes to <strong class="text-gray-200">{{.App.Branch}}</strong> will trigger automatic deployments.</p>
     <button hx-post="/api/github/disconnect?app_id={{.App.ID}}" hx-confirm="Disconnect GitHub? Auto-deploy will be disabled."
         hx-on::after-request="if(event.detail.successful) window.location.reload()"
-        class="text-gray-500 hover:text-red-400 transition text-sm cursor-pointer">
+        class="text-muted hover:text-pink-accent transition text-sm cursor-pointer">
         Disconnect GitHub
     </button>
     {{else if .GitHubConfigured}}
     <p class="text-gray-400 text-sm mb-4">Connect to GitHub to enable automatic deployments on push.</p>
     <a href="/api/github/install?app_id={{.App.ID}}"
-        class="inline-flex items-center gap-2 bg-gray-800 text-gray-200 px-4 py-2 rounded hover:bg-gray-700 transition text-sm">
+        class="inline-flex items-center gap-2 bg-hairline text-gray-200 px-4 py-2 rounded-xl hover:bg-violet-mid transition text-sm">
         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
         Connect to GitHub
     </a>
     {{else}}
     <p class="text-gray-400 text-sm mb-4">GitHub App is not configured. Set up a GitHub App to enable auto-deployments.</p>
     <a href="/settings/github/setup"
-        class="inline-flex items-center gap-2 bg-gray-800 text-gray-200 px-4 py-2 rounded hover:bg-gray-700 transition text-sm">
+        class="inline-flex items-center gap-2 bg-hairline text-gray-200 px-4 py-2 rounded-xl hover:bg-violet-mid transition text-sm">
         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
         Set up GitHub App
     </a>
@@ -76,58 +76,58 @@
     <form hx-post="/apps/{{.App.ID}}/deploy" hx-target="#deploy-history" hx-swap="afterbegin"
           class="flex items-end gap-2">
         <div>
-            <label class="block text-xs text-gray-500 mb-1">Image Ref</label>
+            <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Image Ref</label>
             <input type="text" name="image_ref" required placeholder="user/app:tag"
                 value="{{.App.ImageRef}}"
-                class="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-gray-200 placeholder-gray-600 focus:border-green-400 focus:ring-1 focus:ring-green-400 focus:outline-none transition text-sm">
+                class="bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-gray-200 placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition text-sm">
         </div>
         <input type="hidden" name="branch" value="{{.App.Branch}}">
         <button type="submit"
-            class="bg-green-400 text-gray-950 font-bold px-4 py-2 rounded hover:bg-green-300 transition text-sm cursor-pointer whitespace-nowrap">
+            class="bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition text-sm cursor-pointer whitespace-nowrap uppercase tracking-wider">
             Deploy
         </button>
     </form>
     <form hx-post="/apps/{{.App.ID}}/rollback" hx-target="#deploy-history" hx-swap="afterbegin">
         <button type="submit" hx-confirm="Rollback to last successful deploy?"
-            class="bg-gray-800 text-gray-300 px-4 py-2 rounded hover:bg-gray-700 transition text-sm cursor-pointer">
+            class="bg-hairline text-muted px-4 py-2 rounded-xl hover:text-gray-200 transition text-sm cursor-pointer">
             Rollback
         </button>
     </form>
     <a href="/apps/{{.App.ID}}/settings"
-        class="bg-gray-800 text-gray-300 px-4 py-2 rounded hover:bg-gray-700 transition text-sm">
+        class="bg-violet-mid text-white px-4 py-2 rounded-xl hover:bg-violet transition text-sm">
         Settings
     </a>
     <div class="ml-auto">
         <button hx-delete="/apps/{{.App.ID}}" hx-confirm="Delete {{.App.Name}}? This cannot be undone."
             hx-on::after-request="if(event.detail.successful) window.location.href='/dashboard'"
-            class="text-gray-500 hover:text-red-400 transition text-sm cursor-pointer">
+            class="text-muted hover:text-pink-accent transition text-sm cursor-pointer">
             Delete App
         </button>
     </div>
 </div>
 
 <!-- Live Logs -->
-<div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
+<div class="bg-night border border-hairline rounded-xl p-6 mb-6">
     <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-bold">Live Logs</h2>
+        <h2 class="text-lg font-semibold text-gray-100">Live Logs</h2>
         <div class="flex items-center gap-2">
-            <span id="log-status" class="text-xs text-gray-500">Disconnected</span>
+            <span id="log-status" class="text-xs text-muted">Disconnected</span>
             <button id="log-toggle" onclick="toggleLogs()"
-                class="text-xs px-3 py-1 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 transition cursor-pointer">
+                class="text-xs px-3 py-1 rounded-xl bg-hairline text-muted hover:text-gray-200 transition cursor-pointer">
                 Connect
             </button>
         </div>
     </div>
-    <div id="log-output" class="bg-gray-950 border border-gray-800 rounded p-4 h-64 overflow-y-auto font-mono text-xs text-gray-400 hidden">
+    <div id="log-output" class="bg-canvas-dark border border-hairline rounded-md p-4 h-64 overflow-y-auto font-mono text-xs text-muted hidden">
     </div>
 </div>
 
 <!-- Deploy History -->
-<h2 class="text-lg font-bold mb-4">Deploy History</h2>
-<div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+<h2 class="text-lg font-semibold text-gray-100 mb-4">Deploy History</h2>
+<div class="bg-night border border-hairline rounded-xl overflow-hidden">
     <table class="w-full text-sm">
         <thead>
-            <tr class="border-b border-gray-800 text-left text-xs text-gray-500 uppercase tracking-wider">
+            <tr class="border-b border-hairline text-left text-xs text-muted uppercase tracking-wider">
                 <th class="px-4 py-3">ID</th>
                 <th class="px-4 py-3">Image</th>
                 <th class="px-4 py-3">Status</th>
@@ -142,7 +142,7 @@
             {{end}}
             {{if not .Deploys}}
             <tr>
-                <td colspan="6" class="px-4 py-8 text-center text-gray-600">No deploys yet.</td>
+                <td colspan="6" class="px-4 py-8 text-center text-muted">No deploys yet.</td>
             </tr>
             {{end}}
         </tbody>
@@ -167,7 +167,7 @@
         div.className = 'py-0.5';
         var prefix = '';
         if (type === 'stderr') {
-            div.className += ' text-red-400';
+            div.className += ' text-pink-accent';
             prefix = '[err] ';
         }
         div.textContent = prefix + data;
@@ -179,7 +179,7 @@
         if (logSource) {
             logSource.close();
             logSource = null;
-            setStatus('Disconnected', 'text-gray-500');
+            setStatus('Disconnected', 'text-muted');
             logToggle.textContent = 'Connect';
             logOutput.classList.add('hidden');
         } else {
@@ -192,7 +192,7 @@
 
             logSource.addEventListener('status', function(e) {
                 if (e.data === 'connected') {
-                    setStatus('Connected', 'text-green-400');
+                    setStatus('Connected', 'text-lime-accent');
                 } else if (e.data === 'stopped') {
                     setStatus('Container stopped', 'text-yellow-400');
                     logSource.close();
@@ -213,7 +213,7 @@
                 if (logSource) {
                     logSource.close();
                     logSource = null;
-                    setStatus('Disconnected', 'text-gray-500');
+                    setStatus('Disconnected', 'text-muted');
                     logToggle.textContent = 'Connect';
                 }
             };

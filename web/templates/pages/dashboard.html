@@ -1,16 +1,16 @@
 {{define "dashboard.html"}}
 <div class="flex items-center justify-between mb-8">
-    <h1 class="text-xl font-bold">Applications</h1>
-    <a href="/apps/new" class="bg-green-400 text-gray-950 font-bold px-4 py-2 rounded hover:bg-green-300 transition text-sm">
+    <h1 class="text-xl font-semibold text-gray-100">Applications</h1>
+    <a href="/apps/new" class="bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
         + New App
     </a>
 </div>
 
 {{if .Apps}}
-<div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+<div class="bg-night border border-hairline rounded-xl overflow-hidden">
     <table class="w-full text-sm">
         <thead>
-            <tr class="border-b border-gray-800 text-left text-xs text-gray-500 uppercase tracking-wider">
+            <tr class="border-b border-hairline text-left text-xs text-muted uppercase tracking-wider">
                 <th class="px-4 py-3">Name</th>
                 <th class="px-4 py-3">Status</th>
                 <th class="px-4 py-3">Branch</th>
@@ -26,9 +26,9 @@
     </table>
 </div>
 {{else}}
-<div class="bg-gray-900 border border-gray-800 rounded-lg p-12 text-center">
-    <p class="text-gray-500 mb-4">No applications yet.</p>
-    <a href="/apps/new" class="inline-block bg-green-400 text-gray-950 font-bold px-4 py-2 rounded hover:bg-green-300 transition text-sm">
+<div class="bg-night border border-hairline rounded-xl p-12 text-center">
+    <p class="text-muted mb-4">No applications yet.</p>
+    <a href="/apps/new" class="inline-block bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
         Create your first app
     </a>
 </div>

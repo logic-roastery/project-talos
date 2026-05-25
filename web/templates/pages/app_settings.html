@@ -2,39 +2,39 @@
 <div class="max-w-3xl mx-auto">
     <div class="flex items-center justify-between mb-8">
         <div>
-            <h1 class="text-xl font-bold">{{.App.Name}} — Settings</h1>
-            <p class="text-sm text-gray-500">Environment variables and linked services</p>
+            <h1 class="text-xl font-semibold text-gray-100">{{.App.Name}} — Settings</h1>
+            <p class="text-sm text-muted">Environment variables and linked services</p>
         </div>
-        <a href="/apps/{{.App.ID}}" class="text-sm text-gray-400 hover:text-gray-200 transition">← Back to App</a>
+        <a href="/apps/{{.App.ID}}" class="text-sm text-muted hover:text-gray-200 transition">← Back to App</a>
     </div>
 
     <!-- Linked Services -->
-    <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
+    <div class="bg-night border border-hairline rounded-xl p-6 mb-6">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Linked Services</h2>
+            <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Linked Services</h2>
         </div>
 
         {{if .Links}}
         <div class="space-y-2 mb-4">
             {{range .Links}}
-            <div class="flex items-center justify-between bg-gray-800 rounded px-4 py-2" id="link-{{.ServiceID}}">
-                <span class="text-sm">Service #{{.ServiceID}} → <code class="text-green-400">{{.Alias}}</code></span>
+            <div class="flex items-center justify-between bg-ink rounded-md px-4 py-2" id="link-{{.ServiceID}}">
+                <span class="text-sm">Service #{{.ServiceID}} → <code class="text-lime-accent">{{.Alias}}</code></span>
                 <button hx-delete="/api/apps/{{$.App.ID}}/services/{{.ServiceID}}"
                     hx-confirm="Unlink this service?"
                     hx-target="#link-{{.ServiceID}}"
                     hx-swap="outerHTML"
-                    class="text-gray-500 hover:text-red-400 text-xs cursor-pointer">✕ Unlink</button>
+                    class="text-muted hover:text-pink-accent text-xs cursor-pointer">✕ Unlink</button>
             </div>
             {{end}}
         </div>
         {{else}}
-        <p class="text-sm text-gray-500 mb-4">No services linked yet.</p>
+        <p class="text-sm text-muted mb-4">No services linked yet.</p>
         {{end}}
 
         {{if .AllServices}}
         <form id="link-form" class="flex gap-2">
             <select name="service_id" id="link-service"
-                class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+                class="bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
                 <option value="">Select service...</option>
                 {{range .AllServices}}
                 {{if eq .Status "active"}}
@@ -43,9 +43,9 @@
                 {{end}}
             </select>
             <input type="text" name="alias" placeholder="Alias (e.g. DATABASE)" id="link-alias"
-                class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500"
+                class="bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30"
                 style="text-transform: uppercase;">
-            <button type="submit" class="bg-green-400 text-gray-950 font-bold px-4 py-2 rounded hover:bg-green-300 transition text-sm">
+            <button type="submit" class="bg-lime-accent text-midnight font-bold px-4 py-2 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
                 Link
             </button>
         </form>
@@ -53,43 +53,43 @@
     </div>
 
     <!-- Environment Variables -->
-    <div class="bg-gray-900 border border-gray-800 rounded-lg p-6">
-        <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Environment Variables</h2>
+    <div class="bg-night border border-hairline rounded-xl p-6">
+        <h2 class="text-sm font-semibold text-muted uppercase tracking-wider mb-4">Environment Variables</h2>
 
         <div id="env-vars-list">
             {{if .EnvVars}}
             <div class="space-y-2 mb-4">
                 {{range .EnvVars}}
-                <div class="flex items-center justify-between bg-gray-800 rounded px-4 py-2" id="env-{{.Key}}">
+                <div class="flex items-center justify-between bg-ink rounded-md px-4 py-2" id="env-{{.Key}}">
                     <div class="flex items-center gap-3">
-                        <code class="text-sm text-green-400">{{.Key}}</code>
-                        <span class="text-gray-500">=</span>
-                        <code class="text-sm text-gray-300">{{.Value}}</code>
-                        {{if .IsSecret}}<span class="text-xs px-1.5 py-0.5 bg-yellow-900/50 text-yellow-300 rounded">secret</span>{{end}}
+                        <code class="text-sm text-lime-accent font-mono">{{.Key}}</code>
+                        <span class="text-muted">=</span>
+                        <code class="text-sm text-gray-300 font-mono">{{.Value}}</code>
+                        {{if .IsSecret}}<span class="text-xs px-1.5 py-0.5 bg-yellow-400/10 text-yellow-400 rounded-md">secret</span>{{end}}
                     </div>
                     <button hx-delete="/api/apps/{{$.App.ID}}/env/{{.Key}}"
                         hx-confirm="Delete {{.Key}}?"
                         hx-target="#env-{{.Key}}"
                         hx-swap="outerHTML"
-                        class="text-gray-500 hover:text-red-400 text-xs cursor-pointer">✕</button>
+                        class="text-muted hover:text-pink-accent text-xs cursor-pointer">✕</button>
                 </div>
                 {{end}}
             </div>
             {{else}}
-            <p class="text-sm text-gray-500 mb-4">No custom environment variables.</p>
+            <p class="text-sm text-muted mb-4">No custom environment variables.</p>
             {{end}}
         </div>
 
         <form id="env-form" class="flex gap-2">
             <input type="text" name="key" placeholder="KEY" required id="env-key"
-                class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500"
+                class="bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30"
                 style="text-transform: uppercase;">
             <input type="text" name="value" placeholder="value" required id="env-value"
-                class="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
-            <label class="flex items-center gap-1 text-xs text-gray-500">
-                <input type="checkbox" id="env-secret" value="true"> Secret
+                class="flex-1 bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
+            <label class="flex items-center gap-1 text-xs text-muted">
+                <input type="checkbox" id="env-secret" value="true" class="accent-violet"> Secret
             </label>
-            <button type="submit" class="bg-green-400 text-gray-950 font-bold px-4 py-2 rounded hover:bg-green-300 transition text-sm">
+            <button type="submit" class="bg-lime-accent text-midnight font-bold px-4 py-2 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
                 Add
             </button>
         </form>

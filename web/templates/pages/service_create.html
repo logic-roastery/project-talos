@@ -1,31 +1,31 @@
 {{define "service_create.html"}}
 <div class="max-w-2xl mx-auto">
-    <h1 class="text-xl font-bold mb-8">Create Service</h1>
+    <h1 class="text-xl font-semibold text-gray-100 mb-8">Create Service</h1>
 
     <form id="create-service-form" class="space-y-6">
-        <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4">
-            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Service Type</h2>
+        <div class="bg-night border border-hairline rounded-xl p-6 space-y-4">
+            <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Service Type</h2>
             <div class="grid grid-cols-4 gap-3">
                 <button type="button" onclick="selectType('postgres')"
-                    class="type-btn bg-gray-800 border border-gray-700 rounded-lg p-4 text-center hover:border-blue-500 transition"
+                    class="type-btn bg-ink border border-hairline rounded-xl p-4 text-center hover:border-violet transition"
                     data-type="postgres">
                     <div class="text-lg mb-1">🐘</div>
                     <div class="text-sm font-medium">PostgreSQL</div>
                 </button>
                 <button type="button" onclick="selectType('mysql')"
-                    class="type-btn bg-gray-800 border border-gray-700 rounded-lg p-4 text-center hover:border-orange-500 transition"
+                    class="type-btn bg-ink border border-hairline rounded-xl p-4 text-center hover:border-violet transition"
                     data-type="mysql">
                     <div class="text-lg mb-1">🐬</div>
                     <div class="text-sm font-medium">MySQL</div>
                 </button>
                 <button type="button" onclick="selectType('redis')"
-                    class="type-btn bg-gray-800 border border-gray-700 rounded-lg p-4 text-center hover:border-red-500 transition"
+                    class="type-btn bg-ink border border-hairline rounded-xl p-4 text-center hover:border-violet transition"
                     data-type="redis">
                     <div class="text-lg mb-1">⚡</div>
                     <div class="text-sm font-medium">Redis</div>
                 </button>
                 <button type="button" onclick="selectType('garage')"
-                    class="type-btn bg-gray-800 border border-gray-700 rounded-lg p-4 text-center hover:border-purple-500 transition"
+                    class="type-btn bg-ink border border-hairline rounded-xl p-4 text-center hover:border-violet transition"
                     data-type="garage">
                     <div class="text-lg mb-1">🪣</div>
                     <div class="text-sm font-medium">Garage S3</div>
@@ -34,48 +34,48 @@
             <input type="hidden" name="type" id="service-type" required>
         </div>
 
-        <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4">
-            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Service Name</h2>
+        <div class="bg-night border border-hairline rounded-xl p-6 space-y-4">
+            <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Service Name</h2>
             <div class="flex gap-2">
                 <input type="text" name="name" id="service-name" placeholder="auto-generated"
-                    class="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+                    class="flex-1 bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
                 <button type="button" onclick="randomizeName()"
-                    class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Randomize">
+                    class="bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm hover:border-violet transition" title="Randomize">
                     🎲
                 </button>
             </div>
         </div>
 
         <!-- Database credentials (postgres/mysql) -->
-        <div id="creds-database" class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4 hidden">
-            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Credentials</h2>
+        <div id="creds-database" class="bg-night border border-hairline rounded-xl p-6 space-y-4 hidden">
+            <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Credentials</h2>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Database Name</label>
+                <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Database Name</label>
                 <input type="text" name="database" id="cred-database" value="app"
-                    class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+                    class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Username</label>
+                <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Username</label>
                 <div class="flex gap-2">
                     <input type="text" name="user" id="cred-user" value="postgres"
-                        class="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+                        class="flex-1 bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
                     <button type="button" onclick="randomizeField('cred-user', 12)"
-                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Randomize">
+                        class="bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm hover:border-violet transition" title="Randomize">
                         🎲
                     </button>
                 </div>
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Password</label>
+                <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Password</label>
                 <div class="flex gap-2">
                     <input type="password" name="password" id="cred-password"
-                        class="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+                        class="flex-1 bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
                     <button type="button" onclick="togglePassword('cred-password')"
-                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Show/Hide">
+                        class="bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm hover:border-violet transition" title="Show/Hide">
                         👁
                     </button>
                     <button type="button" onclick="randomizeField('cred-password', 24)"
-                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Randomize">
+                        class="bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm hover:border-violet transition" title="Randomize">
                         🎲
                     </button>
                 </div>
@@ -83,19 +83,19 @@
         </div>
 
         <!-- Redis credentials -->
-        <div id="creds-redis" class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4 hidden">
-            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Credentials</h2>
+        <div id="creds-redis" class="bg-night border border-hairline rounded-xl p-6 space-y-4 hidden">
+            <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Credentials</h2>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Password</label>
+                <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Password</label>
                 <div class="flex gap-2">
                     <input type="password" name="redis-password" id="cred-redis-password"
-                        class="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+                        class="flex-1 bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
                     <button type="button" onclick="togglePassword('cred-redis-password')"
-                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Show/Hide">
+                        class="bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm hover:border-violet transition" title="Show/Hide">
                         👁
                     </button>
                     <button type="button" onclick="randomizeField('cred-redis-password', 24)"
-                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Randomize">
+                        class="bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm hover:border-violet transition" title="Randomize">
                         🎲
                     </button>
                 </div>
@@ -103,35 +103,35 @@
         </div>
 
         <!-- Garage credentials -->
-        <div id="creds-garage" class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4 hidden">
-            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Credentials</h2>
+        <div id="creds-garage" class="bg-night border border-hairline rounded-xl p-6 space-y-4 hidden">
+            <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Credentials</h2>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Region</label>
+                <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Region</label>
                 <input type="text" name="region" id="cred-region" value="garage"
-                    class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+                    class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Access Key</label>
+                <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Access Key</label>
                 <div class="flex gap-2">
                     <input type="text" name="access_key" id="cred-access-key"
-                        class="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+                        class="flex-1 bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
                     <button type="button" onclick="randomizeField('cred-access-key', 20)"
-                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Randomize">
+                        class="bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm hover:border-violet transition" title="Randomize">
                         🎲
                     </button>
                 </div>
             </div>
             <div>
-                <label class="block text-xs text-gray-500 mb-1">Secret Key</label>
+                <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Secret Key</label>
                 <div class="flex gap-2">
                     <input type="password" name="secret_key" id="cred-secret-key"
-                        class="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-500">
+                        class="flex-1 bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
                     <button type="button" onclick="togglePassword('cred-secret-key')"
-                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Show/Hide">
+                        class="bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm hover:border-violet transition" title="Show/Hide">
                         👁
                     </button>
                     <button type="button" onclick="randomizeField('cred-secret-key', 40)"
-                        class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm hover:border-green-500 transition" title="Randomize">
+                        class="bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-sm hover:border-violet transition" title="Randomize">
                         🎲
                     </button>
                 </div>
@@ -139,8 +139,8 @@
         </div>
 
         <div class="flex justify-end gap-3">
-            <a href="/services" class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition">Cancel</a>
-            <button type="submit" class="bg-green-400 text-gray-950 font-bold px-6 py-2 rounded hover:bg-green-300 transition text-sm">
+            <a href="/services" class="px-4 py-2 text-sm text-muted hover:text-gray-200 transition">Cancel</a>
+            <button type="submit" class="bg-lime-accent text-midnight font-bold px-6 py-3 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
                 Create Service
             </button>
         </div>
@@ -158,8 +158,8 @@ const TYPE_DEFAULTS = {
 function selectType(type) {
     document.getElementById('service-type').value = type;
     document.querySelectorAll('.type-btn').forEach(btn => {
-        btn.classList.toggle('border-green-500', btn.dataset.type === type);
-        btn.classList.toggle('border-gray-700', btn.dataset.type !== type);
+        btn.classList.toggle('border-violet', btn.dataset.type === type);
+        btn.classList.toggle('border-hairline', btn.dataset.type !== type);
     });
 
     document.getElementById('creds-database').classList.toggle('hidden', type !== 'postgres' && type !== 'mysql');

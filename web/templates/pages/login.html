@@ -1,23 +1,23 @@
 {{define "login.html"}}
 <div class="flex min-h-[60vh] items-center justify-center">
     <div class="w-full max-w-sm">
-        <h1 class="text-2xl font-bold text-green-400 mb-1">talos</h1>
-        <p class="text-gray-500 text-sm mb-8">Sign in to your account.</p>
+        <h1 class="text-2xl font-bold text-lime-accent mb-1">talos</h1>
+        <p class="text-muted text-sm mb-8">Sign in to your account.</p>
         <form hx-post="/login" hx-target="#form-errors" hx-swap="innerHTML"
               hx-on::after-request="if(event.detail.successful) window.location.href='/dashboard'">
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs text-gray-500 mb-1 uppercase tracking-wider">Username</label>
+                    <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Username</label>
                     <input type="text" name="username" required autocomplete="username"
-                        class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-gray-200 focus:border-green-400 focus:ring-1 focus:ring-green-400 focus:outline-none transition">
+                        class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-gray-200 focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 mb-1 uppercase tracking-wider">Password</label>
+                    <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Password</label>
                     <input type="password" name="password" required autocomplete="current-password"
-                        class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-gray-200 focus:border-green-400 focus:ring-1 focus:ring-green-400 focus:outline-none transition">
+                        class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-gray-200 focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
                 </div>
                 <button type="submit"
-                    class="w-full bg-green-400 text-gray-950 font-bold px-4 py-2 rounded hover:bg-green-300 transition cursor-pointer">
+                    class="w-full bg-lime-accent text-midnight font-bold uppercase tracking-wider px-4 py-3 rounded-md hover:bg-lime-accent/90 transition cursor-pointer text-sm">
                     Sign In
                 </button>
             </div>
