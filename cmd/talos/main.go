@@ -71,7 +71,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := server.New(db, db, db, authSvc, engine, webhook, ghClient, cfg.GitHub, renderer, cfg.Server.Host, logger)
+	srv := server.New(db, db, db, authSvc, engine, webhook, ghClient, cfg.GitHub, dockerClient, renderer, cfg.Server.Host, logger)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	httpServer := &http.Server{

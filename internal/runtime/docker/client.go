@@ -139,6 +139,23 @@ func (c *Client) GetLogs(ctx context.Context, containerID string, tail string) (
 	return string(data), nil
 }
 
+// StreamLogs returns a streaming reader for container logs.
+// The caller must close the returned reader when done.
+// The Docker stream uses a multiplexed format: 8-byte header per frame
+// (byte 0 = stream type 1=stdout 2=stderr, bytes 4-7 = uint32 big-endian payload size).
+func (c *Client) StreamLogs(ctx context.Context, containerID string, tail string) (io.ReadCloser, error) {
+	reader, err := c.cli.ContainerLogs(ctx, containerID, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Tail:       tail,
+		Follow:     true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("stream logs: %w", err)
+	}
+	return reader, nil
+}
+
 func (c *Client) EnsureNetwork(ctx context.Context) error {
 	networks, err := c.cli.NetworkList(ctx, network.ListOptions{})
 	if err != nil {

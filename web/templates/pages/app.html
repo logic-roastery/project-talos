@@ -102,6 +102,22 @@
     </div>
 </div>
 
+<!-- Live Logs -->
+<div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold">Live Logs</h2>
+        <div class="flex items-center gap-2">
+            <span id="log-status" class="text-xs text-gray-500">Disconnected</span>
+            <button id="log-toggle" onclick="toggleLogs()"
+                class="text-xs px-3 py-1 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 transition cursor-pointer">
+                Connect
+            </button>
+        </div>
+    </div>
+    <div id="log-output" class="bg-gray-950 border border-gray-800 rounded p-4 h-64 overflow-y-auto font-mono text-xs text-gray-400 hidden">
+    </div>
+</div>
+
 <!-- Deploy History -->
 <h2 class="text-lg font-bold mb-4">Deploy History</h2>
 <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
@@ -128,4 +144,88 @@
         </tbody>
     </table>
 </div>
+
+<script>
+(function() {
+    var logSource = null;
+    var logOutput = document.getElementById('log-output');
+    var logStatus = document.getElementById('log-status');
+    var logToggle = document.getElementById('log-toggle');
+    var appId = '{{.App.ID}}';
+
+    function setStatus(text, color) {
+        logStatus.textContent = text;
+        logStatus.className = 'text-xs ' + color;
+    }
+
+    function appendLine(type, data) {
+        var div = document.createElement('div');
+        div.className = 'py-0.5';
+        var prefix = '';
+        if (type === 'stderr') {
+            div.className += ' text-red-400';
+            prefix = '[err] ';
+        }
+        div.textContent = prefix + data;
+        logOutput.appendChild(div);
+        logOutput.scrollTop = logOutput.scrollHeight;
+    }
+
+    window.toggleLogs = function() {
+        if (logSource) {
+            logSource.close();
+            logSource = null;
+            setStatus('Disconnected', 'text-gray-500');
+            logToggle.textContent = 'Connect';
+            logOutput.classList.add('hidden');
+        } else {
+            logOutput.classList.remove('hidden');
+            logOutput.innerHTML = '';
+            setStatus('Connecting...', 'text-yellow-400');
+            logToggle.textContent = 'Disconnect';
+
+            logSource = new EventSource('/api/apps/' + appId + '/logs/stream');
+
+            logSource.addEventListener('status', function(e) {
+                if (e.data === 'connected') {
+                    setStatus('Connected', 'text-green-400');
+                } else if (e.data === 'stopped') {
+                    setStatus('Container stopped', 'text-yellow-400');
+                    logSource.close();
+                    logSource = null;
+                    logToggle.textContent = 'Connect';
+                }
+            });
+
+            logSource.addEventListener('stdout', function(e) {
+                appendLine('stdout', e.data);
+            });
+
+            logSource.addEventListener('stderr', function(e) {
+                appendLine('stderr', e.data);
+            });
+
+            logSource.onerror = function() {
+                if (logSource) {
+                    logSource.close();
+                    logSource = null;
+                    setStatus('Disconnected', 'text-gray-500');
+                    logToggle.textContent = 'Connect';
+                }
+            };
+        }
+    };
+
+    // Auto-connect on page load
+    window.toggleLogs();
+
+    // Clean disconnect on page unload
+    window.addEventListener('beforeunload', function() {
+        if (logSource) {
+            logSource.close();
+            logSource = null;
+        }
+    });
+})();
+</script>
 {{end}}

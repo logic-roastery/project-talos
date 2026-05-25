@@ -10,6 +10,7 @@ import (
 	"github.com/logic-roastery/project-talos/internal/deploy"
 	"github.com/logic-roastery/project-talos/internal/domain"
 	"github.com/logic-roastery/project-talos/internal/github"
+	"github.com/logic-roastery/project-talos/internal/runtime/docker"
 	"github.com/logic-roastery/project-talos/internal/server/handlers"
 	"github.com/logic-roastery/project-talos/internal/store"
 	"github.com/logic-roastery/project-talos/web"
@@ -29,6 +30,7 @@ func New(
 	webhook *github.WebhookHandler,
 	ghClient *github.AppClient,
 	ghCfg config.GitHubConfig,
+	dockerClient *docker.Client,
 	renderer *web.Renderer,
 	serverHost string,
 	logger *slog.Logger,
@@ -67,6 +69,10 @@ func New(
 			r.Post("/rollback", deployH.Rollback)
 		})
 		r.Get("/api/deploys/{deployID}", deployH.Get)
+
+		// Live log streaming
+		logH := handlers.NewLogHandler(apps, dockerClient, logger)
+		r.Get("/api/apps/{appID}/logs/stream", logH.StreamLogs)
 
 		// GitHub integration routes
 		if ghClient != nil && ghClient.IsConfigured() {
