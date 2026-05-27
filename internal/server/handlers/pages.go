@@ -24,10 +24,11 @@ type PageHandler struct {
 	engine   *deploy.Engine
 	ghClient *github.AppClient
 	host     string
+	domain   string
 }
 
 func NewPageHandler(renderer *web.Renderer, apps store.AppStore, deploys store.DeployStore,
-	users store.UserStore, services store.ServiceStore, authSvc *auth.Service, engine *deploy.Engine, ghClient *github.AppClient, host string) *PageHandler {
+	users store.UserStore, services store.ServiceStore, authSvc *auth.Service, engine *deploy.Engine, ghClient *github.AppClient, host, domain string) *PageHandler {
 	return &PageHandler{
 		renderer: renderer,
 		apps:     apps,
@@ -36,6 +37,7 @@ func NewPageHandler(renderer *web.Renderer, apps store.AppStore, deploys store.D
 		services: services,
 		authSvc:  authSvc,
 		engine:   engine,
+		domain:   domain,
 		ghClient: ghClient,
 		host:     host,
 	}
@@ -225,7 +227,11 @@ func (h *PageHandler) AppCreateSubmit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		fallbackPort = port
-		accessURL = fmt.Sprintf("http://%s:%d", h.host, port)
+		host := h.host
+		if h.domain != "" {
+			host = h.domain
+		}
+		accessURL = fmt.Sprintf("http://%s:%d", host, port)
 	}
 
 	app := &domain.App{

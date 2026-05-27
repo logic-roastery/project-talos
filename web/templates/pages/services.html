@@ -1,16 +1,16 @@
 {{define "services.html"}}
 <div class="flex items-center justify-between mb-8">
-    <h1 class="text-xl font-bold">Managed Services</h1>
-    <a href="/services/new" class="bg-green-400 text-gray-950 font-bold px-4 py-2 rounded hover:bg-green-300 transition text-sm">
+    <h1 class="text-xl font-semibold text-heading">Managed Services</h1>
+    <a href="/services/new" class="bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
         + New Service
     </a>
 </div>
 
 {{if .Services}}
-<div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+<div class="bg-night border border-hairline rounded-xl overflow-hidden">
     <table class="w-full text-sm">
         <thead>
-            <tr class="border-b border-gray-800 text-left text-xs text-gray-500 uppercase tracking-wider">
+            <tr class="border-b border-hairline text-left text-xs text-muted uppercase tracking-wider">
                 <th class="px-4 py-3">Name</th>
                 <th class="px-4 py-3">Type</th>
                 <th class="px-4 py-3">Image</th>
@@ -20,40 +20,31 @@
         </thead>
         <tbody>
             {{range .Services}}
-            <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 cursor-pointer"
+            <tr class="border-b border-hairline/50 hover:bg-ink/50 cursor-pointer transition"
                 onclick="window.location='/services/{{.ID}}'">
-                <td class="px-4 py-3 font-medium text-gray-200">{{.Name}}</td>
+                <td class="px-4 py-3 font-medium text-body">{{.Name}}</td>
                 <td class="px-4 py-3">
-                    <span class="text-xs px-2 py-1 rounded
-                        {{if eq .Type "postgres"}}bg-blue-900/50 text-blue-300
-                        {{else if eq .Type "mysql"}}bg-orange-900/50 text-orange-300
-                        {{else if eq .Type "redis"}}bg-red-900/50 text-red-300
-                        {{else if eq .Type "garage"}}bg-purple-900/50 text-purple-300
-                        {{else}}bg-gray-800 text-gray-400{{end}}">
+                    <span class="text-xs px-2 py-1 rounded-md bg-violet-mid/20 text-violet">
                         {{.Type}}
                     </span>
                 </td>
-                <td class="px-4 py-3 text-gray-400 font-mono text-xs">{{.ImageRef}}</td>
+                <td class="px-4 py-3 text-muted font-mono text-xs">{{.ImageRef}}</td>
                 <td class="px-4 py-3">
-                    <span class="text-xs px-2 py-1 rounded
-                        {{if eq .Status "active"}}bg-green-900/50 text-green-300
-                        {{else if eq .Status "provisioning"}}bg-yellow-900/50 text-yellow-300
-                        {{else if eq .Status "error"}}bg-red-900/50 text-red-300
-                        {{else if eq .Status "stopped"}}bg-gray-800 text-gray-400
-                        {{else}}bg-gray-800 text-gray-500{{end}}">
+                    <span class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full {{statusBg .Status}} {{statusText .Status}} border {{statusBorder .Status}}">
+                        <span class="w-1.5 h-1.5 rounded-full {{statusDot .Status}}"></span>
                         {{.Status}}
                     </span>
                 </td>
-                <td class="px-4 py-3 text-gray-400">{{.InternalPort}}</td>
+                <td class="px-4 py-3 text-muted">{{.InternalPort}}</td>
             </tr>
             {{end}}
         </tbody>
     </table>
 </div>
 {{else}}
-<div class="bg-gray-900 border border-gray-800 rounded-lg p-12 text-center">
-    <p class="text-gray-500 mb-4">No managed services yet.</p>
-    <a href="/services/new" class="inline-block bg-green-400 text-gray-950 font-bold px-4 py-2 rounded hover:bg-green-300 transition text-sm">
+<div class="bg-night border border-hairline rounded-xl p-12 text-center">
+    <p class="text-muted mb-4">No managed services yet.</p>
+    <a href="/services/new" class="inline-block bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
         Create your first service
     </a>
 </div>

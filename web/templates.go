@@ -134,11 +134,11 @@ func statusBg(status any) string {
 	s := fmt.Sprintf("%s", status)
 	switch s {
 	case "active":
-		return "bg-green-400/10"
+		return "bg-lime-accent/10"
 	case "inactive":
 		return "bg-yellow-400/10"
 	case "error":
-		return "bg-red-400/10"
+		return "bg-pink-accent/10"
 	default:
 		return "bg-gray-400/10"
 	}
@@ -148,13 +148,13 @@ func statusText(status any) string {
 	s := fmt.Sprintf("%s", status)
 	switch s {
 	case "active":
-		return "text-green-400"
+		return "text-lime-accent"
 	case "inactive":
 		return "text-yellow-400"
 	case "error":
-		return "text-red-400"
+		return "text-pink-accent"
 	default:
-		return "text-gray-400"
+		return "text-muted"
 	}
 }
 
@@ -162,13 +162,13 @@ func statusBorder(status any) string {
 	s := fmt.Sprintf("%s", status)
 	switch s {
 	case "active":
-		return "border-green-400/20"
+		return "border-lime-accent/20"
 	case "inactive":
 		return "border-yellow-400/20"
 	case "error":
-		return "border-red-400/20"
+		return "border-pink-accent/20"
 	default:
-		return "border-gray-400/20"
+		return "border-hairline"
 	}
 }
 
@@ -176,13 +176,13 @@ func statusDot(status any) string {
 	s := fmt.Sprintf("%s", status)
 	switch s {
 	case "active":
-		return "bg-green-400"
+		return "bg-lime-accent"
 	case "inactive":
 		return "bg-yellow-400"
 	case "error":
-		return "bg-red-400"
+		return "bg-pink-accent"
 	default:
-		return "bg-gray-400"
+		return "bg-muted"
 	}
 }
 
@@ -191,15 +191,15 @@ func deployBg(status any) string {
 	s := fmt.Sprintf("%s", status)
 	switch s {
 	case "success":
-		return "bg-green-400/10"
+		return "bg-lime-accent/10"
 	case "failed":
-		return "bg-red-400/10"
+		return "bg-pink-accent/10"
 	case "running":
-		return "bg-blue-400/10"
+		return "bg-violet/10"
 	case "pending":
 		return "bg-yellow-400/10"
 	case "rollback":
-		return "bg-orange-400/10"
+		return "bg-violet-mid/10"
 	default:
 		return "bg-gray-400/10"
 	}
@@ -209,17 +209,17 @@ func deployText(status any) string {
 	s := fmt.Sprintf("%s", status)
 	switch s {
 	case "success":
-		return "text-green-400"
+		return "text-lime-accent"
 	case "failed":
-		return "text-red-400"
+		return "text-pink-accent"
 	case "running":
-		return "text-blue-400"
+		return "text-violet"
 	case "pending":
 		return "text-yellow-400"
 	case "rollback":
-		return "text-orange-400"
+		return "text-violet-mid"
 	default:
-		return "text-gray-400"
+		return "text-muted"
 	}
 }
 
@@ -227,17 +227,17 @@ func deployBorder(status any) string {
 	s := fmt.Sprintf("%s", status)
 	switch s {
 	case "success":
-		return "border-green-400/20"
+		return "border-lime-accent/20"
 	case "failed":
-		return "border-red-400/20"
+		return "border-pink-accent/20"
 	case "running":
-		return "border-blue-400/20"
+		return "border-violet/20"
 	case "pending":
 		return "border-yellow-400/20"
 	case "rollback":
-		return "border-orange-400/20"
+		return "border-violet-mid/20"
 	default:
-		return "border-gray-400/20"
+		return "border-hairline"
 	}
 }
 
@@ -245,17 +245,17 @@ func deployDot(status any) string {
 	s := fmt.Sprintf("%s", status)
 	switch s {
 	case "success":
-		return "bg-green-400"
+		return "bg-lime-accent"
 	case "failed":
-		return "bg-red-400"
+		return "bg-pink-accent"
 	case "running":
-		return "bg-blue-400"
+		return "bg-violet"
 	case "pending":
 		return "bg-yellow-400"
 	case "rollback":
-		return "bg-orange-400"
+		return "bg-violet-mid"
 	default:
-		return "bg-gray-400"
+		return "bg-muted"
 	}
 }
 
@@ -264,13 +264,13 @@ func flashBg(color any) string {
 	s := fmt.Sprintf("%s", color)
 	switch s {
 	case "red":
-		return "bg-red-400/10"
+		return "bg-pink-accent/10"
 	case "yellow":
 		return "bg-yellow-400/10"
 	case "green":
-		return "bg-green-400/10"
+		return "bg-lime-accent/10"
 	case "blue":
-		return "bg-blue-400/10"
+		return "bg-violet/10"
 	default:
 		return "bg-gray-400/10"
 	}
@@ -280,15 +280,15 @@ func flashText(color any) string {
 	s := fmt.Sprintf("%s", color)
 	switch s {
 	case "red":
-		return "text-red-400"
+		return "text-pink-accent"
 	case "yellow":
 		return "text-yellow-400"
 	case "green":
-		return "text-green-400"
+		return "text-lime-accent"
 	case "blue":
-		return "text-blue-400"
+		return "text-violet"
 	default:
-		return "text-gray-400"
+		return "text-muted"
 	}
 }
 
@@ -296,15 +296,15 @@ func flashBorder(color any) string {
 	s := fmt.Sprintf("%s", color)
 	switch s {
 	case "red":
-		return "border-red-400/20"
+		return "border-pink-accent/20"
 	case "yellow":
 		return "border-yellow-400/20"
 	case "green":
-		return "border-green-400/20"
+		return "border-lime-accent/20"
 	case "blue":
-		return "border-blue-400/20"
+		return "border-violet/20"
 	default:
-		return "border-gray-400/20"
+		return "border-hairline"
 	}
 }
 

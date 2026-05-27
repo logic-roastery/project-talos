@@ -16,22 +16,27 @@ import (
 	"github.com/logic-roastery/project-talos/internal/domain"
 	"github.com/logic-roastery/project-talos/internal/github"
 	"github.com/logic-roastery/project-talos/internal/store"
+	"github.com/logic-roastery/project-talos/web"
 )
 
 type GitHubHandler struct {
 	apps     store.AppStore
 	ghClient *github.AppClient
 	cfg      config.GitHubConfig
+	renderer *web.Renderer
 	host     string
+	domain   string
 	logger   *slog.Logger
 }
 
-func NewGitHubHandler(apps store.AppStore, ghClient *github.AppClient, cfg config.GitHubConfig, host string, logger *slog.Logger) *GitHubHandler {
+func NewGitHubHandler(apps store.AppStore, ghClient *github.AppClient, cfg config.GitHubConfig, renderer *web.Renderer, host, domain string, logger *slog.Logger) *GitHubHandler {
 	return &GitHubHandler{
 		apps:     apps,
 		ghClient: ghClient,
 		cfg:      cfg,
+		renderer: renderer,
 		host:     host,
+		domain:   domain,
 		logger:   logger,
 	}
 }
@@ -179,10 +184,15 @@ func (h *GitHubHandler) setupWorkflow(ctx context.Context, app *domain.App, repo
 
 	// Generate workflow YAML
 	workflowCfg := github.WorkflowConfig{
-		AppName:    app.Name,
-		ImageRef:   fmt.Sprintf("ghcr.io/%s:%s", repo.FullName, "{{ github.sha }}"),
-		Branch:     app.Branch,
-		WebhookURL: fmt.Sprintf("http://%s", h.host),
+		AppName:  app.Name,
+		ImageRef: fmt.Sprintf("ghcr.io/%s:%s", repo.FullName, "{{ github.sha }}"),
+		Branch:   app.Branch,
+		WebhookURL: func() string {
+			if h.domain != "" {
+				return "https://" + h.domain
+			}
+			return fmt.Sprintf("http://%s", h.host)
+		}(),
 	}
 	workflowYAML := github.GenerateWorkflow(workflowCfg)
 
@@ -279,21 +289,23 @@ func (h *GitHubHandler) SetupPage(w http.ResponseWriter, r *http.Request) {
 
 // CreateManifest generates a manifest and redirects to GitHub.
 func (h *GitHubHandler) CreateManifest(w http.ResponseWriter, r *http.Request) {
-	// Build a proper URL from the request
-	scheme := "http"
-	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
-		scheme = "https"
+	var talosURL string
+	if h.domain != "" {
+		talosURL = "https://" + h.domain
+	} else {
+		scheme := "http"
+		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+			scheme = "https"
+		}
+		host := r.Host
+		if host == "" {
+			host = h.host
+		}
+		if host == "0.0.0.0" || host == "0.0.0.0:0" {
+			host = "localhost:4000"
+		}
+		talosURL = fmt.Sprintf("%s://%s", scheme, host)
 	}
-	host := r.Host
-	if host == "" {
-		host = h.host
-	}
-	// Replace 0.0.0.0 with localhost for GitHub compatibility
-	if host == "0.0.0.0" || host == "0.0.0.0:0" {
-		host = "localhost:4000"
-	}
-
-	talosURL := fmt.Sprintf("%s://%s", scheme, host)
 
 	manifestCfg := github.ManifestConfig{
 		AppName:  "talos-deploy",
@@ -437,28 +449,21 @@ func (h *GitHubHandler) StatusPage(w http.ResponseWriter, r *http.Request) {
 		appSlug = h.ghClient.AppSlug()
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head><title>GitHub Status - Talos</title></head>
-<body style="background:#030712;color:#e5e7eb;font-family:monospace;padding:2rem;">
-<h1>GitHub Integration Status</h1>
-<br>
-%s
-<br>
-<a href="/dashboard" style="background:#4ade80;color:#030712;padding:0.75rem 1.5rem;text-decoration:none;border-radius:0.375rem;font-weight:bold;">
-    Back to Dashboard
-</a>
-</body>
-</html>`,
-		func() string {
-			if isConfigured {
-				return fmt.Sprintf(`<p style="color:#4ade80;">✓ GitHub App is configured</p>
-<p>App Slug: %s</p>`, appSlug)
-			}
-			return `<p style="color:#fbbf24;">✗ GitHub App is not configured</p>
-<p><a href="/settings/github/setup" style="color:#4ade80;">Set up GitHub App</a></p>`
-		}())
+	user := UserFromContext(r.Context())
+	var userData *web.UserData
+	if user != nil {
+		userData = &web.UserData{Username: user.Username}
+	}
+
+	data := struct {
+		IsConfigured bool
+		AppSlug      string
+	}{
+		IsConfigured: isConfigured,
+		AppSlug:      appSlug,
+	}
+
+	h.renderer.Render(w, "github_status.html", "GitHub Integration", userData, data)
 }
 
 // LoadCredentials loads GitHub App credentials from the JSON file.

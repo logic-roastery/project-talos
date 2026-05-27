@@ -1,0 +1,9 @@
+.git
+.github
+data
+bin
+scripts
+tmp
+*.md
+.env*
+.dockerignore

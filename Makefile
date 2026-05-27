@@ -20,7 +20,7 @@ DEV_DOCKER_HOST=unix:///var/run/docker.sock
 DEV_DOCKER_NETWORK=talos
 DEV_DB_PATH=$(DATA_DIR)/talos.db
 DEV_SESSION_SECRET=dev-secret-$(shell date +%s)
-DEV_ENCRYPTION_KEY=$(shell echo -n "dev-local-test-key-32-bytes-pad!" | base64 2>/dev/null || echo "ZGV2LWxvY2FsLXRlc3Qta2V5LTMyLWJ5dGVzLXBhZCE=")
+DEV_ENCRYPTION_KEY=ZGV2LWxvY2FsLXRlc3Qta2V5LTMyLWJ5dGVzLXBhZCE=
 
 .PHONY: all build run test vet clean tidy dev dev-fresh dev-stop fmt lint ps help
 

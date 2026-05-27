@@ -17,8 +17,10 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Host string
-	Port int
+	Host      string
+	Port      int
+	Domain    string // TALOS_DOMAIN, empty = IP mode
+	ACMEEmail string // TALOS_ACME_EMAIL, for Let's Encrypt
 }
 
 type DatabaseConfig struct {
@@ -54,8 +56,10 @@ type GitHubConfig struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
-			hostDefault("0.0.0.0"),
-			portDefault(3000),
+			Host:      hostDefault("0.0.0.0"),
+			Port:      portDefault(3000),
+			Domain:    envOrDefault("TALOS_DOMAIN", ""),
+			ACMEEmail: envOrDefault("TALOS_ACME_EMAIL", ""),
 		},
 		Database: DatabaseConfig{
 			Path: envOrDefault("TALOS_DB_PATH", "data/talos.db"),

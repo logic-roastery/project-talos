@@ -56,6 +56,10 @@ func (c *Client) StopAndRemove(ctx context.Context, name string) error {
 	return c.cli.ContainerRemove(ctx, name, container.RemoveOptions{Force: true})
 }
 
+func (c *Client) Inspect(ctx context.Context, name string) (container.InspectResponse, error) {
+	return c.cli.ContainerInspect(ctx, name)
+}
+
 func (c *Client) StartContainer(ctx context.Context, name, imageRef string, internalPort int) (string, error) {
 	c.EnsureNetwork(ctx)
 
@@ -96,6 +100,7 @@ type ContainerConfig struct {
 	InternalPort int
 	Env          []string // KEY=VALUE pairs
 	Volumes      []string // hostPath:containerPath
+	Ports        []string // host:container bindings, e.g. "80:80", "443:443"
 	HealthCheck  *container.HealthConfig
 	Labels       map[string]string
 }
@@ -117,6 +122,18 @@ func (c *Client) StartContainerWithConfig(ctx context.Context, cfg ContainerConf
 		exposedPorts[nat.Port(fmt.Sprintf("%d/tcp", cfg.InternalPort))] = struct{}{}
 	}
 
+	portBindings := nat.PortMap{}
+	if len(cfg.Ports) > 0 {
+		eps, bindings, err := nat.ParsePortSpecs(cfg.Ports)
+		if err != nil {
+			return "", fmt.Errorf("parse port specs: %w", err)
+		}
+		for p := range eps {
+			exposedPorts[p] = struct{}{}
+		}
+		portBindings = bindings
+	}
+
 	config := &container.Config{
 		Image:        cfg.ImageRef,
 		ExposedPorts: exposedPorts,
@@ -131,8 +148,9 @@ func (c *Client) StartContainerWithConfig(ctx context.Context, cfg ContainerConf
 		RestartPolicy: container.RestartPolicy{
 			Name: "unless-stopped",
 		},
-		NetworkMode: container.NetworkMode(c.network),
-		Binds:       cfg.Volumes,
+		NetworkMode:  container.NetworkMode(c.network),
+		Binds:        cfg.Volumes,
+		PortBindings: portBindings,
 	}
 
 	resp, err := c.cli.ContainerCreate(ctx, config, hostConfig, nil, nil, cfg.Name)
