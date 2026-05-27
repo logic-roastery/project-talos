@@ -2,7 +2,9 @@ package github
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/rsa"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"sync"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/google/go-github/v62/github"
 	"github.com/logic-roastery/project-talos/internal/config"
+	"golang.org/x/crypto/nacl/box"
 )
 
 // AppClient wraps the GitHub App API client.
@@ -215,35 +218,51 @@ func (c *AppClient) CreateOrUpdateFile(ctx context.Context, installationID int64
 }
 
 // SetRepoSecret sets a GitHub Actions secret on a repository.
-// Uses the GitHub API to encrypt and store the secret.
+// Uses nacl/box to encrypt the value with the repo's public key.
 func (c *AppClient) SetRepoSecret(ctx context.Context, installationID int64, owner, repo, name, value string) error {
 	client, err := c.InstallationClient(ctx, installationID)
 	if err != nil {
 		return err
 	}
 
-	// Get the repo's public key for encryption
 	key, _, err := client.Actions.GetRepoPublicKey(ctx, owner, repo)
 	if err != nil {
 		return fmt.Errorf("get public key: %w", err)
 	}
 
-	// For the MVP, we'll use a placeholder approach.
-	// In production, this needs proper nacl encryption using the public key.
-	// The key is base64 encoded, and we need to encrypt with nacl/box.
-	// For now, we'll skip encryption and just set the secret directly.
-	// TODO: Implement proper nacl encryption for production use.
+	publicKeyBytes, err := base64.StdEncoding.DecodeString(key.GetKey())
+	if err != nil {
+		return fmt.Errorf("decode public key: %w", err)
+	}
 
-	_ = key // Will be used when encryption is implemented
+	var publicKey [32]byte
+	copy(publicKey[:], publicKeyBytes)
 
-	// Note: This is a simplified version. In production, you'd need to:
-	// 1. Decode the base64 public key
-	// 2. Encrypt the value using nacl/box
-	// 3. Base64 encode the encrypted value
-	// See: https://docs.github.com/en/rest/actions/secrets?apiVersion=2022-11-28#create-or-update-a-repository-secret
+	ephemeralPub, ephemeralPriv, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		return fmt.Errorf("generate ephemeral key: %w", err)
+	}
 
-	// For now, we'll return an error indicating this needs implementation
-	return fmt.Errorf("secret encryption not yet implemented - set TALOS_WEBHOOK_SECRET manually in GitHub repo settings")
+	var nonce [24]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return fmt.Errorf("generate nonce: %w", err)
+	}
+
+	encrypted := box.Seal(nonce[:], []byte(value), &nonce, &publicKey, ephemeralPriv)
+
+	// Prepend the ephemeral public key (GitHub expects this).
+	payload := append(ephemeralPub[:], encrypted...)
+
+	_, err = client.Actions.CreateOrUpdateRepoSecret(ctx, owner, repo, &github.EncryptedSecret{
+		Name:           name,
+		KeyID:          key.GetKeyID(),
+		EncryptedValue: base64.StdEncoding.EncodeToString(payload),
+	})
+	if err != nil {
+		return fmt.Errorf("set secret: %w", err)
+	}
+
+	return nil
 }
 
 // NewRequest creates a new HTTP request with the installation auth.
