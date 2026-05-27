@@ -13,13 +13,14 @@ import (
 )
 
 type AppHandler struct {
-	apps       store.AppStore
-	deploys    store.DeployStore
-	serverHost string
+	apps         store.AppStore
+	deploys      store.DeployStore
+	serverHost   string
+	serverDomain string
 }
 
-func NewAppHandler(apps store.AppStore, deploys store.DeployStore, serverHost string) *AppHandler {
-	return &AppHandler{apps: apps, deploys: deploys, serverHost: serverHost}
+func NewAppHandler(apps store.AppStore, deploys store.DeployStore, serverHost, serverDomain string) *AppHandler {
+	return &AppHandler{apps: apps, deploys: deploys, serverHost: serverHost, serverDomain: serverDomain}
 }
 
 type createAppRequest struct {
@@ -98,7 +99,11 @@ func (h *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		fallbackPort = port
-		accessURL = fmt.Sprintf("http://%s:%d", h.serverHost, port)
+		host := h.serverHost
+		if h.serverDomain != "" {
+			host = h.serverDomain
+		}
+		accessURL = fmt.Sprintf("http://%s:%d", host, port)
 	}
 
 	app := &domain.App{

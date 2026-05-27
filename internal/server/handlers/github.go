@@ -25,16 +25,18 @@ type GitHubHandler struct {
 	cfg      config.GitHubConfig
 	renderer *web.Renderer
 	host     string
+	domain   string
 	logger   *slog.Logger
 }
 
-func NewGitHubHandler(apps store.AppStore, ghClient *github.AppClient, cfg config.GitHubConfig, renderer *web.Renderer, host string, logger *slog.Logger) *GitHubHandler {
+func NewGitHubHandler(apps store.AppStore, ghClient *github.AppClient, cfg config.GitHubConfig, renderer *web.Renderer, host, domain string, logger *slog.Logger) *GitHubHandler {
 	return &GitHubHandler{
 		apps:     apps,
 		ghClient: ghClient,
 		cfg:      cfg,
 		renderer: renderer,
 		host:     host,
+		domain:   domain,
 		logger:   logger,
 	}
 }
@@ -182,10 +184,15 @@ func (h *GitHubHandler) setupWorkflow(ctx context.Context, app *domain.App, repo
 
 	// Generate workflow YAML
 	workflowCfg := github.WorkflowConfig{
-		AppName:    app.Name,
-		ImageRef:   fmt.Sprintf("ghcr.io/%s:%s", repo.FullName, "{{ github.sha }}"),
-		Branch:     app.Branch,
-		WebhookURL: fmt.Sprintf("http://%s", h.host),
+		AppName:  app.Name,
+		ImageRef: fmt.Sprintf("ghcr.io/%s:%s", repo.FullName, "{{ github.sha }}"),
+		Branch:   app.Branch,
+		WebhookURL: func() string {
+			if h.domain != "" {
+				return "https://" + h.domain
+			}
+			return fmt.Sprintf("http://%s", h.host)
+		}(),
 	}
 	workflowYAML := github.GenerateWorkflow(workflowCfg)
 
@@ -282,21 +289,23 @@ func (h *GitHubHandler) SetupPage(w http.ResponseWriter, r *http.Request) {
 
 // CreateManifest generates a manifest and redirects to GitHub.
 func (h *GitHubHandler) CreateManifest(w http.ResponseWriter, r *http.Request) {
-	// Build a proper URL from the request
-	scheme := "http"
-	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
-		scheme = "https"
+	var talosURL string
+	if h.domain != "" {
+		talosURL = "https://" + h.domain
+	} else {
+		scheme := "http"
+		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+			scheme = "https"
+		}
+		host := r.Host
+		if host == "" {
+			host = h.host
+		}
+		if host == "0.0.0.0" || host == "0.0.0.0:0" {
+			host = "localhost:4000"
+		}
+		talosURL = fmt.Sprintf("%s://%s", scheme, host)
 	}
-	host := r.Host
-	if host == "" {
-		host = h.host
-	}
-	// Replace 0.0.0.0 with localhost for GitHub compatibility
-	if host == "0.0.0.0" || host == "0.0.0.0:0" {
-		host = "localhost:4000"
-	}
-
-	talosURL := fmt.Sprintf("%s://%s", scheme, host)
 
 	manifestCfg := github.ManifestConfig{
 		AppName:  "talos-deploy",

@@ -47,10 +47,14 @@ func main() {
 	}
 	defer dockerClient.Close()
 
-	proxy := traefik.NewManager(cfg.Traefik.ConfigDir, cfg.Traefik.DataDir, cfg.Docker.Network, logger)
+	proxy := traefik.NewManager(cfg.Traefik.ConfigDir, cfg.Traefik.DataDir, cfg.Docker.Network, cfg.Server.Domain, cfg.Server.ACMEEmail, logger)
 	if err := proxy.Init(context.Background()); err != nil {
 		logger.Error("failed to init traefik", "error", err)
 		os.Exit(1)
+	}
+
+	if err := proxy.EnsureTraefik(context.Background(), dockerClient, cfg.Traefik.Image); err != nil {
+		logger.Warn("traefik setup skipped", "error", err)
 	}
 
 	authSvc := auth.NewService(db, cfg.Auth.SessionSecret, time.Duration(cfg.Auth.SessionMaxAge)*time.Second)
@@ -84,7 +88,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := server.New(db, db, db, db, authSvc, engine, provisioner, webhook, ghClient, cfg.GitHub, dockerClient, renderer, cfg.Server.Host, logger)
+	srv := server.New(db, db, db, db, authSvc, engine, provisioner, webhook, ghClient, cfg.GitHub, dockerClient, renderer, cfg.Server.Host, cfg.Server.Domain, logger)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	httpServer := &http.Server{

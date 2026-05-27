@@ -33,6 +33,22 @@ curl -sSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/
 
 After install, open `http://<your-server-ip>:3000` and create your admin account.
 
+## Domain Setup
+
+The installer will ask if you have a domain. You have two options:
+
+**IP mode** (default) — access at `http://<your-vps-ip>:3000`. No domain needed.
+
+**Domain mode** — access at `https://talos.example.com` with automatic HTTPS via Let's Encrypt.
+Point your domain's DNS A record at your VPS IP, then set:
+
+```
+TALOS_DOMAIN=talos.example.com
+TALOS_ACME_EMAIL=admin@example.com
+```
+
+Talos will start Traefik with auto-TLS and redirect HTTP to HTTPS automatically.
+
 ## Configuration
 
 All configuration is via environment variables. Copy `.env.example` to `.env` and edit.
@@ -41,6 +57,8 @@ All configuration is via environment variables. Copy `.env.example` to `.env` an
 |----------|---------|-------------|
 | `TALOS_HOST` | `0.0.0.0` | Listen address |
 | `TALOS_PORT` | `3000` | Listen port |
+| `TALOS_DOMAIN` | *(empty)* | Domain name (enables HTTPS via Let's Encrypt) |
+| `TALOS_ACME_EMAIL` | *(empty)* | Email for Let's Encrypt certificate notifications |
 | `TALOS_DB_PATH` | `data/talos.db` | SQLite database path |
 | `TALOS_SESSION_SECRET` | **required** | HMAC signing secret for sessions |
 | `TALOS_SESSION_MAX_AGE` | `604800` | Session lifetime in seconds (7 days) |

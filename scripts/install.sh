@@ -205,6 +205,33 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Step 6: Domain configuration
+# ---------------------------------------------------------------------------
+
+TALOS_DOMAIN=""
+TALOS_ACME_EMAIL=""
+
+if [[ -f "${TALOS_ENV}" ]] && grep -q "TALOS_DOMAIN=" "${TALOS_ENV}" 2>/dev/null; then
+    existing_domain=$(grep "^TALOS_DOMAIN=" "${TALOS_ENV}" | cut -d= -f2-)
+    if [[ -n "$existing_domain" ]]; then
+        TALOS_DOMAIN="$existing_domain"
+        ok "Domain already configured: ${TALOS_DOMAIN}"
+    fi
+fi
+
+if [[ -z "$TALOS_DOMAIN" ]]; then
+    echo ""
+    read -rp "Do you have a domain name pointed at this server? [y/N] " has_domain
+    if [[ "${has_domain,,}" == "y" ]]; then
+        read -rp "Enter your domain (e.g. talos.example.com): " TALOS_DOMAIN
+        read -rp "Enter your email for Let's Encrypt certificates: " TALOS_ACME_EMAIL
+        ok "Domain: ${TALOS_DOMAIN}"
+    else
+        info "No domain — Talos will be accessible at http://<your-ip>:${TALOS_PORT}"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # Step 6: Talos binary
 # ---------------------------------------------------------------------------
 
@@ -289,6 +316,10 @@ if [[ "${DOCKER_MODE}" == "true" ]]; then
 # Server
 TALOS_HOST=0.0.0.0
 TALOS_PORT=${TALOS_PORT}
+
+# Domain
+TALOS_DOMAIN=${TALOS_DOMAIN}
+TALOS_ACME_EMAIL=${TALOS_ACME_EMAIL}
 
 # Database
 TALOS_DB_PATH=/data/talos.db
@@ -403,6 +434,10 @@ cat > "${TALOS_ENV}" <<EOF
 # Server
 TALOS_HOST=0.0.0.0
 TALOS_PORT=${TALOS_PORT}
+
+# Domain
+TALOS_DOMAIN=${TALOS_DOMAIN}
+TALOS_ACME_EMAIL=${TALOS_ACME_EMAIL}
 
 # Database
 TALOS_DB_PATH=${TALOS_DATA}/talos.db
