@@ -2,7 +2,7 @@
 <div class="max-w-3xl mx-auto">
     <div class="flex items-center justify-between mb-8">
         <div>
-            <h1 class="text-xl font-semibold text-gray-100">{{.Service.Name}}</h1>
+            <h1 class="text-xl font-semibold text-heading">{{.Service.Name}}</h1>
             <p class="text-sm text-muted">{{.Service.Type}} &middot; {{.Service.ImageRef}}</p>
         </div>
         <div class="flex gap-2">
@@ -40,11 +40,11 @@
                 </div>
                 <div class="flex justify-between">
                     <span class="text-muted">Container ID</span>
-                    <span class="font-mono text-xs text-gray-300">{{if .Service.ContainerID}}{{.Service.ContainerID}}{{else}}—{{end}}</span>
+                    <span class="font-mono text-xs text-subtle">{{if .Service.ContainerID}}{{.Service.ContainerID}}{{else}}—{{end}}</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="text-muted">Port</span>
-                    <span class="text-gray-300">{{.Service.InternalPort}}</span>
+                    <span class="text-subtle">{{.Service.InternalPort}}</span>
                 </div>
             </div>
         </div>
@@ -53,7 +53,7 @@
             <h2 class="text-sm font-semibold text-muted uppercase tracking-wider mb-4">Credentials</h2>
             <div id="creds-display" class="space-y-3 text-sm">
                 <button onclick="loadCredentials()" id="creds-btn"
-                    class="w-full bg-hairline text-muted px-4 py-2 rounded-md hover:text-gray-200 transition text-sm cursor-pointer">
+                    class="w-full bg-hairline text-muted px-4 py-2 rounded-md hover:text-body transition text-sm cursor-pointer">
                     Show Credentials
                 </button>
             </div>
@@ -89,9 +89,9 @@ async function loadCredentials() {
         row.className = 'flex justify-between items-center';
         row.innerHTML = '<span class="text-muted">' + key + '</span>' +
             '<div class="flex items-center gap-2">' +
-            '<code class="text-xs text-gray-300 credential-value font-mono" data-value="' + val + '">••••••••</code>' +
-            '<button onclick="toggleCred(this)" class="text-muted hover:text-gray-200 text-xs">👁</button>' +
-            '<button onclick="copyCred(\'' + val + '\')" class="text-muted hover:text-gray-200 text-xs">📋</button>' +
+            '<code class="text-xs text-subtle credential-value font-mono" data-value="' + val + '">••••••••</code>' +
+            '<button onclick="toggleCred(this)" class="text-muted hover:text-body text-xs">👁</button>' +
+            '<button onclick="copyCred(\'' + val + '\')" class="text-muted hover:text-body text-xs">📋</button>' +
             '</div>';
         container.appendChild(row);
     }

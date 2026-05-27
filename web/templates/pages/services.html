@@ -1,6 +1,6 @@
 {{define "services.html"}}
 <div class="flex items-center justify-between mb-8">
-    <h1 class="text-xl font-semibold text-gray-100">Managed Services</h1>
+    <h1 class="text-xl font-semibold text-heading">Managed Services</h1>
     <a href="/services/new" class="bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
         + New Service
     </a>
@@ -22,7 +22,7 @@
             {{range .Services}}
             <tr class="border-b border-hairline/50 hover:bg-ink/50 cursor-pointer transition"
                 onclick="window.location='/services/{{.ID}}'">
-                <td class="px-4 py-3 font-medium text-gray-200">{{.Name}}</td>
+                <td class="px-4 py-3 font-medium text-body">{{.Name}}</td>
                 <td class="px-4 py-3">
                     <span class="text-xs px-2 py-1 rounded-md bg-violet-mid/20 text-violet">
                         {{.Type}}

@@ -16,21 +16,24 @@ import (
 	"github.com/logic-roastery/project-talos/internal/domain"
 	"github.com/logic-roastery/project-talos/internal/github"
 	"github.com/logic-roastery/project-talos/internal/store"
+	"github.com/logic-roastery/project-talos/web"
 )
 
 type GitHubHandler struct {
 	apps     store.AppStore
 	ghClient *github.AppClient
 	cfg      config.GitHubConfig
+	renderer *web.Renderer
 	host     string
 	logger   *slog.Logger
 }
 
-func NewGitHubHandler(apps store.AppStore, ghClient *github.AppClient, cfg config.GitHubConfig, host string, logger *slog.Logger) *GitHubHandler {
+func NewGitHubHandler(apps store.AppStore, ghClient *github.AppClient, cfg config.GitHubConfig, renderer *web.Renderer, host string, logger *slog.Logger) *GitHubHandler {
 	return &GitHubHandler{
 		apps:     apps,
 		ghClient: ghClient,
 		cfg:      cfg,
+		renderer: renderer,
 		host:     host,
 		logger:   logger,
 	}
@@ -437,28 +440,21 @@ func (h *GitHubHandler) StatusPage(w http.ResponseWriter, r *http.Request) {
 		appSlug = h.ghClient.AppSlug()
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head><title>GitHub Status - Talos</title></head>
-<body style="background:#030712;color:#e5e7eb;font-family:monospace;padding:2rem;">
-<h1>GitHub Integration Status</h1>
-<br>
-%s
-<br>
-<a href="/dashboard" style="background:#4ade80;color:#030712;padding:0.75rem 1.5rem;text-decoration:none;border-radius:0.375rem;font-weight:bold;">
-    Back to Dashboard
-</a>
-</body>
-</html>`,
-		func() string {
-			if isConfigured {
-				return fmt.Sprintf(`<p style="color:#4ade80;">✓ GitHub App is configured</p>
-<p>App Slug: %s</p>`, appSlug)
-			}
-			return `<p style="color:#fbbf24;">✗ GitHub App is not configured</p>
-<p><a href="/settings/github/setup" style="color:#4ade80;">Set up GitHub App</a></p>`
-		}())
+	user := UserFromContext(r.Context())
+	var userData *web.UserData
+	if user != nil {
+		userData = &web.UserData{Username: user.Username}
+	}
+
+	data := struct {
+		IsConfigured bool
+		AppSlug      string
+	}{
+		IsConfigured: isConfigured,
+		AppSlug:      appSlug,
+	}
+
+	h.renderer.Render(w, "github_status.html", "GitHub Integration", userData, data)
 }
 
 // LoadCredentials loads GitHub App credentials from the JSON file.

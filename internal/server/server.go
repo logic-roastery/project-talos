@@ -101,7 +101,7 @@ func New(
 
 		// GitHub integration routes
 		if ghClient != nil && ghClient.IsConfigured() {
-			ghH := handlers.NewGitHubHandler(apps, ghClient, ghCfg, serverHost, logger)
+			ghH := handlers.NewGitHubHandler(apps, ghClient, ghCfg, renderer, serverHost, logger)
 			r.Get("/api/github/install", ghH.StartInstall)
 			r.Get("/api/github/callback", ghH.HandleCallback)
 			r.Post("/api/github/disconnect", ghH.Disconnect)
@@ -109,7 +109,7 @@ func New(
 	})
 
 	// GitHub setup routes (always available, even without config)
-	ghH := handlers.NewGitHubHandler(apps, ghClient, ghCfg, serverHost, logger)
+	ghH := handlers.NewGitHubHandler(apps, ghClient, ghCfg, renderer, serverHost, logger)
 	r.Get("/settings/github/setup", ghH.SetupPage)
 	r.Get("/settings/github/status", ghH.StatusPage)
 	r.Get("/api/github/create-manifest", ghH.CreateManifest)

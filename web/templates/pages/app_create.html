@@ -1,38 +1,38 @@
 {{define "app_create.html"}}
 <div class="max-w-lg">
     <div class="mb-6">
-        <a href="/dashboard" class="text-muted hover:text-gray-200 text-sm transition">&larr; Back to dashboard</a>
+        <a href="/dashboard" class="text-muted hover:text-body text-sm transition">&larr; Back to dashboard</a>
     </div>
-    <h1 class="text-xl font-semibold text-gray-100 mb-6">Create Application</h1>
+    <h1 class="text-xl font-semibold text-heading mb-6">Create Application</h1>
     <form hx-post="/apps/new" hx-target="#form-errors" hx-swap="innerHTML"
           hx-on::after-request="if(event.detail.successful) { const loc=event.detail.xhr.getResponseHeader('HX-Redirect'); if(loc) window.location.href=loc; }">
         <div class="space-y-4">
             <div>
                 <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">App Name</label>
                 <input type="text" name="name" required placeholder="my-app"
-                    class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-gray-200 placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                    class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
             </div>
             <div>
                 <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Repository URL</label>
                 <input type="url" name="repo_url" required placeholder="https://github.com/user/repo"
-                    class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-gray-200 placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                    class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Branch</label>
                     <input type="text" name="branch" value="main"
-                        class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-gray-200 focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                        class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
                 </div>
                 <div>
                     <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Internal Port</label>
                     <input type="number" name="internal_port" value="3000"
-                        class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-gray-200 focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                        class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
                 </div>
             </div>
             <div>
                 <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Domain <span class="text-gray-600">(optional)</span></label>
                 <input type="text" name="domain" placeholder="app.example.com"
-                    class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-gray-200 placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                    class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
             </div>
             <button type="submit"
                 class="w-full bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition cursor-pointer uppercase tracking-wider text-sm">

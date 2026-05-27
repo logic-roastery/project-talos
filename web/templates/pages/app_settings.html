@@ -2,10 +2,10 @@
 <div class="max-w-3xl mx-auto">
     <div class="flex items-center justify-between mb-8">
         <div>
-            <h1 class="text-xl font-semibold text-gray-100">{{.App.Name}} — Settings</h1>
+            <h1 class="text-xl font-semibold text-heading">{{.App.Name}} — Settings</h1>
             <p class="text-sm text-muted">Environment variables and linked services</p>
         </div>
-        <a href="/apps/{{.App.ID}}" class="text-sm text-muted hover:text-gray-200 transition">← Back to App</a>
+        <a href="/apps/{{.App.ID}}" class="text-sm text-muted hover:text-body transition">← Back to App</a>
     </div>
 
     <!-- Linked Services -->
@@ -64,7 +64,7 @@
                     <div class="flex items-center gap-3">
                         <code class="text-sm text-lime-accent font-mono">{{.Key}}</code>
                         <span class="text-muted">=</span>
-                        <code class="text-sm text-gray-300 font-mono">{{.Value}}</code>
+                        <code class="text-sm text-subtle font-mono">{{.Value}}</code>
                         {{if .IsSecret}}<span class="text-xs px-1.5 py-0.5 bg-yellow-400/10 text-yellow-400 rounded-md">secret</span>{{end}}
                     </div>
                     <button hx-delete="/api/apps/{{$.App.ID}}/env/{{.Key}}"

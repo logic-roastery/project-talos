@@ -11,6 +11,7 @@
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <script>
     tailwind.config = {
+        darkMode: 'class',
         theme: {
             extend: {
                 colors: {
@@ -21,10 +22,14 @@
                     'violet-deep': '#422082',
                     'violet-mid': '#79628c',
                     'pink-accent': '#fa7faa',
-                    'canvas-dark': '#1f1633',
-                    night: '#150f23',
-                    hairline: '#362d59',
-                    muted: '#bdb8c0',
+                    'canvas-dark': 'var(--canvas)',
+                    night: 'var(--surface)',
+                    hairline: 'var(--hairline)',
+                    muted: 'var(--muted)',
+                    heading: 'var(--heading)',
+                    body: 'var(--body)',
+                    subtle: 'var(--subtle)',
+                    faint: 'var(--faint)',
                 },
                 fontFamily: {
                     sans: ['Rubik', '-apple-system', 'system-ui', 'Segoe UI', 'Helvetica', 'Arial', 'sans-serif'],
@@ -36,17 +41,62 @@
     </script>
     <style>
         body { font-family: 'Rubik', -apple-system, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif; }
+
+        /* Dark theme (default) — DESIGN.md surface-canvas-dark / surface-night */
+        :root {
+            --canvas: #1f1633;
+            --surface: #150f23;
+            --hairline: #362d59;
+            --muted: #bdb8c0;
+            --heading: #f3f4f6;
+            --body: #e5e7eb;
+            --subtle: #d1d5db;
+            --faint: #9ca3af;
+        }
+
+        /* Light theme — DESIGN.md surface-canvas-light */
+        .light {
+            --canvas: #ffffff;
+            --surface: #f5f5f5;
+            --hairline: #e5e7eb;
+            --muted: #6b7280;
+            --heading: #111827;
+            --body: #374151;
+            --subtle: #6b7280;
+            --faint: #9ca3af;
+        }
     </style>
+    <script>
+        // Restore theme preference from localStorage
+        (function() {
+            const theme = localStorage.getItem('theme');
+            if (theme === 'light') {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.classList.add('light');
+            } else {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
 </head>
-<body class="min-h-screen bg-canvas-dark text-gray-200">
+<body class="min-h-screen bg-canvas-dark text-body">
     {{if .User}}
     <nav class="border-b border-hairline bg-night/80 backdrop-blur px-6 py-3 flex items-center justify-between">
         <a href="/dashboard" class="text-lg font-bold text-lime-accent tracking-tight">talos</a>
         <div class="flex items-center gap-4 text-sm">
-            <a href="/dashboard" class="text-muted hover:text-gray-200 transition">Dashboard</a>
-            <a href="/services" class="text-muted hover:text-gray-200 transition">Services</a>
-            <a href="/settings/github/status" class="text-muted hover:text-gray-200 transition">GitHub</a>
+            <a href="/dashboard" class="text-muted hover:text-body transition">Dashboard</a>
+            <a href="/services" class="text-muted hover:text-body transition">Services</a>
+            <a href="/settings/github/status" class="text-muted hover:text-body transition">GitHub</a>
             <span class="text-muted">{{.User.Username}}</span>
+            <button id="theme-toggle" onclick="toggleTheme()" title="Toggle theme"
+                class="text-muted hover:text-body transition cursor-pointer p-1">
+                <svg id="icon-sun" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+                <svg id="icon-moon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                </svg>
+            </button>
             <button hx-post="/logout" hx-push-url="true"
                 class="text-muted hover:text-pink-accent transition cursor-pointer uppercase text-xs font-bold tracking-wider">logout</button>
         </div>
@@ -56,5 +106,32 @@
         {{.Content}}
     </main>
     <div id="flash-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const isDark = html.classList.contains('dark');
+            if (isDark) {
+                html.classList.remove('dark');
+                html.classList.add('light');
+                localStorage.setItem('theme', 'light');
+                document.getElementById('icon-sun').classList.add('hidden');
+                document.getElementById('icon-moon').classList.remove('hidden');
+            } else {
+                html.classList.remove('light');
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                document.getElementById('icon-sun').classList.remove('hidden');
+                document.getElementById('icon-moon').classList.add('hidden');
+            }
+        }
+        // Set correct icon on load
+        (function() {
+            const isLight = document.documentElement.classList.contains('light');
+            if (isLight) {
+                document.getElementById('icon-sun')?.classList.add('hidden');
+                document.getElementById('icon-moon')?.classList.remove('hidden');
+            }
+        })();
+    </script>
 </body>
 </html>

@@ -1,0 +1,98 @@
+{{define "github_status.html"}}
+<div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <p class="text-xs font-bold uppercase tracking-widest text-violet-mid mb-2">Settings</p>
+        <h1 class="text-2xl font-medium text-heading">GitHub Integration</h1>
+        <p class="text-sm text-muted mt-1">Connect your GitHub App to enable automatic deployments.</p>
+    </div>
+
+    <!-- Status Card -->
+    <div class="bg-night border border-hairline rounded-xl p-6 mb-6">
+        <div class="flex items-start gap-4">
+            {{if .IsConfigured}}
+            <!-- Connected State -->
+            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-lime-accent/10 flex items-center justify-center">
+                <svg class="w-5 h-5 text-lime-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h2 class="text-lg font-semibold text-heading mb-1">Connected</h2>
+                <p class="text-sm text-muted mb-4">Your GitHub App is configured and ready to receive webhooks.</p>
+
+                <div class="bg-night/50 border border-hairline rounded-lg p-4 mb-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-muted uppercase tracking-wider mb-1">App Slug</p>
+                            <p class="text-sm font-mono text-body">{{.AppSlug}}</p>
+                        </div>
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-lime-accent/10 text-lime-accent border border-lime-accent/20">
+                            <span class="w-1.5 h-1.5 rounded-full bg-lime-accent"></span>
+                            Active
+                        </span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <a href="/apps" class="inline-flex items-center gap-2 bg-lime-accent text-midnight font-bold px-4 py-2.5 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        View Apps
+                    </a>
+                    <form method="POST" action="/api/github/disconnect" class="inline"
+                          onsubmit="return confirm('Disconnect GitHub App? This will stop automatic deployments.');">
+                        <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium text-pink-accent hover:bg-pink-accent/10 border border-hairline transition">
+                            Disconnect
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            {{else}}
+            <!-- Not Connected State -->
+            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-yellow-400/10 flex items-center justify-center">
+                <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                </svg>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h2 class="text-lg font-semibold text-heading mb-1">Not Connected</h2>
+                <p class="text-sm text-muted mb-4">Set up a GitHub App to enable automatic deployments from your repositories.</p>
+
+                <a href="/settings/github/setup" class="inline-flex items-center gap-2 bg-lime-accent text-midnight font-bold px-4 py-2.5 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                    Set Up GitHub App
+                </a>
+            </div>
+            {{end}}
+        </div>
+    </div>
+
+    <!-- Info Card -->
+    <div class="bg-night border border-hairline rounded-xl p-6">
+        <h3 class="text-sm font-semibold text-heading mb-3">How it works</h3>
+        <ul class="space-y-2.5 text-sm text-muted">
+            <li class="flex items-start gap-2">
+                <span class="text-violet mt-0.5">1.</span>
+                <span>Create a GitHub App via the manifest flow</span>
+            </li>
+            <li class="flex items-start gap-2">
+                <span class="text-violet mt-0.5">2.</span>
+                <span>Install the app on your repositories</span>
+            </li>
+            <li class="flex items-start gap-2">
+                <span class="text-violet mt-0.5">3.</span>
+                <span>Talos receives webhooks and triggers deployments automatically</span>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Back Link -->
+    <div class="mt-6">
+        <a href="/dashboard" class="text-sm text-muted hover:text-body transition inline-flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+{{end}}
