@@ -15,6 +15,24 @@ make build
 
 Open `http://your-vps-ip:3000` and create your admin account.
 
+## Install
+
+One-line install on a fresh Linux VPS (Ubuntu/Debian/Fedora):
+
+```bash
+curl -sSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo sh
+```
+
+This installs Talos as a bare binary with a systemd service. Docker is installed automatically if missing.
+
+For Docker mode (container-based, easier upgrades):
+
+```bash
+curl -sSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo sh -s -- --docker
+```
+
+After install, open `http://<your-server-ip>:3000` and create your admin account.
+
 ## Configuration
 
 All configuration is via environment variables. Copy `.env.example` to `.env` and edit.
@@ -88,13 +106,12 @@ Services run as Docker containers managed by Talos. Credentials are encrypted at
 ## Docker
 
 ```bash
-docker build -t talos .
 docker run -d \
   -p 3000:3000 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v talos-data:/data \
   --env-file .env \
-  talos
+  ghcr.io/logic-roastery/project-talos:latest
 ```
 
 ## License
