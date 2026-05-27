@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -23,6 +24,34 @@ import (
 	"github.com/logic-roastery/project-talos/internal/store"
 	"github.com/logic-roastery/project-talos/web"
 )
+
+// persistEncryptionKey writes or updates TALOS_ENCRYPTION_KEY in the .env file.
+func persistEncryptionKey(key string) error {
+	envPath := ".env"
+
+	data, err := os.ReadFile(envPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return os.WriteFile(envPath, []byte("TALOS_ENCRYPTION_KEY="+key+"\n"), 0600)
+		}
+		return err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	found := false
+	for i, line := range lines {
+		if strings.HasPrefix(line, "TALOS_ENCRYPTION_KEY=") {
+			lines[i] = "TALOS_ENCRYPTION_KEY=" + key
+			found = true
+			break
+		}
+	}
+	if !found {
+		lines = append(lines, "TALOS_ENCRYPTION_KEY="+key)
+	}
+
+	return os.WriteFile(envPath, []byte(strings.Join(lines, "\n")), 0600)
+}
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -59,8 +88,18 @@ func main() {
 
 	authSvc := auth.NewService(db, cfg.Auth.SessionSecret, time.Duration(cfg.Auth.SessionMaxAge)*time.Second)
 
-	// Initialize encryption key
-	encKey, err := crypto.DecodeKey(cfg.EncryptionKey)
+	// Initialize encryption key — auto-generate if not set
+	encKeyStr := cfg.EncryptionKey
+	if encKeyStr == "" {
+		key := crypto.GenerateKey()
+		encKeyStr = crypto.EncodeKey(key)
+		if err := persistEncryptionKey(encKeyStr); err != nil {
+			logger.Warn("could not persist encryption key to .env", "error", err)
+		} else {
+			logger.Info("auto-generated encryption key and saved to .env")
+		}
+	}
+	encKey, err := crypto.DecodeKey(encKeyStr)
 	if err != nil {
 		logger.Error("invalid encryption key", "error", err)
 		os.Exit(1)

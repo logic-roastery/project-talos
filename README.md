@@ -85,16 +85,53 @@ Or use the setup wizard at `/settings/github/setup`.
 
 ## Architecture
 
-```
-Browser → Traefik → App Container
-            ↕
-Talos (chi + SQLite) → Docker Engine → Service Container
+```mermaid
+flowchart LR
+    U[Browser]
+    GH[GitHub Webhooks]
+    T[Traefik<br/>Routing + TLS]
+    TS[Talos Server<br/>chi + handlers + deploy engine]
+    DB[(SQLite)]
+    D[Docker Engine]
+    APP[App Containers]
+    SVC[Managed Services<br/>Postgres / MySQL / Redis / Garage]
+
+    U --> T
+    T --> TS
+    GH --> TS
+    TS --> DB
+    TS --> D
+    D --> APP
+    D --> SVC
+    T --> APP
 ```
 
-- **chi** — HTTP router
-- **SQLite** — embedded database (pure Go, no CGO)
-- **Docker Engine API** — container management
-- **Traefik** — reverse proxy with automatic TLS
+Talos acts as the control plane for a single VPS. It provides the web UI, stores state in SQLite, talks to the Docker Engine to create and manage workloads, and configures Traefik to route public traffic to deployed applications.
+
+### Components
+
+| Component | Responsibility |
+|----------|----------------|
+| Browser | UI for managing apps, services, deployments, and settings |
+| Talos Server | Authentication, app/service management, deployment orchestration, GitHub integration |
+| SQLite | Persistent storage for users, apps, services, deployments, and configuration |
+| Docker Engine | Runs application containers and managed backing services |
+| Traefik | Public entrypoint, reverse proxy, domain routing, and automatic TLS |
+| GitHub Webhooks | Trigger deployments from repository events |
+
+### Deployment Flow
+
+1. A user creates an app in Talos and configures its repository, image, or deployment settings.
+2. Talos stores the app state and deployment metadata in SQLite.
+3. A manual deploy or GitHub webhook triggers the deployment pipeline.
+4. Talos uses the Docker Engine API to create, update, or restart the target containers.
+5. Talos updates Traefik routing so the app is reachable by domain or server IP.
+6. Incoming traffic flows through Traefik to the running application container.
+
+### Control Plane vs Runtime
+
+- **Control plane** — Talos Server, SQLite, and GitHub-triggered deployment orchestration
+- **Runtime plane** — Traefik, application containers, and managed service containers
 
 ## Development
 
