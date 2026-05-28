@@ -173,10 +173,24 @@ func (s *SQLiteStore) GetLinkedApps(ctx context.Context, serviceID int64) ([]*do
 // App environment variables
 
 func (s *SQLiteStore) SetAppEnvVar(ctx context.Context, envVar *domain.AppEnvVar) error {
+	// Record old value in history before upserting.
+	var oldVal string
+	var oldSecret bool
+	err := s.db.QueryRowContext(ctx,
+		`SELECT value, is_secret FROM app_env_vars WHERE app_id = ? AND key = ?`,
+		envVar.AppID, envVar.Key,
+	).Scan(&oldVal, &oldSecret)
+	if err == nil {
+		_, _ = s.db.ExecContext(ctx,
+			`INSERT INTO app_env_var_history (app_id, key, value, is_secret) VALUES (?, ?, ?, ?)`,
+			envVar.AppID, envVar.Key, oldVal, oldSecret,
+		)
+	}
+
 	res, err := s.db.ExecContext(ctx,
-		`INSERT INTO app_env_vars (app_id, key, value, is_secret) VALUES (?, ?, ?, ?)
-		 ON CONFLICT(app_id, key) DO UPDATE SET value=excluded.value, is_secret=excluded.is_secret`,
-		envVar.AppID, envVar.Key, envVar.Value, envVar.IsSecret,
+		`INSERT INTO app_env_vars (app_id, key, value, is_secret, required) VALUES (?, ?, ?, ?, ?)
+		 ON CONFLICT(app_id, key) DO UPDATE SET value=excluded.value, is_secret=excluded.is_secret, required=excluded.required`,
+		envVar.AppID, envVar.Key, envVar.Value, envVar.IsSecret, envVar.Required,
 	)
 	if err != nil {
 		return fmt.Errorf("set env var: %w", err)
@@ -192,7 +206,7 @@ func (s *SQLiteStore) SetAppEnvVar(ctx context.Context, envVar *domain.AppEnvVar
 
 func (s *SQLiteStore) GetAppEnvVars(ctx context.Context, appID int64) ([]*domain.AppEnvVar, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, app_id, key, value, is_secret FROM app_env_vars WHERE app_id = ? ORDER BY key`, appID,
+		`SELECT id, app_id, key, value, is_secret, required FROM app_env_vars WHERE app_id = ? ORDER BY key`, appID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get env vars: %w", err)
@@ -202,12 +216,53 @@ func (s *SQLiteStore) GetAppEnvVars(ctx context.Context, appID int64) ([]*domain
 	var vars []*domain.AppEnvVar
 	for rows.Next() {
 		v := &domain.AppEnvVar{}
-		if err := rows.Scan(&v.ID, &v.AppID, &v.Key, &v.Value, &v.IsSecret); err != nil {
+		if err := rows.Scan(&v.ID, &v.AppID, &v.Key, &v.Value, &v.IsSecret, &v.Required); err != nil {
 			return nil, fmt.Errorf("scan env var: %w", err)
 		}
 		vars = append(vars, v)
 	}
 	return vars, rows.Err()
+}
+
+func (s *SQLiteStore) GetAppEnvVarHistory(ctx context.Context, appID int64, key string) ([]*domain.AppEnvVarHistory, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, app_id, key, value, is_secret, changed_at, changed_by FROM app_env_var_history WHERE app_id = ? AND key = ? ORDER BY changed_at DESC`,
+		appID, key,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get env var history: %w", err)
+	}
+	defer rows.Close()
+
+	var history []*domain.AppEnvVarHistory
+	for rows.Next() {
+		h := &domain.AppEnvVarHistory{}
+		if err := rows.Scan(&h.ID, &h.AppID, &h.Key, &h.Value, &h.IsSecret, &h.ChangedAt, &h.ChangedBy); err != nil {
+			return nil, fmt.Errorf("scan env var history: %w", err)
+		}
+		history = append(history, h)
+	}
+	return history, rows.Err()
+}
+
+func (s *SQLiteStore) GetAppEnvVarsSnapshot(ctx context.Context, appID int64) (map[string]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT key, value FROM app_env_vars WHERE app_id = ?`, appID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get env vars snapshot: %w", err)
+	}
+	defer rows.Close()
+
+	snap := make(map[string]string)
+	for rows.Next() {
+		var k, v string
+		if err := rows.Scan(&k, &v); err != nil {
+			return nil, fmt.Errorf("scan env var snapshot: %w", err)
+		}
+		snap[k] = v
+	}
+	return snap, rows.Err()
 }
 
 func (s *SQLiteStore) DeleteAppEnvVar(ctx context.Context, appID int64, key string) error {

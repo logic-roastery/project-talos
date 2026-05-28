@@ -81,6 +81,36 @@ var allMigrations = map[int]string{
 	10: `ALTER TABLE apps ADD COLUMN github_installation_id INTEGER`,
 	11: `ALTER TABLE apps ADD COLUMN github_repo_id INTEGER`,
 	12: `ALTER TABLE apps ADD COLUMN registry_url TEXT NOT NULL DEFAULT ''`,
+	13: `CREATE TABLE IF NOT EXISTS deploy_events (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		deploy_id  INTEGER NOT NULL REFERENCES deploys(id) ON DELETE CASCADE,
+		timestamp  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		level      TEXT    NOT NULL DEFAULT 'info',
+		step       TEXT    NOT NULL DEFAULT '',
+		message    TEXT    NOT NULL DEFAULT ''
+	)`,
+	14: `CREATE INDEX IF NOT EXISTS idx_deploy_events_deploy_id ON deploy_events(deploy_id)`,
+	15: `ALTER TABLE apps ADD COLUMN live_container_name TEXT NOT NULL DEFAULT ''`,
+	16: `CREATE TABLE IF NOT EXISTS app_env_var_history (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		app_id     INTEGER NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
+		key        TEXT    NOT NULL,
+		value      TEXT    NOT NULL DEFAULT '',
+		is_secret  INTEGER NOT NULL DEFAULT 0,
+		changed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		changed_by TEXT    NOT NULL DEFAULT 'system'
+	)`,
+	17: `CREATE INDEX IF NOT EXISTS idx_env_var_history_app_key ON app_env_var_history(app_id, key)`,
+	18: `ALTER TABLE app_env_vars ADD COLUMN required INTEGER NOT NULL DEFAULT 0`,
+	19: `ALTER TABLE deploys ADD COLUMN env_snapshot TEXT NOT NULL DEFAULT ''`,
+	20: `CREATE TABLE IF NOT EXISTS backups (
+		id          INTEGER PRIMARY KEY AUTOINCREMENT,
+		filename    TEXT    NOT NULL,
+		size_bytes  INTEGER NOT NULL DEFAULT 0,
+		type        TEXT    NOT NULL DEFAULT 'full',
+		status      TEXT    NOT NULL DEFAULT 'completed',
+		created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`,
 }
 
 func (s *SQLiteStore) migrate() error {

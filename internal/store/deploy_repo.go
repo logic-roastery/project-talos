@@ -11,9 +11,9 @@ import (
 
 func (s *SQLiteStore) CreateDeploy(ctx context.Context, d *domain.Deploy) error {
 	res, err := s.db.ExecContext(ctx,
-		`INSERT INTO deploys (app_id, image_ref, commit_sha, branch, status, triggered_by, rollback_of_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		d.AppID, d.ImageRef, d.CommitSHA, d.Branch, d.Status, d.TriggeredBy, d.RollbackOfID,
+		`INSERT INTO deploys (app_id, image_ref, commit_sha, branch, status, triggered_by, rollback_of_id, env_snapshot)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		d.AppID, d.ImageRef, d.CommitSHA, d.Branch, d.Status, d.TriggeredBy, d.RollbackOfID, d.EnvSnapshot,
 	)
 	if err != nil {
 		return fmt.Errorf("insert deploy: %w", err)
@@ -29,10 +29,10 @@ func (s *SQLiteStore) CreateDeploy(ctx context.Context, d *domain.Deploy) error 
 func (s *SQLiteStore) GetDeploy(ctx context.Context, id int64) (*domain.Deploy, error) {
 	d := &domain.Deploy{}
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, app_id, image_ref, commit_sha, branch, status, container_id, health_status, logs, started_at, completed_at, triggered_by, rollback_of_id, created_at
+		`SELECT id, app_id, image_ref, commit_sha, branch, status, container_id, health_status, logs, env_snapshot, started_at, completed_at, triggered_by, rollback_of_id, created_at
 		 FROM deploys WHERE id = ?`, id,
 	).Scan(&d.ID, &d.AppID, &d.ImageRef, &d.CommitSHA, &d.Branch, &d.Status,
-		&d.ContainerID, &d.HealthStatus, &d.Logs, &d.StartedAt, &d.CompletedAt,
+		&d.ContainerID, &d.HealthStatus, &d.Logs, &d.EnvSnapshot, &d.StartedAt, &d.CompletedAt,
 		&d.TriggeredBy, &d.RollbackOfID, &d.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, domain.ErrNotFound
@@ -46,10 +46,10 @@ func (s *SQLiteStore) GetDeploy(ctx context.Context, id int64) (*domain.Deploy, 
 func (s *SQLiteStore) GetLatestDeploy(ctx context.Context, appID int64) (*domain.Deploy, error) {
 	d := &domain.Deploy{}
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, app_id, image_ref, commit_sha, branch, status, container_id, health_status, logs, started_at, completed_at, triggered_by, rollback_of_id, created_at
+		`SELECT id, app_id, image_ref, commit_sha, branch, status, container_id, health_status, logs, env_snapshot, started_at, completed_at, triggered_by, rollback_of_id, created_at
 		 FROM deploys WHERE app_id = ? ORDER BY created_at DESC LIMIT 1`, appID,
 	).Scan(&d.ID, &d.AppID, &d.ImageRef, &d.CommitSHA, &d.Branch, &d.Status,
-		&d.ContainerID, &d.HealthStatus, &d.Logs, &d.StartedAt, &d.CompletedAt,
+		&d.ContainerID, &d.HealthStatus, &d.Logs, &d.EnvSnapshot, &d.StartedAt, &d.CompletedAt,
 		&d.TriggeredBy, &d.RollbackOfID, &d.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, domain.ErrNotFound
@@ -63,10 +63,10 @@ func (s *SQLiteStore) GetLatestDeploy(ctx context.Context, appID int64) (*domain
 func (s *SQLiteStore) GetLatestSuccessfulDeploy(ctx context.Context, appID int64) (*domain.Deploy, error) {
 	d := &domain.Deploy{}
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, app_id, image_ref, commit_sha, branch, status, container_id, health_status, logs, started_at, completed_at, triggered_by, rollback_of_id, created_at
+		`SELECT id, app_id, image_ref, commit_sha, branch, status, container_id, health_status, logs, env_snapshot, started_at, completed_at, triggered_by, rollback_of_id, created_at
 		 FROM deploys WHERE app_id = ? AND status = 'success' ORDER BY created_at DESC LIMIT 1`, appID,
 	).Scan(&d.ID, &d.AppID, &d.ImageRef, &d.CommitSHA, &d.Branch, &d.Status,
-		&d.ContainerID, &d.HealthStatus, &d.Logs, &d.StartedAt, &d.CompletedAt,
+		&d.ContainerID, &d.HealthStatus, &d.Logs, &d.EnvSnapshot, &d.StartedAt, &d.CompletedAt,
 		&d.TriggeredBy, &d.RollbackOfID, &d.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, domain.ErrNotFound
@@ -79,7 +79,7 @@ func (s *SQLiteStore) GetLatestSuccessfulDeploy(ctx context.Context, appID int64
 
 func (s *SQLiteStore) ListDeploys(ctx context.Context, appID int64, limit int) ([]*domain.Deploy, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, app_id, image_ref, commit_sha, branch, status, container_id, health_status, logs, started_at, completed_at, triggered_by, rollback_of_id, created_at
+		`SELECT id, app_id, image_ref, commit_sha, branch, status, container_id, health_status, logs, env_snapshot, started_at, completed_at, triggered_by, rollback_of_id, created_at
 		 FROM deploys WHERE app_id = ? ORDER BY created_at DESC LIMIT ?`, appID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list deploys: %w", err)
@@ -90,7 +90,7 @@ func (s *SQLiteStore) ListDeploys(ctx context.Context, appID int64, limit int) (
 	for rows.Next() {
 		d := &domain.Deploy{}
 		if err := rows.Scan(&d.ID, &d.AppID, &d.ImageRef, &d.CommitSHA, &d.Branch, &d.Status,
-			&d.ContainerID, &d.HealthStatus, &d.Logs, &d.StartedAt, &d.CompletedAt,
+			&d.ContainerID, &d.HealthStatus, &d.Logs, &d.EnvSnapshot, &d.StartedAt, &d.CompletedAt,
 			&d.TriggeredBy, &d.RollbackOfID, &d.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan deploy: %w", err)
 		}
@@ -101,11 +101,46 @@ func (s *SQLiteStore) ListDeploys(ctx context.Context, appID int64, limit int) (
 
 func (s *SQLiteStore) UpdateDeploy(ctx context.Context, d *domain.Deploy) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE deploys SET status=?, container_id=?, health_status=?, logs=?, started_at=?, completed_at=?
+		`UPDATE deploys SET status=?, container_id=?, health_status=?, logs=?, env_snapshot=?, started_at=?, completed_at=?
 		 WHERE id=?`,
-		d.Status, d.ContainerID, d.HealthStatus, d.Logs, d.StartedAt, d.CompletedAt, d.ID)
+		d.Status, d.ContainerID, d.HealthStatus, d.Logs, d.EnvSnapshot, d.StartedAt, d.CompletedAt, d.ID)
 	if err != nil {
 		return fmt.Errorf("update deploy: %w", err)
 	}
 	return nil
+}
+
+func (s *SQLiteStore) CreateDeployEvent(ctx context.Context, e *domain.DeployEvent) error {
+	res, err := s.db.ExecContext(ctx,
+		`INSERT INTO deploy_events (deploy_id, level, step, message) VALUES (?, ?, ?, ?)`,
+		e.DeployID, e.Level, e.Step, e.Message)
+	if err != nil {
+		return fmt.Errorf("insert deploy event: %w", err)
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("get deploy event id: %w", err)
+	}
+	e.ID = id
+	return nil
+}
+
+func (s *SQLiteStore) ListDeployEvents(ctx context.Context, deployID int64) ([]*domain.DeployEvent, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, deploy_id, timestamp, level, step, message FROM deploy_events WHERE deploy_id = ? ORDER BY timestamp ASC`,
+		deployID)
+	if err != nil {
+		return nil, fmt.Errorf("list deploy events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []*domain.DeployEvent
+	for rows.Next() {
+		e := &domain.DeployEvent{}
+		if err := rows.Scan(&e.ID, &e.DeployID, &e.Timestamp, &e.Level, &e.Step, &e.Message); err != nil {
+			return nil, fmt.Errorf("scan deploy event: %w", err)
+		}
+		events = append(events, e)
+	}
+	return events, rows.Err()
 }
