@@ -90,14 +90,14 @@ Or use the setup wizard at `/settings/github/setup`.
 
 ```mermaid
 flowchart LR
-    U[Browser]
-    GH[GitHub Webhooks]
-    T[Traefik<br/>Routing + TLS]
-    TS[Talos Server<br/>chi + handlers + deploy engine]
-    DB[(SQLite)]
-    D[Docker Engine]
-    APP[App Containers]
-    SVC[Managed Services<br/>Postgres / MySQL / Redis / Garage]
+    U["Browser"]
+    GH["GitHub Webhooks"]
+    T["Traefik: Routing + TLS"]
+    TS["Talos Server: chi + handlers + deploy engine"]
+    DB[("SQLite")]
+    D["Docker Engine"]
+    APP["App Containers"]
+    SVC["Managed Services: Postgres / MySQL / Redis / Garage"]
 
     U --> T
     T --> TS
