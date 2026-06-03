@@ -67,6 +67,7 @@ All configuration is via environment variables. Copy `.env.example` to `.env` an
 | `TALOS_ENCRYPTION_KEY` | auto-generated | Base64 AES-256 key for credential encryption |
 | `TALOS_TRAEFIK_IMAGE` | `traefik:v3.0` | Traefik reverse proxy image |
 | `TALOS_TRAEFIK_DASHBOARD` | `false` | Enable Traefik dashboard |
+| `TALOS_BACKUP_DIR` | `data/backups` | Directory for backup files |
 
 ### GitHub App (optional)
 
@@ -157,6 +158,35 @@ Talos can provision and manage backing services:
 | Garage | `dxflrs/garage:v1.0` | 3900 |
 
 Services run as Docker containers managed by Talos. Credentials are encrypted at rest with AES-256-GCM.
+
+## Backup & Restore
+
+Talos includes a built-in backup system accessible from the web UI at `/backups`.
+
+**What gets backed up:**
+
+| Component | Method |
+|-----------|--------|
+| SQLite database | Atomic snapshot via `VACUUM INTO` |
+| PostgreSQL services | `pg_dumpall` via Docker exec |
+| MySQL services | `mysqldump --all-databases` via Docker exec |
+| Redis services | Volume directory copy |
+| Garage services | Volume directory copy |
+| Traefik TLS certs | File copy |
+| `.env` config | File copy (contains encryption key) |
+
+Everything is bundled into a single `.tar.gz` file.
+
+**Operations:**
+
+- **Create** — click "Create Backup" to take an instant snapshot
+- **Download** — download the `.tar.gz` for off-site storage
+- **Restore** — restore from a previous backup (requires server restart)
+- **Delete** — remove backups you no longer need
+
+Backups are stored in `data/backups/` by default. Configure with `TALOS_BACKUP_DIR`.
+
+> **Important:** Always keep the `.env` file safe — it contains `TALOS_ENCRYPTION_KEY` which is required to decrypt service credentials. Without it, encrypted credentials in backups are unrecoverable.
 
 ## Docker
 
