@@ -1,62 +1,213 @@
 # Changelog
 
-All notable changes to Talos are documented here.
+All notable changes to Talos are documented here. Releases are automatically pulled from [GitHub Releases](https://github.com/logic-roastery/project-talos/releases).
 
-## v1.0.0
+<script setup>
+import { data as releases } from './.vitepress/loaders/releases.data.ts'
 
-Initial stable release.
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+</script>
 
-### Features
+<div class="releases">
 
-- **Web UI** -- server-rendered interface for managing applications, services, deployments, and settings
-- **Blue/Green Deployments** -- zero-downtime deployments with automatic rollback on health check failure
-- **Managed Services** -- provision PostgreSQL, MySQL, Redis, and Garage as Docker containers
-- **Backup & Restore** -- full system backups with `VACUUM INTO` snapshots and scheduled automation
-- **GitHub Integration** -- automatic deployments via GitHub App webhooks and workflow_run events
-- **Traefik Routing** -- domain-based routing with automatic HTTPS via Let's Encrypt
-- **IP:Port Fallback** -- domain-free access mode using unique external ports
-- **Environment Management** -- per-app env vars with secrets, required vars, and change history
-- **Credential Encryption** -- AES-256-GCM encryption for service credentials at rest
-- **Container Log Streaming** -- real-time log access from running containers
-- **Session Authentication** -- secure session management with HMAC-signed tokens
-- **Schema Migrations** -- automatic database schema upgrades on startup
+<div v-for="release in releases.releases" :key="release.tag_name" class="release">
 
-### Supported Platforms
+<div class="release-header">
+  <a :href="release.html_url" class="release-tag" target="_blank" rel="noopener">
+    {{ release.tag_name }}
+  </a>
+  <span v-if="release.prerelease" class="pre-release-badge">Pre-release</span>
+  <span class="release-date">Published {{ formatDate(release.published_at) }}</span>
+</div>
 
-- Ubuntu / Debian / Fedora (bare binary mode)
-- Docker (container-based mode)
-- linux/amd64 and linux/arm64 architectures
+<div class="release-body" v-html="release.body"></div>
 
-### Configuration
+<div class="release-footer">
+  <a :href="release.html_url" target="_blank" rel="noopener" class="release-link">
+    View on GitHub
+  </a>
+</div>
 
-- All configuration via environment variables
-- `.env` file with `TALOS_SESSION_SECRET` as the only required variable
-- Auto-generated `TALOS_ENCRYPTION_KEY` if not provided
+<hr class="release-divider" />
 
-### API Endpoints
+</div>
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /health` | Health check |
-| `POST /api/auth/setup` | Create admin account |
-| `POST /api/auth/login` | Log in |
-| `GET /api/apps` | List apps |
-| `POST /api/apps` | Create app |
-| `POST /api/apps/{id}/deploys` | Trigger deploy |
-| `POST /api/apps/{id}/deploys/rollback` | Rollback deploy |
-| `GET /api/services` | List services |
-| `POST /api/services` | Create service |
-| `GET /api/backups` | List backups |
-| `POST /api/backups` | Create backup |
-| `POST /api/backups/{id}/restore` | Restore backup |
-| `POST /api/webhooks/github` | GitHub webhook endpoint |
+</div>
 
-### Default Images
+<div v-if="releases.releases.length === 0" class="empty-state">
 
-| Component | Image |
-|-----------|-------|
-| PostgreSQL | `postgres:16` |
-| MySQL | `mysql:8` |
-| Redis | `redis:7-alpine` |
-| Garage | `dxflrs/garage:v1.0` |
-| Traefik | `traefik:v3.0` |
+No releases found. Check [GitHub Releases](https://github.com/logic-roastery/project-talos/releases) directly.
+
+</div>
+
+<style>
+.releases {
+  margin-top: 1.5rem;
+}
+
+.release {
+  margin-bottom: 0;
+}
+
+.release-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.release-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+  border-radius: 20px;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.release-tag:hover {
+  background: var(--vp-c-brand-1);
+  color: #fff;
+}
+
+.pre-release-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--vp-c-brand-1);
+  border: 1px solid var(--vp-c-brand-1);
+  border-radius: 20px;
+  line-height: 1.4;
+}
+
+.release-date {
+  font-size: 0.875rem;
+  color: var(--vp-c-text-3);
+}
+
+.release-body {
+  line-height: 1.7;
+  color: var(--vp-c-text-1);
+}
+
+.release-body h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+
+.release-body h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.release-body ul {
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.release-body li {
+  margin-bottom: 0.35rem;
+  line-height: 1.6;
+}
+
+.release-body p {
+  margin: 0.5rem 0;
+}
+
+.release-body code {
+  background: var(--vp-c-bg-soft);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-family: var(--vp-font-family-mono);
+}
+
+.release-body pre {
+  background: var(--vp-c-bg-soft);
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.release-body pre code {
+  background: none;
+  padding: 0;
+}
+
+.release-body a {
+  color: var(--vp-c-brand-1);
+  text-decoration: none;
+}
+
+.release-body a:hover {
+  text-decoration: underline;
+}
+
+.release-body strong {
+  font-weight: 600;
+}
+
+.release-footer {
+  margin-top: 1rem;
+}
+
+.release-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.875rem;
+  color: var(--vp-c-text-2);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.release-link:hover {
+  color: var(--vp-c-brand-1);
+}
+
+.release-divider {
+  border: none;
+  border-top: 1px solid var(--vp-c-divider);
+  margin: 2rem 0;
+}
+
+.release:last-child .release-divider {
+  display: none;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: var(--vp-c-text-3);
+}
+
+/* GitHub-style contributor avatars */
+.release-body img {
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+/* GitHub-style PR links */
+.release-body a[href*="github.com"] {
+  color: var(--vp-c-brand-1);
+}
+</style>
