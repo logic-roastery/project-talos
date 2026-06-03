@@ -36,6 +36,7 @@ func New(
 	dockerClient *docker.Client,
 	renderer *web.Renderer,
 	backupHandler *handlers.BackupHandler,
+	backupStore store.BackupStore,
 	serverHost string,
 	serverDomain string,
 	logger *slog.Logger,
@@ -109,6 +110,7 @@ func New(
 			r.Route("/api/backups", func(r chi.Router) {
 				r.Get("/", backupHandler.List)
 				r.Post("/", backupHandler.Create)
+				r.Get("/{backupID}/download", backupHandler.Download)
 				r.Delete("/{backupID}", backupHandler.Delete)
 				r.Post("/{backupID}/restore", backupHandler.Restore)
 			})
@@ -209,7 +211,7 @@ func New(
 	})
 
 	// Page routes (HTML)
-	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, svcStore, authSvc, engine, ghClient, serverHost, serverDomain)
+	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, svcStore, backupStore, authSvc, engine, ghClient, serverHost, serverDomain)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/dashboard", http.StatusFound)
@@ -235,6 +237,7 @@ func New(
 		r.Get("/services/new", pageH.ServiceCreatePage)
 		r.Get("/services/{serviceID}", pageH.ServiceDetailPage)
 		r.Get("/apps/{appID}/settings", pageH.AppSettingsPage)
+		r.Get("/backups", pageH.BackupPage)
 		r.Post("/logout", pageH.Logout)
 	})
 

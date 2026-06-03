@@ -27,6 +27,9 @@ import (
 	"github.com/logic-roastery/project-talos/web"
 )
 
+// Version is set at build time via ldflags.
+var Version = "dev"
+
 // persistEncryptionKey writes or updates TALOS_ENCRYPTION_KEY in the .env file.
 func persistEncryptionKey(key string) error {
 	envPath := ".env"
@@ -56,6 +59,12 @@ func persistEncryptionKey(key string) error {
 }
 
 func main() {
+	// Handle --version flag
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		fmt.Printf("talos %s\n", Version)
+		os.Exit(0)
+	}
+
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	cfg, err := config.Load()
@@ -131,9 +140,9 @@ func main() {
 
 	// Backup manager
 	backupMgr := backup.NewManager(db.DB(), db, dataDir, cfg.Backup.Dir, cfg.Backup.RetainCount, logger)
-	backupH := handlers.NewBackupHandler(backupMgr)
+	backupH := handlers.NewBackupHandler(backupMgr, db)
 
-	srv := server.New(db, db, db, db, authSvc, engine, provisioner, webhook, ghClient, cfg.GitHub, dockerClient, renderer, backupH, cfg.Server.Host, cfg.Server.Domain, logger)
+	srv := server.New(db, db, db, db, authSvc, engine, provisioner, webhook, ghClient, cfg.GitHub, dockerClient, renderer, backupH, db, cfg.Server.Host, cfg.Server.Domain, logger)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	httpServer := &http.Server{

@@ -1,0 +1,43 @@
+{{define "backups.html"}}
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-xl font-semibold text-heading">Backups</h1>
+        <p class="text-sm text-muted mt-1">Create and manage system backups</p>
+    </div>
+    <button id="backup-btn"
+        hx-post="/api/backups"
+        hx-target="#backup-table-body"
+        hx-swap="afterbegin"
+        hx-on::before-request="this.disabled=true; this.textContent='Creating...'"
+        hx-on::after-request="this.disabled=false; this.textContent='+ Create Backup'"
+        class="bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider cursor-pointer">
+        + Create Backup
+    </button>
+</div>
+
+{{if .Backups}}
+<div class="bg-night border border-hairline rounded-xl overflow-hidden">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="border-b border-hairline text-left text-xs text-muted uppercase tracking-wider">
+                <th class="px-4 py-3">Filename</th>
+                <th class="px-4 py-3">Size</th>
+                <th class="px-4 py-3">Created</th>
+                <th class="px-4 py-3">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="backup-table-body">
+            {{range .Backups}}
+            {{template "backup_row.html" .}}
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{else}}
+<div id="backup-empty" class="bg-night border border-hairline rounded-xl p-12 text-center">
+    <p class="text-muted mb-4">No backups yet.</p>
+    <p class="text-sm text-faint">Create your first backup to protect your data.</p>
+</div>
+<div class="hidden"><tbody id="backup-table-body"></tbody></div>
+{{end}}
+{{end}}

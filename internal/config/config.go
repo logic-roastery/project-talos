@@ -55,7 +55,7 @@ type GitHubConfig struct {
 }
 
 type BackupConfig struct {
-	Dir             string
+	Dir             string // TALOS_BACKUP_DIR, default "data/backups"
 	IntervalMinutes int
 	RetainCount     int
 }
@@ -92,6 +92,9 @@ func Load() (*Config, error) {
 			PrivateKey:    envOrDefault("TALOS_GITHUB_APP_PRIVATE_KEY", ""),
 			ClientID:      envOrDefault("TALOS_GITHUB_APP_CLIENT_ID", ""),
 			ClientSecret:  envOrDefault("TALOS_GITHUB_APP_CLIENT_SECRET", ""),
+		},
+		Backup: BackupConfig{
+			Dir: envOrDefault("TALOS_BACKUP_DIR", "data/backups"),
 		},
 		EncryptionKey: envOrDefault("TALOS_ENCRYPTION_KEY", ""),
 	}

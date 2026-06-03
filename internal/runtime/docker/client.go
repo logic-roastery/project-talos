@@ -233,6 +233,41 @@ func (c *Client) StreamLogs(ctx context.Context, containerID string, tail string
 	return reader, nil
 }
 
+// Exec runs a command in a running container and returns the combined stdout output.
+func (c *Client) Exec(ctx context.Context, containerName string, cmd []string) ([]byte, error) {
+	execCfg := container.ExecOptions{
+		Cmd:          cmd,
+		AttachStdout: true,
+		AttachStderr: true,
+	}
+
+	resp, err := c.cli.ContainerExecCreate(ctx, containerName, execCfg)
+	if err != nil {
+		return nil, fmt.Errorf("exec create: %w", err)
+	}
+
+	attachResp, err := c.cli.ContainerExecAttach(ctx, resp.ID, container.ExecAttachOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("exec attach: %w", err)
+	}
+	defer attachResp.Close()
+
+	output, err := io.ReadAll(attachResp.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("exec read output: %w", err)
+	}
+
+	inspectResp, err := c.cli.ContainerExecInspect(ctx, resp.ID)
+	if err != nil {
+		return nil, fmt.Errorf("exec inspect: %w", err)
+	}
+	if inspectResp.ExitCode != 0 {
+		return output, fmt.Errorf("exec exited with code %d", inspectResp.ExitCode)
+	}
+
+	return output, nil
+}
+
 func (c *Client) EnsureNetwork(ctx context.Context) error {
 	networks, err := c.cli.NetworkList(ctx, network.ListOptions{})
 	if err != nil {

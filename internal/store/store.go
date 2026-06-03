@@ -63,3 +63,4 @@ type ServiceStore interface {
 	GetAppEnvVarHistory(ctx context.Context, appID int64, key string) ([]*domain.AppEnvVarHistory, error)
 	GetAppEnvVarsSnapshot(ctx context.Context, appID int64) (map[string]string, error)
 }
+

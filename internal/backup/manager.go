@@ -233,6 +233,11 @@ func (m *Manager) ListBackups(ctx context.Context) ([]*domain.Backup, error) {
 	return m.store.ListBackups(ctx)
 }
 
+// BackupDir returns the configured backup directory path.
+func (m *Manager) BackupDir() string {
+	return m.backupDir
+}
+
 // StartScheduler runs periodic backups at the given interval.
 func (m *Manager) StartScheduler(ctx context.Context, interval time.Duration) {
 	m.logger.Info("backup scheduler started", "interval", interval)

@@ -274,6 +274,35 @@ Talos can provision and manage backing services:
 
 Services run as Docker containers managed by Talos. Credentials are encrypted at rest with AES-256-GCM.
 
+## Backup & Restore
+
+Talos includes a built-in backup system accessible from the web UI at `/backups`.
+
+**What gets backed up:**
+
+| Component | Method |
+|-----------|--------|
+| SQLite database | Atomic snapshot via `VACUUM INTO` |
+| PostgreSQL services | `pg_dumpall` via Docker exec |
+| MySQL services | `mysqldump --all-databases` via Docker exec |
+| Redis services | Volume directory copy |
+| Garage services | Volume directory copy |
+| Traefik TLS certs | File copy |
+| `.env` config | File copy (contains encryption key) |
+
+Everything is bundled into a single `.tar.gz` file.
+
+**Operations:**
+
+- **Create** — click "Create Backup" to take an instant snapshot
+- **Download** — download the `.tar.gz` for off-site storage
+- **Restore** — restore from a previous backup (requires server restart)
+- **Delete** — remove backups you no longer need
+
+Backups are stored in `data/backups/` by default. Configure with `TALOS_BACKUP_DIR`.
+
+> **Important:** Always keep the `.env` file safe — it contains `TALOS_ENCRYPTION_KEY` which is required to decrypt service credentials. Without it, encrypted credentials in backups are unrecoverable.
+
 ## Docker
 
 ```bash
