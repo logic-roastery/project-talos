@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
-# Talos Installer
+# Talos Installer & Upgrader
 # Usage: sudo bash install.sh [--docker] [--from-source] [--port PORT]
+#        sudo bash install.sh --upgrade [--docker] [--version-tag vX.Y.Z]
 #
 # Installs Talos, Docker (if missing), and Traefik on a Linux host.
 # Target: Ubuntu/Debian/Fedora
@@ -9,6 +10,7 @@
 # Modes:
 #   (default)     Bare binary + systemd service
 #   --docker      Docker container (easier upgrades, isolated)
+#   --upgrade     Upgrade to latest (or specific) version, preserving config and data
 #
 set -euo pipefail
 
@@ -27,10 +29,13 @@ TRAEFIK_IMAGE="traefik:v3.0"
 SYSTEMD_UNIT="/etc/systemd/system/talos.service"
 REPO_URL="https://github.com/logic-roastery/project-talos"
 GHCR_IMAGE="ghcr.io/logic-roastery/project-talos:latest"
+GHCR_IMAGE_BASE="ghcr.io/logic-roastery/project-talos"
 
 # Defaults
 FROM_SOURCE=false
 DOCKER_MODE=false
+UPGRADE_MODE=false
+TARGET_VERSION=""
 TALOS_PORT=3000
 DOCKER_GROUP="docker"
 
@@ -55,21 +60,251 @@ die()   { echo -e "${RED}[error]${NC} $*" >&2; exit 1; }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --docker)      DOCKER_MODE=true; shift ;;
-        --from-source) FROM_SOURCE=true; shift ;;
-        --port)        TALOS_PORT="$2"; shift 2 ;;
+        --docker)       DOCKER_MODE=true; shift ;;
+        --from-source)  FROM_SOURCE=true; shift ;;
+        --port)         TALOS_PORT="$2"; shift 2 ;;
+        --upgrade)      UPGRADE_MODE=true; shift ;;
+        --version-tag)  TARGET_VERSION="$2"; shift 2 ;;
         -h|--help)
-            echo "Usage: sudo bash install.sh [--docker] [--from-source] [--port PORT]"
+            echo "Usage: sudo bash install.sh [OPTIONS]"
+            echo "       sudo bash install.sh --upgrade [--docker] [--version-tag vX.Y.Z]"
             echo ""
-            echo "Options:"
-            echo "  --docker        Install as a Docker container (easier upgrades)"
-            echo "  --from-source   Build Talos from source (requires Go 1.21+)"
-            echo "  --port PORT     Port for the Talos web UI (default: 3000)"
+            echo "Install Options:"
+            echo "  --docker          Install as a Docker container (easier upgrades)"
+            echo "  --from-source     Build Talos from source (requires Go 1.21+)"
+            echo "  --port PORT       Port for the Talos web UI (default: 3000)"
+            echo ""
+            echo "Upgrade Options:"
+            echo "  --upgrade         Upgrade Talos to the latest version (preserves config & data)"
+            echo "  --version-tag X   Upgrade to a specific version (e.g. v0.2.0)"
             exit 0
             ;;
         *) die "Unknown option: $1" ;;
     esac
 done
+
+# ---------------------------------------------------------------------------
+# Upgrade mode
+# ---------------------------------------------------------------------------
+
+if [[ "${UPGRADE_MODE}" == "true" ]]; then
+
+    [[ $(id -u) -eq 0 ]] || die "This script must be run as root (use sudo)."
+
+    # --- Detect installation mode ---
+    detect_install_mode() {
+        if [[ "${DOCKER_MODE}" == "true" ]]; then
+            echo "docker"
+        elif [[ -f "${SYSTEMD_UNIT}" ]] && [[ -x "${TALOS_BIN}" ]]; then
+            echo "bare"
+        elif docker inspect talos &>/dev/null 2>&1; then
+            echo "docker"
+        else
+            die "Talos is not installed. Run install.sh first."
+        fi
+    }
+
+    INSTALL_MODE=$(detect_install_mode)
+    BACKUP_TAG=$(date +%Y%m%d-%H%M%S)
+
+    # --- Resolve target version string ---
+    if [[ -z "${TARGET_VERSION}" ]]; then
+        info "Checking latest release..."
+        TARGET_VERSION=$(curl -fsSL "https://api.github.com/repos/logic-roastery/project-talos/releases/latest" \
+            | grep '"tag_name"' | sed 's/.*"tag_name": *"\(.*\)".*/\1/' || true)
+        if [[ -z "${TARGET_VERSION}" ]]; then
+            die "Could not determine latest release. Check your internet connection or use --version-tag."
+        fi
+    fi
+
+    # =========================================================================
+    # Bare binary upgrade
+    # =========================================================================
+
+    rollback_bare() {
+        warn "Upgrade failed. Rolling back..."
+        local latest_bak
+        latest_bak=$(ls -t "${TALOS_BIN}.bak."* 2>/dev/null | head -1)
+        if [[ -n "$latest_bak" ]]; then
+            cp "$latest_bak" "${TALOS_BIN}"
+            systemctl start talos 2>/dev/null || true
+            ok "Rolled back to previous binary: ${latest_bak}"
+        else
+            warn "No backup found. Manual intervention required."
+        fi
+        die "Upgrade failed."
+    }
+
+    if [[ "${INSTALL_MODE}" == "bare" ]]; then
+        info "Upgrading Talos (bare binary mode)..."
+
+        # Get current version
+        CURRENT_VERSION=$("${TALOS_BIN}" --version 2>/dev/null | awk '{print $2}' || echo "unknown")
+        info "Current version: ${CURRENT_VERSION}"
+        info "Target version:  ${TARGET_VERSION}"
+
+        if [[ "${CURRENT_VERSION}" == "${TARGET_VERSION}" ]]; then
+            ok "Talos is already at ${TARGET_VERSION}. Nothing to do."
+            exit 0
+        fi
+
+        # Ensure .env exists (never overwrite it)
+        [[ -f "${TALOS_ENV}" ]] || die "No .env found at ${TALOS_ENV}. Run install.sh first."
+
+        # Backup current binary
+        cp "${TALOS_BIN}" "${TALOS_BIN}.bak.${BACKUP_TAG}"
+        ok "Backed up current binary to ${TALOS_BIN}.bak.${BACKUP_TAG}"
+
+        # Stop service
+        info "Stopping Talos service..."
+        systemctl stop talos || true
+
+        # Download new binary (trap on failure)
+        trap rollback_bare ERR
+        resolve_arch
+        DOWNLOAD_URL="${REPO_URL}/releases/download/${TARGET_VERSION}/talos-linux-${ARCH}"
+        if curl -fsSL --head "${DOWNLOAD_URL}" &>/dev/null; then
+            info "Downloading ${TARGET_VERSION}..."
+            curl -fsSL "${DOWNLOAD_URL}" -o "${TALOS_BIN}"
+            chmod 755 "${TALOS_BIN}"
+            ok "Binary downloaded."
+        else
+            warn "No pre-built binary for ${TARGET_VERSION}. Building from source..."
+            build_from_source
+        fi
+
+        # Start service
+        info "Starting Talos service..."
+        systemctl start talos
+        trap - ERR
+
+        # Verify
+        sleep 3
+        if systemctl is-active --quiet talos; then
+            NEW_VERSION=$("${TALOS_BIN}" --version 2>/dev/null | awk '{print $2}' || echo "unknown")
+            echo ""
+            echo "============================================="
+            echo -e "${GREEN}  Talos upgraded: ${CURRENT_VERSION} → ${NEW_VERSION}${NC}"
+            echo "============================================="
+            echo ""
+            echo "  Rollback to previous version:"
+            echo ""
+            echo "    sudo systemctl stop talos"
+            echo "    sudo cp ${TALOS_BIN}.bak.${BACKUP_TAG} ${TALOS_BIN}"
+            echo "    sudo systemctl start talos"
+            echo ""
+            echo "============================================="
+        else
+            rollback_bare
+        fi
+
+        exit 0
+    fi
+
+    # =========================================================================
+    # Docker mode upgrade
+    # =========================================================================
+
+    rollback_docker() {
+        warn "Upgrade failed. Rolling back..."
+        docker stop talos >/dev/null 2>&1 || true
+        docker rm talos >/dev/null 2>&1 || true
+        local latest_tag
+        latest_tag=$(docker images "${GHCR_IMAGE_BASE}" --format '{{.Tag}}' | grep '^rollback-' | sort -r | head -1)
+        if [[ -n "$latest_tag" ]]; then
+            docker run -d \
+                --name talos \
+                --restart unless-stopped \
+                --network "${DOCKER_NETWORK}" \
+                -p "${TALOS_PORT}:3000" \
+                -v /var/run/docker.sock:/var/run/docker.sock \
+                -v "${TALOS_DATA}:/data" \
+                --env-file "${TALOS_ENV}" \
+                "${GHCR_IMAGE_BASE}:${latest_tag}" >/dev/null
+            ok "Rolled back to image tag: ${latest_tag}"
+        else
+            warn "No rollback image found. Manual intervention required."
+        fi
+        die "Upgrade failed."
+    }
+
+    if [[ "${INSTALL_MODE}" == "docker" ]]; then
+        info "Upgrading Talos (Docker mode)..."
+
+        # Get current image info
+        CURRENT_IMAGE_ID=$(docker inspect --format='{{.Image}}' talos 2>/dev/null || echo "unknown")
+        CURRENT_IMAGE_TAG=$(docker inspect --format='{{.Config.Image}}' talos 2>/dev/null || echo "unknown")
+        info "Current image: ${CURRENT_IMAGE_TAG}"
+
+        # Resolve image tag
+        IMAGE_TAG="${TARGET_VERSION}"
+
+        # Ensure .env exists (never overwrite it)
+        [[ -f "${TALOS_ENV}" ]] || die "No .env found at ${TALOS_ENV}. Run install.sh first."
+
+        # Pull new image
+        info "Pulling ${GHCR_IMAGE_BASE}:${IMAGE_TAG}..."
+        docker pull "${GHCR_IMAGE_BASE}:${IMAGE_TAG}"
+
+        # Compare image IDs
+        NEW_IMAGE_ID=$(docker inspect --format='{{.Id}}' "${GHCR_IMAGE_BASE}:${IMAGE_TAG}" 2>/dev/null || echo "")
+        if [[ "${CURRENT_IMAGE_ID}" == "${NEW_IMAGE_ID}" ]]; then
+            ok "Talos Docker image is already up to date. Nothing to do."
+            exit 0
+        fi
+
+        # Tag current image for rollback
+        docker tag "${GHCR_IMAGE_BASE}:latest" "${GHCR_IMAGE_BASE}:rollback-${BACKUP_TAG}" 2>/dev/null || true
+        ok "Tagged current image as ${GHCR_IMAGE_BASE}:rollback-${BACKUP_TAG}"
+
+        # Recreate container (stop → rm → run)
+        trap rollback_docker ERR
+        info "Recreating Talos container..."
+        docker stop talos >/dev/null 2>&1 || true
+        docker rm talos >/dev/null 2>&1 || true
+
+        docker run -d \
+            --name talos \
+            --restart unless-stopped \
+            --network "${DOCKER_NETWORK}" \
+            -p "${TALOS_PORT}:3000" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${TALOS_DATA}:/data" \
+            --env-file "${TALOS_ENV}" \
+            "${GHCR_IMAGE_BASE}:${IMAGE_TAG}" \
+            >/dev/null
+
+        trap - ERR
+
+        # Verify
+        sleep 3
+        if docker inspect -f '{{.State.Running}}' talos 2>/dev/null | grep -q true; then
+            echo ""
+            echo "============================================="
+            echo -e "${GREEN}  Talos upgraded to ${IMAGE_TAG}${NC}"
+            echo "============================================="
+            echo ""
+            echo "  Rollback to previous version:"
+            echo ""
+            echo "    sudo docker stop talos && sudo docker rm talos"
+            echo "    sudo docker run -d \\"
+            echo "      --name talos \\"
+            echo "      --restart unless-stopped \\"
+            echo "      --network ${DOCKER_NETWORK} \\"
+            echo "      -p ${TALOS_PORT}:3000 \\"
+            echo "      -v /var/run/docker.sock:/var/run/docker.sock \\"
+            echo "      -v ${TALOS_DATA}:/data \\"
+            echo "      --env-file ${TALOS_ENV} \\"
+            echo "      ${GHCR_IMAGE_BASE}:rollback-${BACKUP_TAG}"
+            echo ""
+            echo "============================================="
+        else
+            rollback_docker
+        fi
+
+        exit 0
+    fi
+fi
 
 # ---------------------------------------------------------------------------
 # Pre-flight checks
@@ -242,34 +477,47 @@ build_from_source() {
     GO_VERSION=$(go version | grep -oP 'go\K[0-9]+\.[0-9]+')
     info "Building Talos from source (Go ${GO_VERSION})..."
 
+    local build_version build_commit
+    build_version=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
+    build_commit=$(git rev-parse --short HEAD 2>/dev/null || echo "none")
+
     SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
     if [[ -d "${SCRIPT_DIR}/../cmd" ]]; then
         # Running from the repo checkout
         REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
         info "Building from local source at ${REPO_ROOT}"
         cd "${REPO_ROOT}"
-        CGO_ENABLED=0 go build -ldflags "-s -w" -o "${TALOS_BIN}" ./cmd/talos
+        CGO_ENABLED=0 go build -ldflags "-s -w -X main.version=${build_version} -X main.commit=${build_commit}" -o "${TALOS_BIN}" ./cmd/talos
     else
         BUILD_DIR=$(mktemp -d)
         git clone --depth 1 "${REPO_URL}" "${BUILD_DIR}/project-talos"
         cd "${BUILD_DIR}/project-talos"
-        CGO_ENABLED=0 go build -ldflags "-s -w" -o "${TALOS_BIN}" ./cmd/talos
+        CGO_ENABLED=0 go build -ldflags "-s -w -X main.version=${build_version} -X main.commit=${build_commit}" -o "${TALOS_BIN}" ./cmd/talos
         rm -rf "${BUILD_DIR}"
     fi
     chmod 755 "${TALOS_BIN}"
     ok "Talos binary built and installed to ${TALOS_BIN}."
 }
 
-download_binary() {
-    info "Downloading Talos binary..."
+resolve_arch() {
     ARCH=$(uname -m)
     case "$ARCH" in
         x86_64)  ARCH="amd64" ;;
         aarch64) ARCH="arm64" ;;
         *)       die "Unsupported architecture: ${ARCH}" ;;
     esac
+}
 
-    DOWNLOAD_URL="${REPO_URL}/releases/latest/download/talos-linux-${ARCH}"
+download_binary() {
+    local ver="${1:-}"
+    info "Downloading Talos binary..."
+    resolve_arch
+
+    if [[ -n "$ver" ]]; then
+        DOWNLOAD_URL="${REPO_URL}/releases/download/${ver}/talos-linux-${ARCH}"
+    else
+        DOWNLOAD_URL="${REPO_URL}/releases/latest/download/talos-linux-${ARCH}"
+    fi
 
     if curl -fsSL --head "${DOWNLOAD_URL}" &>/dev/null; then
         curl -fsSL "${DOWNLOAD_URL}" -o "${TALOS_BIN}"

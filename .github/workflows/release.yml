@@ -32,7 +32,10 @@ jobs:
           CGO_ENABLED: 0
           GOOS: linux
           GOARCH: ${{ matrix.goarch }}
-        run: go build -ldflags="-s -w" -o talos-linux-${{ matrix.arch }} ./cmd/talos
+        run: >
+          go build
+          -ldflags="-s -w -X main.version=${{ github.ref_name }} -X main.commit=${{ github.sha }}"
+          -o talos-linux-${{ matrix.arch }} ./cmd/talos
       - name: Upload release asset
         uses: softprops/action-gh-release@v3
         with:
