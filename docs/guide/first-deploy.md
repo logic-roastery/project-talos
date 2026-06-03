@@ -1,15 +1,12 @@
 # First Deployment
 
-This guide walks you through deploying your first application with Talos, from creating the app to verifying the live deployment.
+This guide walks you through deploying your first application with Talos.
 
 ## Prerequisites
-
-Before you begin, make sure you have:
 
 - Talos installed and running (see [Installation](./installation.md))
 - The Talos web UI accessible at `http://<your-server-ip>:3000`
 - An admin account created via the setup wizard
-- A Docker image available in a registry (e.g., GHCR, Docker Hub)
 
 ## Step 1: Create an Application
 
@@ -29,13 +26,101 @@ Before you begin, make sure you have:
 
 4. Click **Create App**.
 
-:::tip
+::: tip
 If you choose **domain mode**, make sure your DNS A record points to your server IP. Talos will automatically configure Traefik with HTTPS via Let's Encrypt.
 :::
 
-## Step 2: Set Up GitHub Actions Workflow
+## Step 2: Connect GitHub App
 
-To enable automatic deployments on push, add a GitHub Actions workflow to your repository. Create the file `.github/workflows/deploy.yml`:
+Talos uses a GitHub App to automatically receive push events and trigger deploys. This is the recommended integration — no manual workflow files needed.
+
+1. Go to **Settings > GitHub Setup** in the Talos web UI.
+2. Click **Create GitHub App** and follow the wizard.
+3. Install the GitHub App on your repository.
+4. Talos will generate the necessary webhook configuration automatically.
+
+Once connected, every push to your app's configured branch will trigger an automatic deployment.
+
+::: tip
+The GitHub App handles authentication, webhook delivery, and secret management for you. You don't need to manually configure webhook URLs or signing secrets.
+:::
+
+## Step 3: Push Your Code
+
+```bash
+git add .
+git commit -m "feat: initial deploy"
+git push origin main
+```
+
+Talos will automatically:
+
+1. Receive the push event from GitHub
+2. Pull the container image
+3. Start a staging container
+4. Run health checks
+5. Switch traffic to the new container
+6. Record the deploy in history
+
+## Step 4: Verify the Deployment
+
+1. Open the Talos web UI and navigate to your app's detail page.
+2. You should see a new deploy entry with status **running**.
+3. The deployment page shows real-time events:
+   - `start` — deploy initiated
+   - `pull` — image being pulled
+   - `start` — staging container started
+   - `health_check` — waiting for health check (30s timeout)
+   - `route_update` — Traefik route updated
+   - `stop_old` — old container stopped
+   - `finalize` — deploy completed successfully
+
+4. Once the status changes to **success**, visit your app at its configured URL.
+
+::: tip
+Talos uses blue/green deployments. The old container stays running until the new one passes its health check. If the health check fails, the old container continues serving traffic with zero downtime.
+:::
+
+## Step 5: Rollback (If Needed)
+
+If a deployment fails or your app is not behaving correctly:
+
+1. Go to the app's detail page in the Talos web UI.
+2. Click **Rollback**.
+3. Talos will redeploy the last successful image.
+
+Alternatively, use the API:
+
+```bash
+curl -X POST http://localhost:3000/api/apps/{appID}/deploys/rollback \
+  -H "Cookie: session=<your-session-cookie>"
+```
+
+The rollback creates a new deploy record referencing the previous successful deploy's image. The same blue/green process applies — the rollback image is health-checked before traffic switches over.
+
+## What Happens Under the Hood
+
+When you trigger a deploy, Talos executes the following sequence:
+
+1. **Validates** required environment variables are set
+2. **Captures** an environment variable snapshot for diff tracking
+3. **Pulls** the target container image from the registry
+4. **Starts** a staging container alongside the live one
+5. **Health-checks** the staging container (30-second timeout)
+6. **Switches** the Traefik route to the staging container on success
+7. **Stops** the old live container
+8. **Records** the deploy and all events in SQLite
+
+If the health check fails at step 5, the staging container is destroyed and the old container continues serving traffic. The deploy is marked as `auto_rollback`.
+
+## Alternative: Manual Webhook Setup
+
+If you prefer not to use the GitHub App, you can set up a manual webhook:
+
+1. Go to your app's settings in the Talos web UI.
+2. Copy the **Webhook URL** and **Webhook Secret**.
+3. Add them as GitHub repository secrets (`TALOS_URL` and `WEBHOOK_SIGNATURE`).
+4. Create `.github/workflows/deploy.yml` in your repository:
 
 ```yaml
 name: Build and Deploy
@@ -107,84 +192,13 @@ jobs:
             }'
 ```
 
-:::warning
+::: warning
 Store your Talos webhook secret and URL as GitHub repository secrets. Never commit them directly to your repository.
 :::
 
-### Alternative: GitHub App Integration
-
-For a more robust integration, set up a GitHub App through the Talos UI:
-
-1. Go to **Settings > GitHub Setup** in the Talos web UI.
-2. Follow the wizard to create and install a GitHub App.
-3. The app will automatically receive `workflow_run` webhooks and trigger deploys.
-
-## Step 3: Push Your Code
-
-Commit and push your workflow file along with your application code:
-
-```bash
-git add .
-git commit -m "ci: add deploy workflow"
-git push origin main
-```
-
-Your CI pipeline will build the Docker image, push it to the registry, and trigger a deployment in Talos.
-
-## Step 4: Verify the Deployment
-
-1. Open the Talos web UI and navigate to your app's detail page.
-2. You should see a new deploy entry with status **running**.
-3. The deployment page shows real-time events:
-   - `start` -- deploy initiated
-   - `pull` -- image being pulled
-   - `start` -- staging container started
-   - `health_check` -- waiting for health check (30s timeout)
-   - `route_update` -- Traefik route updated
-   - `stop_old` -- old container stopped
-   - `finalize` -- deploy completed successfully
-
-4. Once the status changes to **success**, visit your app at its configured URL.
-
-:::tip
-Talos uses blue/green deployments. The old container stays running until the new one passes its health check. If the health check fails, the old container continues serving traffic with zero downtime.
-:::
-
-## Step 5: Rollback (If Needed)
-
-If a deployment fails or your app is not behaving correctly:
-
-1. Go to the app's detail page in the Talos web UI.
-2. Click **Rollback**.
-3. Talos will redeploy the last successful image.
-
-Alternatively, use the API:
-
-```bash
-curl -X POST http://localhost:3000/api/apps/{appID}/deploys/rollback \
-  -H "Cookie: session=<your-session-cookie>"
-```
-
-The rollback creates a new deploy record referencing the previous successful deploy's image. The same blue/green process applies -- the rollback image is health-checked before traffic switches over.
-
-## What Happens Under the Hood
-
-When you trigger a deploy, Talos executes the following sequence:
-
-1. **Validates** required environment variables are set
-2. **Captures** an environment variable snapshot for diff tracking
-3. **Pulls** the target container image from the registry
-4. **Starts** a staging container alongside the live one
-5. **Health-checks** the staging container (30-second timeout)
-6. **Switches** the Traefik route to the staging container on success
-7. **Stops** the old live container
-8. **Records** the deploy and all events in SQLite
-
-If the health check fails at step 5, the staging container is destroyed and the old container continues serving traffic. The deploy is marked as `auto_rollback`.
-
 ## Next Steps
 
-- [Configuration](./configuration.md) -- environment variables and options
-- [Backup & Restore](./backup.md) -- protect your data
-- [Managed Services](../features/managed-services.md) -- add databases and caches
-- [App Management](../features/app-management.md) -- manage your applications
+- [Configuration](./configuration.md) — environment variables and options
+- [Backup & Restore](./backup.md) — protect your data
+- [Managed Services](../features/managed-services.md) — add databases and caches
+- [App Management](../features/app-management.md) — manage your applications
