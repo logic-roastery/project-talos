@@ -47,6 +47,11 @@ talos.db
 # Build artifacts
 dist/
 
+# VitePress
+node_modules/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+
 # Temporary files
 tmp/
 *.tmp
