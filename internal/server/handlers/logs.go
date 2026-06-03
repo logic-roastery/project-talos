@@ -40,7 +40,10 @@ func (h *LogHandler) StreamLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	containerName := fmt.Sprintf("talos-%s", app.Name)
+	containerName := app.LiveContainerName
+	if containerName == "" {
+		containerName = fmt.Sprintf("talos-%s", app.Name)
+	}
 
 	reader, err := h.docker.StreamLogs(r.Context(), containerName, "100")
 	if err != nil {

@@ -13,6 +13,7 @@ type Config struct {
 	Docker        DockerConfig
 	Traefik       TraefikConfig
 	GitHub        GitHubConfig
+	Backup        BackupConfig
 	EncryptionKey string // base64-encoded 32-byte key, auto-generated if empty
 }
 
@@ -53,6 +54,12 @@ type GitHubConfig struct {
 	ClientSecret  string
 }
 
+type BackupConfig struct {
+	Dir             string
+	IntervalMinutes int
+	RetainCount     int
+}
+
 func Load() (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
@@ -88,6 +95,11 @@ func Load() (*Config, error) {
 		},
 		EncryptionKey: envOrDefault("TALOS_ENCRYPTION_KEY", ""),
 	}
+
+	cfg.Backup.Dir = envOrDefault("TALOS_BACKUP_DIR", "data/backups")
+	cfg.Backup.IntervalMinutes = intDefault("TALOS_BACKUP_INTERVAL_MINUTES", 0)
+	cfg.Backup.RetainCount = intDefault("TALOS_BACKUP_RETAIN_COUNT", 10)
+
 	return cfg, nil
 }
 

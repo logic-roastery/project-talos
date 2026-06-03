@@ -2,8 +2,10 @@ package deploy
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/logic-roastery/project-talos/internal/domain"
@@ -101,22 +103,43 @@ func (e *Engine) execute(ctx context.Context, app *domain.App, d *domain.Deploy)
 	e.deploys.UpdateDeploy(ctx, d)
 
 	e.logger.Info("starting deploy", "deploy_id", d.ID, "app", app.Name, "image", d.ImageRef)
+	e.emitEvent(ctx, d.ID, "info", "start", fmt.Sprintf("deploy started for %s with image %s", app.Name, d.ImageRef))
 
-	if err := e.docker.PullImage(ctx, d.ImageRef); err != nil {
-		e.failDeploy(ctx, d, fmt.Sprintf("pull image: %v", err))
+	// Validate required env vars
+	if err := e.validateEnvVars(ctx, app); err != nil {
+		e.emitEvent(ctx, d.ID, "error", "start", fmt.Sprintf("validation failed: %v", err))
+		e.failDeploy(ctx, d, err.Error())
 		return
 	}
 
-	containerName := fmt.Sprintf("talos-%s", app.Name)
-	if err := e.docker.StopAndRemove(ctx, containerName); err != nil {
-		e.logger.Warn("stop old container", "error", err)
+	// Capture env snapshot
+	snapshot, _ := e.services.GetAppEnvVarsSnapshot(ctx, app.ID)
+	if envJSON, err := json.Marshal(snapshot); err == nil {
+		d.EnvSnapshot = string(envJSON)
+	}
+
+	// Pull image
+	e.emitEvent(ctx, d.ID, "info", "pull", "pulling image "+d.ImageRef)
+	if err := e.docker.PullImage(ctx, d.ImageRef); err != nil {
+		e.emitEvent(ctx, d.ID, "error", "pull", fmt.Sprintf("pull failed: %v", err))
+		e.failDeploy(ctx, d, fmt.Sprintf("pull image: %v", err))
+		return
+	}
+	e.emitEvent(ctx, d.ID, "info", "pull", "image pulled successfully")
+
+	// Blue/green: start staging container alongside the live one
+	stagingName := fmt.Sprintf("talos-%s-%d", app.Name, d.ID)
+	liveName := app.LiveContainerName
+	if liveName == "" {
+		liveName = fmt.Sprintf("talos-%s", app.Name)
 	}
 
 	// Collect env vars from linked services and app env vars
 	envVars := e.collectEnvVars(ctx, app)
 
+	e.emitEvent(ctx, d.ID, "info", "start", "starting staging container "+stagingName)
 	cfg := docker.ContainerConfig{
-		Name:         containerName,
+		Name:         stagingName,
 		ImageRef:     d.ImageRef,
 		InternalPort: app.InternalPort,
 		Env:          envVars,
@@ -128,23 +151,62 @@ func (e *Engine) execute(ctx context.Context, app *domain.App, d *domain.Deploy)
 
 	containerID, err := e.docker.StartContainerWithConfig(ctx, cfg)
 	if err != nil {
+		e.emitEvent(ctx, d.ID, "error", "start", fmt.Sprintf("start failed: %v", err))
 		e.failDeploy(ctx, d, fmt.Sprintf("start container: %v", err))
 		return
 	}
 	d.ContainerID = containerID
+	e.emitEvent(ctx, d.ID, "info", "start", "staging container started: "+containerID)
 
+	// Health check the staging container
+	e.emitEvent(ctx, d.ID, "info", "health_check", "waiting for health check (30s timeout)")
 	if err := e.docker.WaitForHealth(ctx, containerID, 30*time.Second); err != nil {
 		d.HealthStatus = "unhealthy"
-		e.failDeploy(ctx, d, fmt.Sprintf("health check: %v", err))
+		e.emitEvent(ctx, d.ID, "error", "health_check", fmt.Sprintf("health check failed: %v", err))
+		// Auto-rollback: stop staging, leave live container running
+		e.emitEvent(ctx, d.ID, "info", "auto_rollback", "stopping staging container, live container preserved")
+		if cleanErr := e.docker.StopAndRemove(ctx, stagingName); cleanErr != nil {
+			e.logger.Warn("cleanup staging container", "error", cleanErr)
+		}
+		completed := time.Now()
+		d.CompletedAt = &completed
+		d.Status = domain.DeployStatusAutoRollback
+		d.Logs = fmt.Sprintf("health check failed, auto-rolled back: %v", err)
+		if updateErr := e.deploys.UpdateDeploy(ctx, d); updateErr != nil {
+			e.logger.Error("update auto-rollback deploy", "error", updateErr)
+		}
+		e.emitEvent(ctx, d.ID, "info", "auto_rollback", "auto-rollback complete, previous version still live")
+		e.logger.Warn("deploy auto-rolled back", "deploy_id", d.ID, "app", app.Name, "reason", err)
 		return
 	}
 	d.HealthStatus = "healthy"
+	e.emitEvent(ctx, d.ID, "info", "health_check", "health check passed")
 
-	if err := e.proxy.UpdateRoute(ctx, app, containerName); err != nil {
+	// Update route to point to staging container
+	e.emitEvent(ctx, d.ID, "info", "route_update", "updating traefik route to "+stagingName)
+	if err := e.proxy.UpdateRoute(ctx, app, stagingName); err != nil {
+		e.emitEvent(ctx, d.ID, "error", "route_update", fmt.Sprintf("route update failed: %v", err))
+		// Clean up staging, leave live
+		if cleanErr := e.docker.StopAndRemove(ctx, stagingName); cleanErr != nil {
+			e.logger.Warn("cleanup staging container", "error", cleanErr)
+		}
 		e.failDeploy(ctx, d, fmt.Sprintf("update route: %v", err))
 		return
 	}
+	e.emitEvent(ctx, d.ID, "info", "route_update", "route updated successfully")
 
+	// Stop old live container (only after new one is healthy and routed)
+	if liveName != stagingName {
+		e.emitEvent(ctx, d.ID, "info", "stop_old", "stopping old container "+liveName)
+		if err := e.docker.StopAndRemove(ctx, liveName); err != nil {
+			e.emitEvent(ctx, d.ID, "warn", "stop_old", fmt.Sprintf("stop old container: %v", err))
+			e.logger.Warn("stop old container", "error", err)
+		} else {
+			e.emitEvent(ctx, d.ID, "info", "stop_old", "old container stopped")
+		}
+	}
+
+	// Finalize
 	completed := time.Now()
 	d.CompletedAt = &completed
 	d.Status = domain.DeployStatusSuccess
@@ -155,10 +217,12 @@ func (e *Engine) execute(ctx context.Context, app *domain.App, d *domain.Deploy)
 	app.Status = domain.AppStatusActive
 	app.ImageRef = d.ImageRef
 	app.CurrentDeployID = &d.ID
+	app.LiveContainerName = stagingName
 	if err := e.apps.UpdateApp(ctx, app); err != nil {
 		e.logger.Error("update app", "error", err)
 	}
 
+	e.emitEvent(ctx, d.ID, "info", "finalize", "deploy completed successfully")
 	e.logger.Info("deploy completed", "deploy_id", d.ID, "app", app.Name)
 }
 
@@ -240,5 +304,35 @@ func (e *Engine) failDeploy(ctx context.Context, d *domain.Deploy, reason string
 		e.logger.Error("update failed deploy", "error", err)
 	}
 
+	e.emitEvent(ctx, d.ID, "error", "finalize", fmt.Sprintf("deploy failed: %s", reason))
 	e.logger.Error("deploy failed", "deploy_id", d.ID, "reason", reason)
+}
+
+func (e *Engine) emitEvent(ctx context.Context, deployID int64, level, step, message string) {
+	event := &domain.DeployEvent{
+		DeployID: deployID,
+		Level:    level,
+		Step:     step,
+		Message:  message,
+	}
+	if err := e.deploys.CreateDeployEvent(ctx, event); err != nil {
+		e.logger.Error("emit deploy event", "error", err)
+	}
+}
+
+func (e *Engine) validateEnvVars(ctx context.Context, app *domain.App) error {
+	vars, err := e.services.GetAppEnvVars(ctx, app.ID)
+	if err != nil {
+		return nil // non-fatal
+	}
+	var missing []string
+	for _, v := range vars {
+		if v.Required && v.Value == "" {
+			missing = append(missing, v.Key)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required env vars: %s", strings.Join(missing, ", "))
+	}
+	return nil
 }

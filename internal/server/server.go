@@ -35,6 +35,7 @@ func New(
 	ghCfg config.GitHubConfig,
 	dockerClient *docker.Client,
 	renderer *web.Renderer,
+	backupHandler *handlers.BackupHandler,
 	serverHost string,
 	serverDomain string,
 	logger *slog.Logger,
@@ -73,6 +74,7 @@ func New(
 			r.Post("/rollback", deployH.Rollback)
 		})
 		r.Get("/api/deploys/{deployID}", deployH.Get)
+		r.Get("/api/deploys/{deployID}/events", deployH.ListEvents)
 
 		// Live log streaming
 		logH := handlers.NewLogHandler(apps, dockerClient, logger)
@@ -98,7 +100,19 @@ func New(
 			r.Get("/env", svcH.ListEnvVars)
 			r.Post("/env", svcH.SetEnvVar)
 			r.Delete("/env/{key}", svcH.DeleteEnvVar)
+			r.Get("/env/{key}/history", svcH.ListEnvVarHistory)
+			r.Get("/env/{key}/reveal", svcH.RevealEnvVar)
 		})
+
+		// Backup management
+		if backupHandler != nil {
+			r.Route("/api/backups", func(r chi.Router) {
+				r.Get("/", backupHandler.List)
+				r.Post("/", backupHandler.Create)
+				r.Delete("/{backupID}", backupHandler.Delete)
+				r.Post("/{backupID}/restore", backupHandler.Restore)
+			})
+		}
 
 		// GitHub integration routes
 		if ghClient != nil && ghClient.IsConfigured() {

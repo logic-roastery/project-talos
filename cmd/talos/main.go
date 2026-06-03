@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/logic-roastery/project-talos/internal/auth"
+	"github.com/logic-roastery/project-talos/internal/backup"
 	"github.com/logic-roastery/project-talos/internal/config"
 	"github.com/logic-roastery/project-talos/internal/crypto"
 	"github.com/logic-roastery/project-talos/internal/deploy"
@@ -20,6 +21,7 @@ import (
 	"github.com/logic-roastery/project-talos/internal/proxy/traefik"
 	"github.com/logic-roastery/project-talos/internal/runtime/docker"
 	"github.com/logic-roastery/project-talos/internal/server"
+	"github.com/logic-roastery/project-talos/internal/server/handlers"
 	"github.com/logic-roastery/project-talos/internal/services"
 	"github.com/logic-roastery/project-talos/internal/store"
 	"github.com/logic-roastery/project-talos/web"
@@ -127,7 +129,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := server.New(db, db, db, db, authSvc, engine, provisioner, webhook, ghClient, cfg.GitHub, dockerClient, renderer, cfg.Server.Host, cfg.Server.Domain, logger)
+	// Backup manager
+	backupMgr := backup.NewManager(db.DB(), db, dataDir, cfg.Backup.Dir, cfg.Backup.RetainCount, logger)
+	backupH := handlers.NewBackupHandler(backupMgr)
+
+	srv := server.New(db, db, db, db, authSvc, engine, provisioner, webhook, ghClient, cfg.GitHub, dockerClient, renderer, backupH, cfg.Server.Host, cfg.Server.Domain, logger)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	httpServer := &http.Server{
@@ -136,6 +142,11 @@ func main() {
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
+	}
+
+	// Start backup scheduler if configured.
+	if cfg.Backup.IntervalMinutes > 0 {
+		go backupMgr.StartScheduler(context.Background(), time.Duration(cfg.Backup.IntervalMinutes)*time.Minute)
 	}
 
 	go func() {

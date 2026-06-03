@@ -335,6 +335,50 @@ func (h *ServiceHandler) DeleteEnvVar(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *ServiceHandler) ListEnvVarHistory(w http.ResponseWriter, r *http.Request) {
+	appID, err := parseID(r, "appID")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid app id")
+		return
+	}
+	key := chi.URLParam(r, "key")
+	if key == "" {
+		writeError(w, http.StatusBadRequest, "key is required")
+		return
+	}
+	history, err := h.services.GetAppEnvVarHistory(r.Context(), appID, key)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get history")
+		return
+	}
+	writeJSON(w, http.StatusOK, history)
+}
+
+func (h *ServiceHandler) RevealEnvVar(w http.ResponseWriter, r *http.Request) {
+	appID, err := parseID(r, "appID")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid app id")
+		return
+	}
+	key := chi.URLParam(r, "key")
+	if key == "" {
+		writeError(w, http.StatusBadRequest, "key is required")
+		return
+	}
+	vars, err := h.services.GetAppEnvVars(r.Context(), appID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get env vars")
+		return
+	}
+	for _, v := range vars {
+		if v.Key == key {
+			writeJSON(w, http.StatusOK, map[string]string{"key": v.Key, "value": v.Value})
+			return
+		}
+	}
+	writeError(w, http.StatusNotFound, "env var not found")
+}
+
 // --- Helpers ---
 
 func buildCredsFromMap(svcType domain.ServiceType, m map[string]interface{}, containerName string) interface{} {
