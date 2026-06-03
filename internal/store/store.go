@@ -51,3 +51,10 @@ type ServiceStore interface {
 	GetAppEnvVars(ctx context.Context, appID int64) ([]*domain.AppEnvVar, error)
 	DeleteAppEnvVar(ctx context.Context, appID int64, key string) error
 }
+
+type BackupStore interface {
+	CreateBackup(ctx context.Context, b *domain.Backup) error
+	ListBackups(ctx context.Context) ([]*domain.Backup, error)
+	GetBackup(ctx context.Context, id int64) (*domain.Backup, error)
+	DeleteBackup(ctx context.Context, id int64) error
+}

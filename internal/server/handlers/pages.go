@@ -15,31 +15,33 @@ import (
 )
 
 type PageHandler struct {
-	renderer *web.Renderer
-	apps     store.AppStore
-	deploys  store.DeployStore
-	users    store.UserStore
-	services store.ServiceStore
-	authSvc  *auth.Service
-	engine   *deploy.Engine
-	ghClient *github.AppClient
-	host     string
-	domain   string
+	renderer   *web.Renderer
+	apps       store.AppStore
+	deploys    store.DeployStore
+	users      store.UserStore
+	services   store.ServiceStore
+	backupStore store.BackupStore
+	authSvc    *auth.Service
+	engine     *deploy.Engine
+	ghClient   *github.AppClient
+	host       string
+	domain     string
 }
 
 func NewPageHandler(renderer *web.Renderer, apps store.AppStore, deploys store.DeployStore,
-	users store.UserStore, services store.ServiceStore, authSvc *auth.Service, engine *deploy.Engine, ghClient *github.AppClient, host, domain string) *PageHandler {
+	users store.UserStore, services store.ServiceStore, backupStore store.BackupStore, authSvc *auth.Service, engine *deploy.Engine, ghClient *github.AppClient, host, domain string) *PageHandler {
 	return &PageHandler{
-		renderer: renderer,
-		apps:     apps,
-		deploys:  deploys,
-		users:    users,
-		services: services,
-		authSvc:  authSvc,
-		engine:   engine,
-		domain:   domain,
-		ghClient: ghClient,
-		host:     host,
+		renderer:    renderer,
+		apps:        apps,
+		deploys:     deploys,
+		users:       users,
+		services:    services,
+		backupStore: backupStore,
+		authSvc:     authSvc,
+		engine:      engine,
+		domain:      domain,
+		ghClient:    ghClient,
+		host:        host,
 	}
 }
 
@@ -497,4 +499,16 @@ func (h *PageHandler) AppRowPartial(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.renderer.RenderPartial(w, "app_row.html", app)
+}
+
+func (h *PageHandler) BackupPage(w http.ResponseWriter, r *http.Request) {
+	backups, _ := h.backupStore.ListBackups(r.Context())
+	data := struct {
+		User    *web.UserData
+		Backups []*domain.Backup
+	}{
+		User:    h.userData(r),
+		Backups: backups,
+	}
+	h.renderer.Render(w, "backups.html", "Backups", h.userData(r), data)
 }

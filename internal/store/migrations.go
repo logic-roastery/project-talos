@@ -81,6 +81,12 @@ var allMigrations = map[int]string{
 	10: `ALTER TABLE apps ADD COLUMN github_installation_id INTEGER`,
 	11: `ALTER TABLE apps ADD COLUMN github_repo_id INTEGER`,
 	12: `ALTER TABLE apps ADD COLUMN registry_url TEXT NOT NULL DEFAULT ''`,
+	13: `CREATE TABLE IF NOT EXISTS backups (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		filename   TEXT    NOT NULL,
+		size       INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`,
 }
 
 func (s *SQLiteStore) migrate() error {

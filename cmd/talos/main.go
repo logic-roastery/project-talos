@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/logic-roastery/project-talos/internal/auth"
+	"github.com/logic-roastery/project-talos/internal/backup"
 	"github.com/logic-roastery/project-talos/internal/config"
 	"github.com/logic-roastery/project-talos/internal/crypto"
 	"github.com/logic-roastery/project-talos/internal/deploy"
@@ -108,6 +109,7 @@ func main() {
 	dataDir := filepath.Dir(cfg.Database.Path)
 	provisioner := services.NewProvisioner(db, dockerClient, dataDir, encKey, logger)
 	engine := deploy.NewEngine(db, db, db, provisioner, dockerClient, proxy, logger)
+	backupSvc := backup.NewService(db.DB(), cfg.Database.Path, dataDir, dockerClient, db, db, encKey, logger)
 	webhook := github.NewWebhookHandler(cfg.GitHub.WebhookSecret)
 
 	// Initialize GitHub App client (optional)
@@ -127,7 +129,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := server.New(db, db, db, db, authSvc, engine, provisioner, webhook, ghClient, cfg.GitHub, dockerClient, renderer, cfg.Server.Host, cfg.Server.Domain, logger)
+	srv := server.New(db, db, db, db, authSvc, engine, provisioner, webhook, ghClient, cfg.GitHub, dockerClient, renderer, cfg.Server.Host, cfg.Server.Domain, logger, backupSvc, db)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	httpServer := &http.Server{

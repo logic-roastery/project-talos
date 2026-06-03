@@ -13,6 +13,7 @@ type Config struct {
 	Docker        DockerConfig
 	Traefik       TraefikConfig
 	GitHub        GitHubConfig
+	Backup        BackupConfig
 	EncryptionKey string // base64-encoded 32-byte key, auto-generated if empty
 }
 
@@ -53,6 +54,10 @@ type GitHubConfig struct {
 	ClientSecret  string
 }
 
+type BackupConfig struct {
+	Dir string // TALOS_BACKUP_DIR, default "data/backups"
+}
+
 func Load() (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
@@ -85,6 +90,9 @@ func Load() (*Config, error) {
 			PrivateKey:    envOrDefault("TALOS_GITHUB_APP_PRIVATE_KEY", ""),
 			ClientID:      envOrDefault("TALOS_GITHUB_APP_CLIENT_ID", ""),
 			ClientSecret:  envOrDefault("TALOS_GITHUB_APP_CLIENT_SECRET", ""),
+		},
+		Backup: BackupConfig{
+			Dir: envOrDefault("TALOS_BACKUP_DIR", "data/backups"),
 		},
 		EncryptionKey: envOrDefault("TALOS_ENCRYPTION_KEY", ""),
 	}

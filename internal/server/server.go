@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/logic-roastery/project-talos/internal/auth"
+	"github.com/logic-roastery/project-talos/internal/backup"
 	"github.com/logic-roastery/project-talos/internal/config"
 	"github.com/logic-roastery/project-talos/internal/deploy"
 	"github.com/logic-roastery/project-talos/internal/domain"
@@ -38,6 +39,8 @@ func New(
 	serverHost string,
 	serverDomain string,
 	logger *slog.Logger,
+	backupSvc *backup.Service,
+	backupStore store.BackupStore,
 ) *Server {
 	r := chi.NewRouter()
 
@@ -98,6 +101,16 @@ func New(
 			r.Get("/env", svcH.ListEnvVars)
 			r.Post("/env", svcH.SetEnvVar)
 			r.Delete("/env/{key}", svcH.DeleteEnvVar)
+		})
+
+		// Backup management
+		backupH := handlers.NewBackupHandler(backupSvc, backupStore, renderer)
+		r.Route("/api/backups", func(r chi.Router) {
+			r.Get("/", backupH.List)
+			r.Post("/", backupH.Create)
+			r.Get("/{backupID}/download", backupH.Download)
+			r.Delete("/{backupID}", backupH.Delete)
+			r.Post("/{backupID}/restore", backupH.Restore)
 		})
 
 		// GitHub integration routes
@@ -195,7 +208,7 @@ func New(
 	})
 
 	// Page routes (HTML)
-	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, svcStore, authSvc, engine, ghClient, serverHost, serverDomain)
+	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, svcStore, backupStore, authSvc, engine, ghClient, serverHost, serverDomain)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/dashboard", http.StatusFound)
@@ -221,6 +234,7 @@ func New(
 		r.Get("/services/new", pageH.ServiceCreatePage)
 		r.Get("/services/{serviceID}", pageH.ServiceDetailPage)
 		r.Get("/apps/{appID}/settings", pageH.AppSettingsPage)
+		r.Get("/backups", pageH.BackupPage)
 		r.Post("/logout", pageH.Logout)
 	})
 
