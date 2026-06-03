@@ -21,10 +21,11 @@ export default withMermaid(
         { text: 'Architecture', link: '/architecture/', activeMatch: '/architecture/' },
         { text: 'Features', link: '/features/', activeMatch: '/features/' },
         {
-          text: 'v1.0',
+          text: 'Releases',
           items: [
             { text: 'Changelog', link: '/changelog' },
             { text: 'Contributing', link: '/contributing' },
+            { text: 'View on GitHub', link: 'https://github.com/logic-roastery/project-talos/releases' },
           ],
         },
       ],
