@@ -1,4 +1,5 @@
 import { defineLoader } from 'vitepress'
+import { marked } from 'marked'
 
 export interface Release {
   tag_name: string
@@ -38,6 +39,10 @@ export default defineLoader({
           new Date(b.published_at).getTime() -
           new Date(a.published_at).getTime()
       )
+      .map((r) => ({
+        ...r,
+        body: marked.parse(r.body ?? '', { async: false }) as string,
+      }))
 
     return {
       releases: filtered,
