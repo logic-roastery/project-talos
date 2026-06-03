@@ -54,6 +54,18 @@ type AppEnvVar struct {
 	Key      string `json:"key"`
 	Value    string `json:"-"`
 	IsSecret bool   `json:"is_secret"`
+	Required bool   `json:"required"`
+}
+
+// AppEnvVarHistory records a previous value of an environment variable.
+type AppEnvVarHistory struct {
+	ID        int64     `json:"id"`
+	AppID     int64     `json:"app_id"`
+	Key       string    `json:"key"`
+	Value     string    `json:"-"`
+	IsSecret  bool      `json:"is_secret"`
+	ChangedAt time.Time `json:"changed_at"`
+	ChangedBy string    `json:"changed_by"`
 }
 
 // Credential structs — stored encrypted as JSON in Service.Credentials.

@@ -104,7 +104,9 @@ func (s *Service) CreateBackup(ctx context.Context) (*domain.Backup, error) {
 
 	backup := &domain.Backup{
 		Filename:  filename,
-		Size:      info.Size(),
+		SizeBytes: info.Size(),
+		Type:      "full",
+		Status:    "completed",
 		CreatedAt: time.Now().UTC(),
 	}
 	if err := s.backupStore.CreateBackup(ctx, backup); err != nil {

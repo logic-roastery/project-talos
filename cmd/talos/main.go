@@ -21,10 +21,14 @@ import (
 	"github.com/logic-roastery/project-talos/internal/proxy/traefik"
 	"github.com/logic-roastery/project-talos/internal/runtime/docker"
 	"github.com/logic-roastery/project-talos/internal/server"
+	"github.com/logic-roastery/project-talos/internal/server/handlers"
 	"github.com/logic-roastery/project-talos/internal/services"
 	"github.com/logic-roastery/project-talos/internal/store"
 	"github.com/logic-roastery/project-talos/web"
 )
+
+// Version is set at build time via ldflags.
+var Version = "dev"
 
 // persistEncryptionKey writes or updates TALOS_ENCRYPTION_KEY in the .env file.
 func persistEncryptionKey(key string) error {
@@ -55,6 +59,12 @@ func persistEncryptionKey(key string) error {
 }
 
 func main() {
+	// Handle --version flag
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		fmt.Printf("talos %s\n", Version)
+		os.Exit(0)
+	}
+
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	cfg, err := config.Load()
@@ -109,7 +119,6 @@ func main() {
 	dataDir := filepath.Dir(cfg.Database.Path)
 	provisioner := services.NewProvisioner(db, dockerClient, dataDir, encKey, logger)
 	engine := deploy.NewEngine(db, db, db, provisioner, dockerClient, proxy, logger)
-	backupSvc := backup.NewService(db.DB(), cfg.Database.Path, dataDir, dockerClient, db, db, encKey, logger)
 	webhook := github.NewWebhookHandler(cfg.GitHub.WebhookSecret)
 
 	// Initialize GitHub App client (optional)
@@ -129,7 +138,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := server.New(db, db, db, db, authSvc, engine, provisioner, webhook, ghClient, cfg.GitHub, dockerClient, renderer, cfg.Server.Host, cfg.Server.Domain, logger, backupSvc, db)
+	// Backup manager
+	backupMgr := backup.NewManager(db.DB(), db, dataDir, cfg.Backup.Dir, cfg.Backup.RetainCount, logger)
+	backupH := handlers.NewBackupHandler(backupMgr, db)
+
+	srv := server.New(db, db, db, db, authSvc, engine, provisioner, webhook, ghClient, cfg.GitHub, dockerClient, renderer, backupH, db, cfg.Server.Host, cfg.Server.Domain, logger)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	httpServer := &http.Server{
@@ -138,6 +151,11 @@ func main() {
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
+	}
+
+	// Start backup scheduler if configured.
+	if cfg.Backup.IntervalMinutes > 0 {
+		go backupMgr.StartScheduler(context.Background(), time.Duration(cfg.Backup.IntervalMinutes)*time.Minute)
 	}
 
 	go func() {

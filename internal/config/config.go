@@ -55,7 +55,9 @@ type GitHubConfig struct {
 }
 
 type BackupConfig struct {
-	Dir string // TALOS_BACKUP_DIR, default "data/backups"
+	Dir             string // TALOS_BACKUP_DIR, default "data/backups"
+	IntervalMinutes int
+	RetainCount     int
 }
 
 func Load() (*Config, error) {
@@ -96,6 +98,11 @@ func Load() (*Config, error) {
 		},
 		EncryptionKey: envOrDefault("TALOS_ENCRYPTION_KEY", ""),
 	}
+
+	cfg.Backup.Dir = envOrDefault("TALOS_BACKUP_DIR", "data/backups")
+	cfg.Backup.IntervalMinutes = intDefault("TALOS_BACKUP_INTERVAL_MINUTES", 0)
+	cfg.Backup.RetainCount = intDefault("TALOS_BACKUP_RETAIN_COUNT", 10)
+
 	return cfg, nil
 }
 

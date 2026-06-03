@@ -25,6 +25,9 @@ type DeployStore interface {
 	GetLatestSuccessfulDeploy(ctx context.Context, appID int64) (*domain.Deploy, error)
 	ListDeploys(ctx context.Context, appID int64, limit int) ([]*domain.Deploy, error)
 	UpdateDeploy(ctx context.Context, deploy *domain.Deploy) error
+
+	CreateDeployEvent(ctx context.Context, event *domain.DeployEvent) error
+	ListDeployEvents(ctx context.Context, deployID int64) ([]*domain.DeployEvent, error)
 }
 
 type UserStore interface {
@@ -32,6 +35,13 @@ type UserStore interface {
 	GetUserByID(ctx context.Context, id int64) (*domain.User, error)
 	GetUserByUsername(ctx context.Context, username string) (*domain.User, error)
 	HasUsers(ctx context.Context) (bool, error)
+}
+
+type BackupStore interface {
+	CreateBackup(ctx context.Context, backup *domain.Backup) error
+	GetBackup(ctx context.Context, id int64) (*domain.Backup, error)
+	ListBackups(ctx context.Context) ([]*domain.Backup, error)
+	DeleteBackup(ctx context.Context, id int64) error
 }
 
 type ServiceStore interface {
@@ -50,11 +60,7 @@ type ServiceStore interface {
 	SetAppEnvVar(ctx context.Context, envVar *domain.AppEnvVar) error
 	GetAppEnvVars(ctx context.Context, appID int64) ([]*domain.AppEnvVar, error)
 	DeleteAppEnvVar(ctx context.Context, appID int64, key string) error
+	GetAppEnvVarHistory(ctx context.Context, appID int64, key string) ([]*domain.AppEnvVarHistory, error)
+	GetAppEnvVarsSnapshot(ctx context.Context, appID int64) (map[string]string, error)
 }
 
-type BackupStore interface {
-	CreateBackup(ctx context.Context, b *domain.Backup) error
-	ListBackups(ctx context.Context) ([]*domain.Backup, error)
-	GetBackup(ctx context.Context, id int64) (*domain.Backup, error)
-	DeleteBackup(ctx context.Context, id int64) error
-}

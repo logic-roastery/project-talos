@@ -31,6 +31,7 @@ type App struct {
 	AccessURL            string     `json:"access_url"`
 	Status               AppStatus  `json:"status"`
 	CurrentDeployID      *int64     `json:"current_deploy_id,omitempty"`
+	LiveContainerName    string     `json:"live_container_name,omitempty"`
 	GitHubInstallationID *int64     `json:"github_installation_id,omitempty"`
 	GitHubRepoID         *int64     `json:"github_repo_id,omitempty"`
 	RegistryURL          string     `json:"registry_url,omitempty"`

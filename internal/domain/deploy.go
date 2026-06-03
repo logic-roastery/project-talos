@@ -5,11 +5,12 @@ import "time"
 type DeployStatus string
 
 const (
-	DeployStatusPending  DeployStatus = "pending"
-	DeployStatusRunning  DeployStatus = "running"
-	DeployStatusSuccess  DeployStatus = "success"
-	DeployStatusFailed   DeployStatus = "failed"
-	DeployStatusRollback DeployStatus = "rollback"
+	DeployStatusPending      DeployStatus = "pending"
+	DeployStatusRunning      DeployStatus = "running"
+	DeployStatusSuccess      DeployStatus = "success"
+	DeployStatusFailed       DeployStatus = "failed"
+	DeployStatusRollback     DeployStatus = "rollback"
+	DeployStatusAutoRollback DeployStatus = "auto_rollback"
 )
 
 type Deploy struct {
@@ -22,6 +23,7 @@ type Deploy struct {
 	ContainerID  string       `json:"container_id,omitempty"`
 	HealthStatus string       `json:"health_status,omitempty"`
 	Logs         string       `json:"logs,omitempty"`
+	EnvSnapshot  string       `json:"env_snapshot,omitempty"`
 	StartedAt    *time.Time   `json:"started_at,omitempty"`
 	CompletedAt  *time.Time   `json:"completed_at,omitempty"`
 	TriggeredBy  string       `json:"triggered_by"`

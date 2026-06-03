@@ -4,38 +4,37 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/logic-roastery/project-talos/internal/backup"
 	"github.com/logic-roastery/project-talos/internal/store"
-	"github.com/logic-roastery/project-talos/web"
 )
 
 type BackupHandler struct {
-	backupSvc   *backup.Service
+	manager     *backup.Manager
 	backupStore store.BackupStore
-	renderer    *web.Renderer
 }
 
-func NewBackupHandler(backupSvc *backup.Service, backupStore store.BackupStore, renderer *web.Renderer) *BackupHandler {
-	return &BackupHandler{backupSvc: backupSvc, backupStore: backupStore, renderer: renderer}
+func NewBackupHandler(manager *backup.Manager, backupStore store.BackupStore) *BackupHandler {
+	return &BackupHandler{manager: manager, backupStore: backupStore}
+}
+
+func (h *BackupHandler) Create(w http.ResponseWriter, r *http.Request) {
+	b, err := h.manager.CreateFullBackup(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, b)
 }
 
 func (h *BackupHandler) List(w http.ResponseWriter, r *http.Request) {
-	backups, err := h.backupStore.ListBackups(r.Context())
+	backups, err := h.manager.ListBackups(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, backups)
-}
-
-func (h *BackupHandler) Create(w http.ResponseWriter, r *http.Request) {
-	b, err := h.backupSvc.CreateBackup(r.Context())
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, fmt.Sprintf("backup failed: %v", err))
-		return
-	}
-	h.renderer.RenderPartial(w, "backup_row.html", b)
 }
 
 func (h *BackupHandler) Download(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +50,7 @@ func (h *BackupHandler) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	backupPath := h.backupSvc.GetBackupPath(b.Filename)
+	backupPath := filepath.Join(h.manager.BackupDir(), b.Filename)
 	if _, err := os.Stat(backupPath); os.IsNotExist(err) {
 		writeError(w, http.StatusNotFound, "backup file not found on disk")
 		return
@@ -69,7 +68,7 @@ func (h *BackupHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.backupSvc.DeleteBackup(r.Context(), id); err != nil {
+	if err := h.manager.DeleteBackup(r.Context(), id); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -83,7 +82,7 @@ func (h *BackupHandler) Restore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.backupSvc.RestoreBackup(r.Context(), id); err != nil {
+	if err := h.manager.Restore(r.Context(), id); err != nil {
 		writeError(w, http.StatusInternalServerError, fmt.Sprintf("restore failed: %v", err))
 		return
 	}

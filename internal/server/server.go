@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/logic-roastery/project-talos/internal/auth"
-	"github.com/logic-roastery/project-talos/internal/backup"
 	"github.com/logic-roastery/project-talos/internal/config"
 	"github.com/logic-roastery/project-talos/internal/deploy"
 	"github.com/logic-roastery/project-talos/internal/domain"
@@ -36,11 +35,11 @@ func New(
 	ghCfg config.GitHubConfig,
 	dockerClient *docker.Client,
 	renderer *web.Renderer,
+	backupHandler *handlers.BackupHandler,
+	backupStore store.BackupStore,
 	serverHost string,
 	serverDomain string,
 	logger *slog.Logger,
-	backupSvc *backup.Service,
-	backupStore store.BackupStore,
 ) *Server {
 	r := chi.NewRouter()
 
@@ -76,6 +75,7 @@ func New(
 			r.Post("/rollback", deployH.Rollback)
 		})
 		r.Get("/api/deploys/{deployID}", deployH.Get)
+		r.Get("/api/deploys/{deployID}/events", deployH.ListEvents)
 
 		// Live log streaming
 		logH := handlers.NewLogHandler(apps, dockerClient, logger)
@@ -101,17 +101,20 @@ func New(
 			r.Get("/env", svcH.ListEnvVars)
 			r.Post("/env", svcH.SetEnvVar)
 			r.Delete("/env/{key}", svcH.DeleteEnvVar)
+			r.Get("/env/{key}/history", svcH.ListEnvVarHistory)
+			r.Get("/env/{key}/reveal", svcH.RevealEnvVar)
 		})
 
 		// Backup management
-		backupH := handlers.NewBackupHandler(backupSvc, backupStore, renderer)
-		r.Route("/api/backups", func(r chi.Router) {
-			r.Get("/", backupH.List)
-			r.Post("/", backupH.Create)
-			r.Get("/{backupID}/download", backupH.Download)
-			r.Delete("/{backupID}", backupH.Delete)
-			r.Post("/{backupID}/restore", backupH.Restore)
-		})
+		if backupHandler != nil {
+			r.Route("/api/backups", func(r chi.Router) {
+				r.Get("/", backupHandler.List)
+				r.Post("/", backupHandler.Create)
+				r.Get("/{backupID}/download", backupHandler.Download)
+				r.Delete("/{backupID}", backupHandler.Delete)
+				r.Post("/{backupID}/restore", backupHandler.Restore)
+			})
+		}
 
 		// GitHub integration routes
 		if ghClient != nil && ghClient.IsConfigured() {
