@@ -6,15 +6,31 @@ This guide covers how to upgrade Talos to a newer version while preserving your 
 
 The simplest way to upgrade is using the install script with the `--upgrade` flag:
 
+If you installed Talos with `curl | bash`, run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo bash -s -- --upgrade
+```
+
+If you downloaded and kept `install.sh` on the server, run:
+
 ```bash
 sudo bash install.sh --upgrade
 ```
 
-This automatically detects your installation mode (bare binary or Docker) and performs the appropriate upgrade.
+The installer automatically detects your Talos installation mode (bare binary or Docker). This detection does not mean `install.sh` is available locally after a piped install.
 
 ## Bare Binary Mode
 
 ### Upgrade to Latest Version
+
+If you installed with `curl | bash`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo bash -s -- --upgrade
+```
+
+If you saved `install.sh` locally:
 
 ```bash
 sudo bash install.sh --upgrade
@@ -65,6 +81,14 @@ talos --version
 ## Docker Mode
 
 ### Upgrade to Latest Version
+
+If you installed with `curl | bash`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo bash -s -- --upgrade --docker
+```
+
+If you saved `install.sh` locally:
 
 ```bash
 sudo bash install.sh --upgrade --docker

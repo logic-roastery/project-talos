@@ -1,9 +1,9 @@
 # Talos
 
-[![Release Version](https://img.shields.io/github/v/release/logic-roastery/project-talos)](https://github.com/logic-roastery/project-talos/releases)
+[![Release Version](https://img.shields.io/github/v/tag/logic-roastery/project-talos?sort=semver)](https://github.com/logic-roastery/project-talos/tags)
 [![CI](https://github.com/logic-roastery/project-talos/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/logic-roastery/project-talos/actions/workflows/ci.yml?query=branch%3Amaster)
-[![Build Image](https://github.com/logic-roastery/project-talos/actions/workflows/release-image.yml/badge.svg?branch=master)](https://github.com/logic-roastery/project-talos/actions/workflows/release-image.yml?query=branch%3Amaster)
-[![Binary Release](https://github.com/logic-roastery/project-talos/actions/workflows/release-binaries.yml/badge.svg?branch=master)](https://github.com/logic-roastery/project-talos/actions/workflows/release-binaries.yml?query=branch%3Amaster)
+[![Build Image](https://github.com/logic-roastery/project-talos/actions/workflows/release-image.yml/badge.svg)](https://github.com/logic-roastery/project-talos/actions/workflows/release-image.yml)
+[![Binary Release](https://github.com/logic-roastery/project-talos/actions/workflows/release-binaries.yml/badge.svg)](https://github.com/logic-roastery/project-talos/actions/workflows/release-binaries.yml)
 
 Self-hosted deployment platform for Dockerized applications on a single VPS.
 
@@ -38,6 +38,15 @@ curl -sSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/
 
 After install, open `http://<your-server-ip>:3000` and create your admin account.
 
+If you prefer to keep the installer on the server for later upgrades:
+
+```bash
+curl -fsSL -o install.sh https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh
+sudo bash install.sh --docker
+```
+
+`curl | bash` does not save `install.sh` locally. Download the script first if you want to rerun `sudo bash install.sh ...` later.
+
 ### Container Images
 
 Talos publishes container images to both GitHub Container Registry and Docker Hub:
@@ -59,6 +68,12 @@ docker pull egasa/project-talos:latest
 ```
 
 Docker upgrade note:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo bash -s -- --upgrade --docker
+```
+
+If you saved `install.sh` locally during installation, you can also run:
 
 ```bash
 sudo bash install.sh --upgrade --docker

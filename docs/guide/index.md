@@ -38,6 +38,8 @@ curl -fsSL https://raw.githubusercontent.com/logic-roastery/project-talos/master
 curl -fsSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo bash -s -- --docker
 ```
 
+If you want to keep the installer for later upgrades, download it first instead of piping it directly to `bash`.
+
 Then open `http://YOUR_VPS_IP:3000` in your browser, create an admin account, and start deploying.
 
 ## Next Steps
