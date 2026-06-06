@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/logic-roastery/project-talos/internal/auth"
+	"github.com/logic-roastery/project-talos/internal/config"
 	"github.com/logic-roastery/project-talos/internal/deploy"
 	"github.com/logic-roastery/project-talos/internal/domain"
 	"github.com/logic-roastery/project-talos/internal/github"
@@ -28,11 +29,12 @@ type PageHandler struct {
 	settings    *settings.Service
 	host        string
 	domain      string
+	proxyMode   config.ProxyMode
 	port        int
 }
 
 func NewPageHandler(renderer *web.Renderer, apps store.AppStore, deploys store.DeployStore,
-	users store.UserStore, services store.ServiceStore, backupStore store.BackupStore, authSvc *auth.Service, engine *deploy.Engine, ghClient *github.AppClient, settingsSvc *settings.Service, host, domain string, port int) *PageHandler {
+	users store.UserStore, services store.ServiceStore, backupStore store.BackupStore, authSvc *auth.Service, engine *deploy.Engine, ghClient *github.AppClient, settingsSvc *settings.Service, host, domain string, proxyMode config.ProxyMode, port int) *PageHandler {
 	return &PageHandler{
 		renderer:    renderer,
 		apps:        apps,
@@ -46,6 +48,7 @@ func NewPageHandler(renderer *web.Renderer, apps store.AppStore, deploys store.D
 		ghClient:    ghClient,
 		settings:    settingsSvc,
 		host:        host,
+		proxyMode:   proxyMode,
 		port:        port,
 	}
 }
@@ -224,6 +227,11 @@ func (h *PageHandler) AppCreateSubmit(w http.ResponseWriter, r *http.Request) {
 	var fallbackPort int
 
 	if domainName != "" {
+		if h.proxyMode == config.ProxyModeExternal {
+			h.renderer.RenderStatus(w, http.StatusUnprocessableEntity, "flash.html",
+				map[string]string{"Color": "red", "Message": "Custom app domains require internal proxy mode."})
+			return
+		}
 		accessMode = domain.AccessModeDomain
 		accessURL = "https://" + domainName
 	} else {
@@ -538,8 +546,11 @@ func (h *PageHandler) GeneralSettingsSubmit(w http.ResponseWriter, r *http.Reque
 	}
 
 	snapshot, err := h.settings.Save(r.Context(), settings.UpdateInput{
-		Domain:    r.FormValue("domain"),
-		ACMEEmail: r.FormValue("acme_email"),
+		Domain:           r.FormValue("domain"),
+		ACMEEmail:        r.FormValue("acme_email"),
+		ProxyMode:        config.ProxyMode(r.FormValue("proxy_mode")),
+		EdgeNetwork:      r.FormValue("edge_network"),
+		EdgeCertResolver: r.FormValue("edge_cert_resolver"),
 	}, h.requestHost(r), h.port)
 	if err != nil {
 		http.Error(w, "failed to save settings", http.StatusInternalServerError)
@@ -565,26 +576,32 @@ func (h *PageHandler) renderGeneralSettingsPage(w http.ResponseWriter, r *http.R
 }
 
 func (h *PageHandler) renderGeneralSettings(w http.ResponseWriter, r *http.Request, snapshot settings.Snapshot, saved bool, errorMessage string) {
-	modeLabel := "IP mode"
+	routingModeLabel := "IP / port mode"
 	if snapshot.Domain != "" {
-		modeLabel = "Domain mode"
+		routingModeLabel = "Domain mode"
+	}
+	proxyModeLabel := "Internal Traefik"
+	if snapshot.ProxyMode == config.ProxyModeExternal {
+		proxyModeLabel = "External edge proxy"
 	}
 
 	data := struct {
-		User         *web.UserData
-		Current      settings.Snapshot
-		ModeLabel    string
-		Saved        bool
-		ErrorMessage string
+		User             *web.UserData
+		Current          settings.Snapshot
+		RoutingModeLabel string
+		ProxyModeLabel   string
+		Saved            bool
+		ErrorMessage     string
 	}{
-		User:         h.userData(r),
-		Current:      snapshot,
-		ModeLabel:    modeLabel,
-		Saved:        saved,
-		ErrorMessage: errorMessage,
+		User:             h.userData(r),
+		Current:          snapshot,
+		RoutingModeLabel: routingModeLabel,
+		ProxyModeLabel:   proxyModeLabel,
+		Saved:            saved,
+		ErrorMessage:     errorMessage,
 	}
 
-	h.renderer.Render(w, "settings_general.html", "Domain & HTTPS", h.userData(r), data)
+	h.renderer.Render(w, "settings_general.html", "Proxy & Domain", h.userData(r), data)
 }
 
 func (h *PageHandler) requestHost(r *http.Request) string {

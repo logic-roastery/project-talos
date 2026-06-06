@@ -2,17 +2,21 @@ package traefik
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"text/template"
 
+	"github.com/logic-roastery/project-talos/internal/config"
 	"github.com/logic-roastery/project-talos/internal/domain"
 	"github.com/logic-roastery/project-talos/internal/runtime/docker"
 )
 
 const traefikContainerName = "talos-traefik"
+
+var ErrExternalProxyAppDomainsUnsupported = errors.New("custom app domains require internal proxy mode")
 
 type Manager struct {
 	configDir  string
@@ -20,17 +24,19 @@ type Manager struct {
 	network    string
 	domain     string
 	acmeEmail  string
+	proxyMode  config.ProxyMode
 	serverPort int
 	logger     *slog.Logger
 }
 
-func NewManager(configDir, dataDir, network, domain, acmeEmail string, serverPort int, logger *slog.Logger) *Manager {
+func NewManager(configDir, dataDir, network, domain, acmeEmail string, proxyMode config.ProxyMode, serverPort int, logger *slog.Logger) *Manager {
 	return &Manager{
 		configDir:  configDir,
 		dataDir:    dataDir,
 		network:    network,
 		domain:     domain,
 		acmeEmail:  acmeEmail,
+		proxyMode:  proxyMode,
 		serverPort: serverPort,
 		logger:     logger,
 	}
@@ -94,6 +100,13 @@ type staticRouteData struct {
 }
 
 func (m *Manager) UpdateRoute(ctx context.Context, app *domain.App, containerName string) error {
+	if app.AccessMode == domain.AccessModePort {
+		return nil
+	}
+	if m.proxyMode == config.ProxyModeExternal {
+		return ErrExternalProxyAppDomainsUnsupported
+	}
+
 	data := routeData{
 		Name:          app.Name,
 		ContainerName: containerName,
@@ -107,12 +120,7 @@ func (m *Manager) UpdateRoute(ctx context.Context, app *domain.App, containerNam
 		data.EntryPoints = []string{"web"}
 	}
 
-	switch app.AccessMode {
-	case domain.AccessModeDomain:
-		data.Rule = fmt.Sprintf("Host(`%s`)", app.Domain)
-	case domain.AccessModePort:
-		data.Rule = fmt.Sprintf("Host(`*`)")
-	}
+	data.Rule = fmt.Sprintf("Host(`%s`)", app.Domain)
 
 	path := filepath.Join(m.configDir, app.Name+".yml")
 	f, err := os.Create(path)
@@ -172,9 +180,17 @@ func (m *Manager) DomainMode() bool {
 	return m.domain != ""
 }
 
+func (m *Manager) SupportsAppDomains() bool {
+	return m.proxyMode == config.ProxyModeInternal
+}
+
 // EnsureTraefik starts the Traefik container if it's not already running.
 // In IP mode (no domain), Traefik is not needed — the app listens directly.
 func (m *Manager) EnsureTraefik(ctx context.Context, dc *docker.Client, image string) error {
+	if m.proxyMode == config.ProxyModeExternal {
+		m.logger.Info("external proxy mode configured, skipping talos-managed traefik")
+		return nil
+	}
 	if m.domain == "" {
 		m.logger.Info("no domain configured, skipping traefik")
 		return nil

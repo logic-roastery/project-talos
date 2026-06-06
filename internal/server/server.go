@@ -40,6 +40,7 @@ func New(
 	backupStore store.BackupStore,
 	serverHost string,
 	serverDomain string,
+	serverProxyMode config.ProxyMode,
 	serverPort int,
 	logger *slog.Logger,
 ) *Server {
@@ -61,7 +62,7 @@ func New(
 		r.Get("/api/auth/me", authH.Me)
 		r.Post("/api/auth/logout", authH.Logout)
 
-		appH := handlers.NewAppHandler(apps, deploys, serverHost, serverDomain)
+		appH := handlers.NewAppHandler(apps, deploys, serverHost, serverDomain, serverProxyMode)
 		r.Route("/api/apps", func(r chi.Router) {
 			r.Get("/", appH.List)
 			r.Post("/", appH.Create)
@@ -214,7 +215,7 @@ func New(
 
 	// Page routes (HTML)
 	settingsSvc := settings.NewService(dockerClient)
-	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, svcStore, backupStore, authSvc, engine, ghClient, settingsSvc, serverHost, serverDomain, serverPort)
+	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, svcStore, backupStore, authSvc, engine, ghClient, settingsSvc, serverHost, serverDomain, serverProxyMode, serverPort)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/dashboard", http.StatusFound)

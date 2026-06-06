@@ -1,10 +1,10 @@
 {{define "settings_general.html"}}
-<div class="max-w-4xl mx-auto">
+<div class="max-w-5xl mx-auto">
     <div class="flex items-start justify-between gap-4 mb-8">
         <div>
             <p class="text-xs font-bold uppercase tracking-widest text-violet-mid mb-2">Settings</p>
-            <h1 class="text-2xl font-medium text-heading">Domain &amp; HTTPS</h1>
-            <p class="text-sm text-muted mt-1">Edit the Talos-level domain settings stored in <code class="bg-canvas-dark px-1.5 py-0.5 rounded text-body">{{.Current.EnvPath}}</code>.</p>
+            <h1 class="text-2xl font-medium text-heading">Proxy &amp; Domain</h1>
+            <p class="text-sm text-muted mt-1">Edit Talos-wide proxy and domain settings stored in <code class="bg-canvas-dark px-1.5 py-0.5 rounded text-body">{{.Current.EnvPath}}</code>.</p>
         </div>
         <a href="/settings" class="text-sm text-muted hover:text-body transition">← Back to Settings</a>
     </div>
@@ -12,7 +12,7 @@
     {{if .Saved}}
     <div class="bg-yellow-400/10 border border-yellow-400/20 rounded-xl p-4 mb-6">
         <p class="text-sm text-yellow-300 font-medium mb-1">Changes are saved but not yet applied.</p>
-        <p class="text-sm text-muted">Talos will keep using the previous runtime values until you complete the follow-up step below.</p>
+        <p class="text-sm text-muted">Talos keeps using the previous runtime config until you complete the follow-up step below.</p>
     </div>
     {{end}}
 
@@ -22,18 +22,28 @@
     </div>
     {{end}}
 
-    <div class="grid gap-6 lg:grid-cols-[1.3fr,0.9fr]">
+    <div class="grid gap-6 lg:grid-cols-[1.25fr,0.95fr]">
         <div class="space-y-6">
             <div class="bg-night border border-hairline rounded-xl p-6">
                 <h2 class="text-sm font-semibold text-muted uppercase tracking-wider mb-4">Current Configuration</h2>
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="bg-night/50 border border-hairline rounded-lg p-4">
-                        <p class="text-xs text-muted uppercase tracking-wider mb-1">Mode</p>
-                        <p class="text-sm font-medium text-body">{{.ModeLabel}}</p>
+                        <p class="text-xs text-muted uppercase tracking-wider mb-1">Proxy Mode</p>
+                        <p class="text-sm font-medium text-body">{{.ProxyModeLabel}}</p>
+                    </div>
+                    <div class="bg-night/50 border border-hairline rounded-lg p-4">
+                        <p class="text-xs text-muted uppercase tracking-wider mb-1">Routing Mode</p>
+                        <p class="text-sm font-medium text-body">{{.RoutingModeLabel}}</p>
                     </div>
                     <div class="bg-night/50 border border-hairline rounded-lg p-4">
                         <p class="text-xs text-muted uppercase tracking-wider mb-1">Configured Talos URL</p>
                         <p class="text-sm font-mono text-body break-all">{{.Current.ConfiguredURL}}</p>
+                    </div>
+                    <div class="bg-night/50 border border-hairline rounded-lg p-4">
+                        <p class="text-xs text-muted uppercase tracking-wider mb-1">App Custom Domains</p>
+                        <p class="text-sm font-medium {{if .Current.SupportsAppDomains}}text-lime-accent{{else}}text-yellow-300{{end}}">
+                            {{if .Current.SupportsAppDomains}}Supported{{else}}Not available in external mode yet{{end}}
+                        </p>
                     </div>
                     <div class="bg-night/50 border border-hairline rounded-lg p-4 sm:col-span-2">
                         <p class="text-xs text-muted uppercase tracking-wider mb-1">TALOS_DOMAIN</p>
@@ -43,13 +53,28 @@
                         <p class="text-xs text-muted uppercase tracking-wider mb-1">TALOS_ACME_EMAIL</p>
                         <p class="text-sm font-mono text-body break-all">{{if .Current.ACMEEmail}}{{.Current.ACMEEmail}}{{else}}(empty){{end}}</p>
                     </div>
+                    <div class="bg-night/50 border border-hairline rounded-lg p-4">
+                        <p class="text-xs text-muted uppercase tracking-wider mb-1">TALOS_EDGE_NETWORK</p>
+                        <p class="text-sm font-mono text-body break-all">{{.Current.EdgeNetwork}}</p>
+                    </div>
+                    <div class="bg-night/50 border border-hairline rounded-lg p-4">
+                        <p class="text-xs text-muted uppercase tracking-wider mb-1">TALOS_EDGE_CERT_RESOLVER</p>
+                        <p class="text-sm font-mono text-body break-all">{{.Current.EdgeCertResolver}}</p>
+                    </div>
                 </div>
-                <p class="text-sm text-muted mt-4">This page enables domain/HTTPS mode for Talos routing and deployed apps after you apply the saved config and redeploy the apps that need domain routes. It does not automatically move the Talos UI itself to the configured domain.</p>
             </div>
 
             <div class="bg-night border border-hairline rounded-xl p-6">
                 <h2 class="text-sm font-semibold text-muted uppercase tracking-wider mb-4">Update Settings</h2>
                 <form method="POST" action="/settings/general" class="space-y-4">
+                    <div>
+                        <label for="proxy_mode" class="block text-sm font-medium text-heading mb-2">TALOS_PROXY_MODE</label>
+                        <select id="proxy_mode" name="proxy_mode"
+                            class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
+                            <option value="internal" {{if eq .Current.ProxyMode "internal"}}selected{{end}}>internal</option>
+                            <option value="external" {{if eq .Current.ProxyMode "external"}}selected{{end}}>external</option>
+                        </select>
+                    </div>
                     <div>
                         <label for="domain" class="block text-sm font-medium text-heading mb-2">TALOS_DOMAIN</label>
                         <input id="domain" name="domain" type="text" value="{{.Current.Domain}}" placeholder="talos.example.com"
@@ -60,8 +85,20 @@
                         <input id="acme_email" name="acme_email" type="email" value="{{.Current.ACMEEmail}}" placeholder="ops@example.com"
                             class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
                     </div>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label for="edge_network" class="block text-sm font-medium text-heading mb-2">TALOS_EDGE_NETWORK</label>
+                            <input id="edge_network" name="edge_network" type="text" value="{{.Current.EdgeNetwork}}" placeholder="traefik-public"
+                                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
+                        </div>
+                        <div>
+                            <label for="edge_cert_resolver" class="block text-sm font-medium text-heading mb-2">TALOS_EDGE_CERT_RESOLVER</label>
+                            <input id="edge_cert_resolver" name="edge_cert_resolver" type="text" value="{{.Current.EdgeCertResolver}}" placeholder="letsencrypt"
+                                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
+                        </div>
+                    </div>
                     <div class="bg-night/50 border border-hairline rounded-lg p-4">
-                        <p class="text-sm text-muted">Leaving both fields empty puts Talos back into IP mode after you apply the saved config. The ACME email is only used for HTTPS certificate issuance in domain mode.</p>
+                        <p class="text-sm text-muted">Internal mode lets Talos manage its own Traefik and app custom domains. External mode assumes an existing edge proxy owns ports 80/443 and only publishes the Talos UI domain in v1.</p>
                     </div>
                     <button type="submit" class="inline-flex items-center gap-2 bg-lime-accent text-midnight font-bold px-4 py-2.5 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
                         Save Settings
@@ -79,19 +116,19 @@
             </div>
 
             <div class="bg-night border border-hairline rounded-xl p-6">
-                <h2 class="text-sm font-semibold text-muted uppercase tracking-wider mb-3">Required Follow-Up</h2>
+                <h2 class="text-sm font-semibold text-muted uppercase tracking-wider mb-3">Operational Notes</h2>
                 <ul class="space-y-2.5 text-sm text-muted">
                     <li class="flex items-start gap-2">
                         <span class="text-violet mt-0.5">1.</span>
-                        <span>Point the DNS A record for your Talos or app domains at this server before switching to domain mode.</span>
+                        <span>Point the DNS A record for <code class="bg-canvas-dark px-1.5 py-0.5 rounded text-body">TALOS_DOMAIN</code> to this server before switching into domain mode.</span>
                     </li>
                     <li class="flex items-start gap-2">
                         <span class="text-violet mt-0.5">2.</span>
-                        <span>After applying the saved config, redeploy each app that should use custom domains so Talos regenerates the Traefik routes.</span>
+                        <span>In external proxy mode, the shared edge proxy must watch <code class="bg-canvas-dark px-1.5 py-0.5 rounded text-body">{{.Current.EdgeNetwork}}</code> and route the Talos container labels.</span>
                     </li>
                     <li class="flex items-start gap-2">
                         <span class="text-violet mt-0.5">3.</span>
-                        <span>If you switch back to IP mode, update the affected apps away from domain routing and redeploy them again.</span>
+                        <span>App custom domains remain internal-proxy-only in v1. Use port access for apps when Talos runs behind an external edge proxy.</span>
                     </li>
                 </ul>
             </div>

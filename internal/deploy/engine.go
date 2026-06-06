@@ -148,6 +148,18 @@ func (e *Engine) execute(ctx context.Context, app *domain.App, d *domain.Deploy)
 			"talos-app":  app.Name,
 		},
 	}
+	if app.AccessMode == domain.AccessModePort && app.FallbackPort > 0 {
+		cfg.Ports = []string{fmt.Sprintf("%d:%d", app.FallbackPort, app.InternalPort)}
+	}
+
+	// Port-mode apps need the host port exclusively, so we trade blue/green for a brief restart.
+	if app.AccessMode == domain.AccessModePort && liveName != "" {
+		e.emitEvent(ctx, d.ID, "info", "stop_old", "stopping old container "+liveName+" before binding fallback port")
+		if err := e.docker.StopAndRemove(ctx, liveName); err != nil {
+			e.emitEvent(ctx, d.ID, "warn", "stop_old", fmt.Sprintf("stop old container: %v", err))
+			e.logger.Warn("stop old container", "error", err)
+		}
+	}
 
 	containerID, err := e.docker.StartContainerWithConfig(ctx, cfg)
 	if err != nil {
@@ -182,21 +194,25 @@ func (e *Engine) execute(ctx context.Context, app *domain.App, d *domain.Deploy)
 	d.HealthStatus = "healthy"
 	e.emitEvent(ctx, d.ID, "info", "health_check", "health check passed")
 
-	// Update route to point to staging container
-	e.emitEvent(ctx, d.ID, "info", "route_update", "updating traefik route to "+stagingName)
-	if err := e.proxy.UpdateRoute(ctx, app, stagingName); err != nil {
-		e.emitEvent(ctx, d.ID, "error", "route_update", fmt.Sprintf("route update failed: %v", err))
-		// Clean up staging, leave live
-		if cleanErr := e.docker.StopAndRemove(ctx, stagingName); cleanErr != nil {
-			e.logger.Warn("cleanup staging container", "error", cleanErr)
+	if app.AccessMode == domain.AccessModeDomain {
+		// Update route to point to staging container
+		e.emitEvent(ctx, d.ID, "info", "route_update", "updating traefik route to "+stagingName)
+		if err := e.proxy.UpdateRoute(ctx, app, stagingName); err != nil {
+			e.emitEvent(ctx, d.ID, "error", "route_update", fmt.Sprintf("route update failed: %v", err))
+			// Clean up staging, leave live
+			if cleanErr := e.docker.StopAndRemove(ctx, stagingName); cleanErr != nil {
+				e.logger.Warn("cleanup staging container", "error", cleanErr)
+			}
+			e.failDeploy(ctx, d, fmt.Sprintf("update route: %v", err))
+			return
 		}
-		e.failDeploy(ctx, d, fmt.Sprintf("update route: %v", err))
-		return
+		e.emitEvent(ctx, d.ID, "info", "route_update", "route updated successfully")
+	} else {
+		e.emitEvent(ctx, d.ID, "info", "route_update", "fallback port mode uses direct host port binding; no proxy route update required")
 	}
-	e.emitEvent(ctx, d.ID, "info", "route_update", "route updated successfully")
 
 	// Stop old live container (only after new one is healthy and routed)
-	if liveName != stagingName {
+	if liveName != stagingName && app.AccessMode != domain.AccessModePort {
 		e.emitEvent(ctx, d.ID, "info", "stop_old", "stopping old container "+liveName)
 		if err := e.docker.StopAndRemove(ctx, liveName); err != nil {
 			e.emitEvent(ctx, d.ID, "warn", "stop_old", fmt.Sprintf("stop old container: %v", err))

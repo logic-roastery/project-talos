@@ -38,6 +38,9 @@ UPGRADE_MODE=false
 TARGET_VERSION=""
 TALOS_PORT=3000
 DOCKER_GROUP="docker"
+TALOS_PROXY_MODE="internal"
+TALOS_EDGE_NETWORK="traefik-public"
+TALOS_EDGE_CERT_RESOLVER="letsencrypt"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -70,6 +73,56 @@ detect_host_ip() {
     fi
 
     printf '%s' "${ip:-<your-server-ip>}"
+}
+
+load_existing_proxy_settings() {
+    if [[ -f "${TALOS_ENV}" ]]; then
+        local existing_proxy_mode existing_edge_network existing_edge_cert_resolver existing_port
+        existing_proxy_mode=$(grep "^TALOS_PROXY_MODE=" "${TALOS_ENV}" 2>/dev/null | cut -d= -f2-)
+        existing_edge_network=$(grep "^TALOS_EDGE_NETWORK=" "${TALOS_ENV}" 2>/dev/null | cut -d= -f2-)
+        existing_edge_cert_resolver=$(grep "^TALOS_EDGE_CERT_RESOLVER=" "${TALOS_ENV}" 2>/dev/null | cut -d= -f2-)
+        existing_port=$(grep "^TALOS_PORT=" "${TALOS_ENV}" 2>/dev/null | cut -d= -f2-)
+
+        if [[ -n "${existing_proxy_mode}" ]]; then
+            TALOS_PROXY_MODE="${existing_proxy_mode}"
+        fi
+        if [[ -n "${existing_edge_network}" ]]; then
+            TALOS_EDGE_NETWORK="${existing_edge_network}"
+        fi
+        if [[ -n "${existing_edge_cert_resolver}" ]]; then
+            TALOS_EDGE_CERT_RESOLVER="${existing_edge_cert_resolver}"
+        fi
+        if [[ -n "${existing_port}" ]]; then
+            TALOS_PORT="${existing_port}"
+        fi
+    fi
+}
+
+ensure_edge_network() {
+    if [[ "${TALOS_PROXY_MODE}" == "external" ]]; then
+        docker network create "${TALOS_EDGE_NETWORK}" >/dev/null 2>&1 || true
+    fi
+}
+
+connect_talos_edge_network() {
+    if [[ "${TALOS_PROXY_MODE}" == "external" ]] && [[ "${TALOS_EDGE_NETWORK}" != "${DOCKER_NETWORK}" ]]; then
+        docker network connect "${TALOS_EDGE_NETWORK}" talos >/dev/null 2>&1 || true
+    fi
+}
+
+talos_external_label_args() {
+    if [[ "${TALOS_PROXY_MODE}" != "external" ]] || [[ -z "${TALOS_DOMAIN}" ]]; then
+        return 0
+    fi
+
+    printf '%s\n' \
+        "--label" "traefik.enable=true" \
+        "--label" "traefik.docker.network=${TALOS_EDGE_NETWORK}" \
+        "--label" "traefik.http.routers.talos.rule=Host(\`${TALOS_DOMAIN}\`)" \
+        "--label" "traefik.http.routers.talos.entrypoints=websecure" \
+        "--label" "traefik.http.routers.talos.tls=true" \
+        "--label" "traefik.http.routers.talos.tls.certresolver=${TALOS_EDGE_CERT_RESOLVER}" \
+        "--label" "traefik.http.services.talos.loadbalancer.server.port=3000"
 }
 
 # ---------------------------------------------------------------------------
@@ -230,6 +283,9 @@ if [[ "${UPGRADE_MODE}" == "true" ]]; then
         local latest_tag
         latest_tag=$(docker images "${GHCR_IMAGE_BASE}" --format '{{.Tag}}' | grep '^rollback-' | sort -r | head -1)
         if [[ -n "$latest_tag" ]]; then
+            load_existing_proxy_settings
+            mapfile -t TALOS_LABEL_ARGS < <(talos_external_label_args)
+            ensure_edge_network
             docker run -d \
                 --name talos \
                 --restart unless-stopped \
@@ -237,8 +293,11 @@ if [[ "${UPGRADE_MODE}" == "true" ]]; then
                 -p "${TALOS_PORT}:3000" \
                 -v /var/run/docker.sock:/var/run/docker.sock \
                 -v "${TALOS_DATA}:/data" \
+                -v "${TALOS_ENV}:${TALOS_ENV}" \
                 --env-file "${TALOS_ENV}" \
+                "${TALOS_LABEL_ARGS[@]}" \
                 "${GHCR_IMAGE_BASE}:${latest_tag}" >/dev/null
+            connect_talos_edge_network
             ok "Rolled back to image tag: ${latest_tag}"
         else
             warn "No rollback image found. Manual intervention required."
@@ -259,6 +318,7 @@ if [[ "${UPGRADE_MODE}" == "true" ]]; then
 
         # Ensure .env exists (never overwrite it)
         [[ -f "${TALOS_ENV}" ]] || die "No .env found at ${TALOS_ENV}. Run install.sh first."
+        load_existing_proxy_settings
 
         # Pull new image
         info "Pulling ${GHCR_IMAGE_BASE}:${IMAGE_TAG}..."
@@ -281,6 +341,8 @@ if [[ "${UPGRADE_MODE}" == "true" ]]; then
         docker stop talos >/dev/null 2>&1 || true
         docker rm talos >/dev/null 2>&1 || true
 
+        mapfile -t TALOS_LABEL_ARGS < <(talos_external_label_args)
+        ensure_edge_network
         docker run -d \
             --name talos \
             --restart unless-stopped \
@@ -288,9 +350,12 @@ if [[ "${UPGRADE_MODE}" == "true" ]]; then
             -p "${TALOS_PORT}:3000" \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "${TALOS_DATA}:/data" \
+            -v "${TALOS_ENV}:${TALOS_ENV}" \
             --env-file "${TALOS_ENV}" \
+            "${TALOS_LABEL_ARGS[@]}" \
             "${GHCR_IMAGE_BASE}:${IMAGE_TAG}" \
             >/dev/null
+        connect_talos_edge_network
 
         trap - ERR
 
@@ -312,6 +377,7 @@ if [[ "${UPGRADE_MODE}" == "true" ]]; then
             echo "      -p ${TALOS_PORT}:3000 \\"
             echo "      -v /var/run/docker.sock:/var/run/docker.sock \\"
             echo "      -v ${TALOS_DATA}:/data \\"
+            echo "      -v ${TALOS_ENV}:${TALOS_ENV} \\"
             echo "      --env-file ${TALOS_ENV} \\"
             echo "      ${GHCR_IMAGE_BASE}:rollback-${BACKUP_TAG}"
             echo ""
@@ -464,10 +530,14 @@ fi
 TALOS_DOMAIN=""
 TALOS_ACME_EMAIL=""
 
+load_existing_proxy_settings
+
 if [[ -f "${TALOS_ENV}" ]] && grep -q "TALOS_DOMAIN=" "${TALOS_ENV}" 2>/dev/null; then
     existing_domain=$(grep "^TALOS_DOMAIN=" "${TALOS_ENV}" | cut -d= -f2-)
+    existing_email=$(grep "^TALOS_ACME_EMAIL=" "${TALOS_ENV}" | cut -d= -f2-)
     if [[ -n "$existing_domain" ]]; then
         TALOS_DOMAIN="$existing_domain"
+        TALOS_ACME_EMAIL="$existing_email"
         ok "Domain already configured: ${TALOS_DOMAIN}"
     fi
 fi
@@ -477,7 +547,17 @@ if [[ -z "$TALOS_DOMAIN" ]]; then
     read -rp "Do you have a domain name pointed at this server? [y/N] " has_domain
     if [[ "${has_domain,,}" == "y" ]]; then
         read -rp "Enter your domain (e.g. talos.example.com): " TALOS_DOMAIN
-        read -rp "Enter your email for Let's Encrypt certificates: " TALOS_ACME_EMAIL
+        read -rp "Enter your email for TLS certificate notifications: " TALOS_ACME_EMAIL
+        read -rp "Will another reverse proxy on this server own ports 80/443? [y/N] " uses_external_proxy
+        if [[ "${uses_external_proxy,,}" == "y" ]]; then
+            TALOS_PROXY_MODE="external"
+            read -rp "Enter the shared external proxy Docker network [traefik-public]: " edge_network
+            read -rp "Enter the external proxy cert resolver name [letsencrypt]: " edge_cert_resolver
+            TALOS_EDGE_NETWORK="${edge_network:-traefik-public}"
+            TALOS_EDGE_CERT_RESOLVER="${edge_cert_resolver:-letsencrypt}"
+        else
+            TALOS_PROXY_MODE="internal"
+        fi
         ok "Domain: ${TALOS_DOMAIN}"
     else
         ACCESS_HOST=$(detect_host_ip)
@@ -596,6 +676,9 @@ TALOS_PORT=${TALOS_PORT}
 # Domain
 TALOS_DOMAIN=${TALOS_DOMAIN}
 TALOS_ACME_EMAIL=${TALOS_ACME_EMAIL}
+TALOS_PROXY_MODE=${TALOS_PROXY_MODE}
+TALOS_EDGE_NETWORK=${TALOS_EDGE_NETWORK}
+TALOS_EDGE_CERT_RESOLVER=${TALOS_EDGE_CERT_RESOLVER}
 
 # Database
 TALOS_DB_PATH=/data/talos.db
@@ -632,6 +715,9 @@ EOF
         docker rm talos >/dev/null 2>&1 || true
     fi
 
+    mapfile -t TALOS_LABEL_ARGS < <(talos_external_label_args)
+    ensure_edge_network
+
     # Run Talos container
     docker run -d \
         --name talos \
@@ -640,9 +726,13 @@ EOF
         -p "${TALOS_PORT}:3000" \
         -v /var/run/docker.sock:/var/run/docker.sock \
         -v "${TALOS_DATA}:/data" \
+        -v "${TALOS_ENV}:${TALOS_ENV}" \
         --env-file "${TALOS_ENV}" \
+        "${TALOS_LABEL_ARGS[@]}" \
         "${GHCR_IMAGE}" \
         >/dev/null
+
+    connect_talos_edge_network
 
     ok "Talos container started."
 
@@ -714,6 +804,9 @@ TALOS_PORT=${TALOS_PORT}
 # Domain
 TALOS_DOMAIN=${TALOS_DOMAIN}
 TALOS_ACME_EMAIL=${TALOS_ACME_EMAIL}
+TALOS_PROXY_MODE=${TALOS_PROXY_MODE}
+TALOS_EDGE_NETWORK=${TALOS_EDGE_NETWORK}
+TALOS_EDGE_CERT_RESOLVER=${TALOS_EDGE_CERT_RESOLVER}
 
 # Database
 TALOS_DB_PATH=${TALOS_DATA}/talos.db
@@ -751,15 +844,18 @@ ok "Environment file written to ${TALOS_ENV}."
 
 info "Setting up Traefik..."
 
-# Stop existing Traefik container if present
-if docker inspect "${TRAEFIK_CONTAINER}" &>/dev/null 2>&1; then
-    info "Stopping existing Traefik container..."
-    docker stop "${TRAEFIK_CONTAINER}" >/dev/null 2>&1 || true
-    docker rm "${TRAEFIK_CONTAINER}" >/dev/null 2>&1 || true
-fi
+if [[ "${TALOS_PROXY_MODE}" == "external" ]]; then
+    info "External proxy mode enabled — skipping Talos-managed Traefik."
+else
+    # Stop existing Traefik container if present
+    if docker inspect "${TRAEFIK_CONTAINER}" &>/dev/null 2>&1; then
+        info "Stopping existing Traefik container..."
+        docker stop "${TRAEFIK_CONTAINER}" >/dev/null 2>&1 || true
+        docker rm "${TRAEFIK_CONTAINER}" >/dev/null 2>&1 || true
+    fi
 
-# Generate static Traefik configuration
-cat > "${TALOS_DATA}/traefik/traefik.yaml" <<EOF
+    # Generate static Traefik configuration
+    cat > "${TALOS_DATA}/traefik/traefik.yaml" <<EOF
 # Traefik static configuration for Talos
 api:
   dashboard: false
@@ -782,21 +878,22 @@ accessLog:
   bufferingSize: 100
 EOF
 
-chown "${TALOS_USER}:${TALOS_USER}" "${TALOS_DATA}/traefik/traefik.yaml"
+    chown "${TALOS_USER}:${TALOS_USER}" "${TALOS_DATA}/traefik/traefik.yaml"
 
-docker run -d \
-    --name "${TRAEFIK_CONTAINER}" \
-    --restart unless-stopped \
-    --network "${DOCKER_NETWORK}" \
-    -p 80:80 \
-    -p 443:443 \
-    -v "${TALOS_DATA}/traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro" \
-    -v "${TALOS_DATA}/traefik/config:/etc/traefik/config:ro" \
-    -v "${TALOS_DATA}/traefik/data:/var/log/traefik" \
-    "${TRAEFIK_IMAGE}" \
-    >/dev/null
+    docker run -d \
+        --name "${TRAEFIK_CONTAINER}" \
+        --restart unless-stopped \
+        --network "${DOCKER_NETWORK}" \
+        -p 80:80 \
+        -p 443:443 \
+        -v "${TALOS_DATA}/traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro" \
+        -v "${TALOS_DATA}/traefik/config:/etc/traefik/config:ro" \
+        -v "${TALOS_DATA}/traefik/data:/var/log/traefik" \
+        "${TRAEFIK_IMAGE}" \
+        >/dev/null
 
-ok "Traefik container started on ports 80/443."
+    ok "Traefik container started on ports 80/443."
+fi
 
 # ---------------------------------------------------------------------------
 # Step 9: Systemd service
