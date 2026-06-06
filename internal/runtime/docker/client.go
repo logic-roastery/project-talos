@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/netip"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 )
 
 type Client struct {
@@ -39,7 +39,7 @@ func (c *Client) Close() error {
 
 func (c *Client) PullImage(ctx context.Context, ref string) error {
 	c.logger.Info("pulling image", "ref", ref)
-	reader, err := c.cli.ImagePull(ctx, ref, image.PullOptions{})
+	reader, err := c.cli.ImagePull(ctx, ref, client.ImagePullOptions{})
 	if err != nil {
 		return fmt.Errorf("pull image %s: %w", ref, err)
 	}
@@ -50,23 +50,35 @@ func (c *Client) PullImage(ctx context.Context, ref string) error {
 
 func (c *Client) StopAndRemove(ctx context.Context, name string) error {
 	timeout := 10
-	if err := c.cli.ContainerStop(ctx, name, container.StopOptions{Timeout: &timeout}); err != nil {
+	if _, err := c.cli.ContainerStop(ctx, name, client.ContainerStopOptions{Timeout: &timeout}); err != nil {
 		c.logger.Warn("stop container", "name", name, "error", err)
 	}
-	return c.cli.ContainerRemove(ctx, name, container.RemoveOptions{Force: true})
+	_, err := c.cli.ContainerRemove(ctx, name, client.ContainerRemoveOptions{Force: true})
+	return err
 }
 
 func (c *Client) Inspect(ctx context.Context, name string) (container.InspectResponse, error) {
-	return c.cli.ContainerInspect(ctx, name)
+	result, err := c.cli.ContainerInspect(ctx, name, client.ContainerInspectOptions{})
+	if err != nil {
+		return container.InspectResponse{}, err
+	}
+	return result.Container, nil
 }
 
 func (c *Client) StartContainer(ctx context.Context, name, imageRef string, internalPort int) (string, error) {
-	c.EnsureNetwork(ctx)
+	if err := c.EnsureNetwork(ctx); err != nil {
+		return "", err
+	}
+
+	port, err := network.ParsePort(fmt.Sprintf("%d/tcp", internalPort))
+	if err != nil {
+		return "", fmt.Errorf("parse internal port: %w", err)
+	}
 
 	config := &container.Config{
 		Image: imageRef,
-		ExposedPorts: nat.PortSet{
-			nat.Port(fmt.Sprintf("%d/tcp", internalPort)): struct{}{},
+		ExposedPorts: network.PortSet{
+			port: struct{}{},
 		},
 		Labels: map[string]string{
 			"managed-by": "talos",
@@ -80,12 +92,16 @@ func (c *Client) StartContainer(ctx context.Context, name, imageRef string, inte
 		NetworkMode: container.NetworkMode(c.network),
 	}
 
-	resp, err := c.cli.ContainerCreate(ctx, config, hostConfig, nil, nil, name)
+	resp, err := c.cli.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:     config,
+		HostConfig: hostConfig,
+		Name:       name,
+	})
 	if err != nil {
 		return "", fmt.Errorf("create container: %w", err)
 	}
 
-	if err := c.cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+	if _, err := c.cli.ContainerStart(ctx, resp.ID, client.ContainerStartOptions{}); err != nil {
 		return "", fmt.Errorf("start container: %w", err)
 	}
 
@@ -108,7 +124,9 @@ type ContainerConfig struct {
 // StartContainerWithConfig creates and starts a container with full configuration
 // (volumes, env vars, custom health check, extra labels).
 func (c *Client) StartContainerWithConfig(ctx context.Context, cfg ContainerConfig) (string, error) {
-	c.EnsureNetwork(ctx)
+	if err := c.EnsureNetwork(ctx); err != nil {
+		return "", err
+	}
 
 	labels := map[string]string{
 		"managed-by": "talos",
@@ -117,21 +135,48 @@ func (c *Client) StartContainerWithConfig(ctx context.Context, cfg ContainerConf
 		labels[k] = v
 	}
 
-	exposedPorts := nat.PortSet{}
+	exposedPorts := network.PortSet{}
 	if cfg.InternalPort > 0 {
-		exposedPorts[nat.Port(fmt.Sprintf("%d/tcp", cfg.InternalPort))] = struct{}{}
+		port, err := network.ParsePort(fmt.Sprintf("%d/tcp", cfg.InternalPort))
+		if err != nil {
+			return "", fmt.Errorf("parse internal port: %w", err)
+		}
+		exposedPorts[port] = struct{}{}
 	}
 
-	portBindings := nat.PortMap{}
+	portBindings := network.PortMap{}
 	if len(cfg.Ports) > 0 {
 		eps, bindings, err := nat.ParsePortSpecs(cfg.Ports)
 		if err != nil {
 			return "", fmt.Errorf("parse port specs: %w", err)
 		}
 		for p := range eps {
-			exposedPorts[p] = struct{}{}
+			port, err := network.ParsePort(string(p))
+			if err != nil {
+				return "", fmt.Errorf("parse exposed port %s: %w", p, err)
+			}
+			exposedPorts[port] = struct{}{}
 		}
-		portBindings = bindings
+		for p, hostBindings := range bindings {
+			port, err := network.ParsePort(string(p))
+			if err != nil {
+				return "", fmt.Errorf("parse bound port %s: %w", p, err)
+			}
+
+			converted := make([]network.PortBinding, 0, len(hostBindings))
+			for _, binding := range hostBindings {
+				hostIP, err := parseHostIP(binding.HostIP)
+				if err != nil {
+					return "", fmt.Errorf("parse host IP %q: %w", binding.HostIP, err)
+				}
+				converted = append(converted, network.PortBinding{
+					HostIP:   hostIP,
+					HostPort: binding.HostPort,
+				})
+			}
+
+			portBindings[port] = converted
+		}
 	}
 
 	config := &container.Config{
@@ -153,12 +198,16 @@ func (c *Client) StartContainerWithConfig(ctx context.Context, cfg ContainerConf
 		PortBindings: portBindings,
 	}
 
-	resp, err := c.cli.ContainerCreate(ctx, config, hostConfig, nil, nil, cfg.Name)
+	resp, err := c.cli.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:     config,
+		HostConfig: hostConfig,
+		Name:       cfg.Name,
+	})
 	if err != nil {
 		return "", fmt.Errorf("create container: %w", err)
 	}
 
-	if err := c.cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+	if _, err := c.cli.ContainerStart(ctx, resp.ID, client.ContainerStartOptions{}); err != nil {
 		return "", fmt.Errorf("start container: %w", err)
 	}
 
@@ -176,16 +225,16 @@ func (c *Client) WaitForHealth(ctx context.Context, containerID string, timeout 
 		case <-deadline:
 			return fmt.Errorf("health check timeout after %s", timeout)
 		case <-ticker.C:
-			info, err := c.cli.ContainerInspect(ctx, containerID)
+			info, err := c.cli.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
 			if err != nil {
 				return fmt.Errorf("inspect container: %w", err)
 			}
 
-			if info.State.Running {
-				if info.State.Health == nil {
+			if info.Container.State.Running {
+				if info.Container.State.Health == nil {
 					return nil
 				}
-				switch info.State.Health.Status {
+				switch info.Container.State.Health.Status {
 				case "healthy":
 					return nil
 				case "unhealthy":
@@ -199,7 +248,7 @@ func (c *Client) WaitForHealth(ctx context.Context, containerID string, timeout 
 }
 
 func (c *Client) GetLogs(ctx context.Context, containerID string, tail string) (string, error) {
-	reader, err := c.cli.ContainerLogs(ctx, containerID, container.LogsOptions{
+	reader, err := c.cli.ContainerLogs(ctx, containerID, client.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Tail:       tail,
@@ -221,7 +270,7 @@ func (c *Client) GetLogs(ctx context.Context, containerID string, tail string) (
 // The Docker stream uses a multiplexed format: 8-byte header per frame
 // (byte 0 = stream type 1=stdout 2=stderr, bytes 4-7 = uint32 big-endian payload size).
 func (c *Client) StreamLogs(ctx context.Context, containerID string, tail string) (io.ReadCloser, error) {
-	reader, err := c.cli.ContainerLogs(ctx, containerID, container.LogsOptions{
+	reader, err := c.cli.ContainerLogs(ctx, containerID, client.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Tail:       tail,
@@ -235,18 +284,18 @@ func (c *Client) StreamLogs(ctx context.Context, containerID string, tail string
 
 // Exec runs a command in a running container and returns the combined stdout output.
 func (c *Client) Exec(ctx context.Context, containerName string, cmd []string) ([]byte, error) {
-	execCfg := container.ExecOptions{
+	execCfg := client.ExecCreateOptions{
 		Cmd:          cmd,
 		AttachStdout: true,
 		AttachStderr: true,
 	}
 
-	resp, err := c.cli.ContainerExecCreate(ctx, containerName, execCfg)
+	resp, err := c.cli.ExecCreate(ctx, containerName, execCfg)
 	if err != nil {
 		return nil, fmt.Errorf("exec create: %w", err)
 	}
 
-	attachResp, err := c.cli.ContainerExecAttach(ctx, resp.ID, container.ExecAttachOptions{})
+	attachResp, err := c.cli.ExecAttach(ctx, resp.ID, client.ExecAttachOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("exec attach: %w", err)
 	}
@@ -257,7 +306,7 @@ func (c *Client) Exec(ctx context.Context, containerName string, cmd []string) (
 		return nil, fmt.Errorf("exec read output: %w", err)
 	}
 
-	inspectResp, err := c.cli.ContainerExecInspect(ctx, resp.ID)
+	inspectResp, err := c.cli.ExecInspect(ctx, resp.ID, client.ExecInspectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("exec inspect: %w", err)
 	}
@@ -269,18 +318,18 @@ func (c *Client) Exec(ctx context.Context, containerName string, cmd []string) (
 }
 
 func (c *Client) EnsureNetwork(ctx context.Context) error {
-	networks, err := c.cli.NetworkList(ctx, network.ListOptions{})
+	networks, err := c.cli.NetworkList(ctx, client.NetworkListOptions{})
 	if err != nil {
 		return fmt.Errorf("list networks: %w", err)
 	}
 
-	for _, n := range networks {
+	for _, n := range networks.Items {
 		if n.Name == c.network {
 			return nil
 		}
 	}
 
-	_, err = c.cli.NetworkCreate(ctx, c.network, network.CreateOptions{
+	_, err = c.cli.NetworkCreate(ctx, c.network, client.NetworkCreateOptions{
 		Driver: "bridge",
 		Labels: map[string]string{"managed-by": "talos"},
 	})
@@ -290,4 +339,11 @@ func (c *Client) EnsureNetwork(ctx context.Context) error {
 
 	c.logger.Info("created network", "name", c.network)
 	return nil
+}
+
+func parseHostIP(value string) (netip.Addr, error) {
+	if value == "" {
+		return netip.Addr{}, nil
+	}
+	return netip.ParseAddr(value)
 }
