@@ -58,6 +58,14 @@ docker pull ghcr.io/logic-roastery/project-talos:latest
 docker pull egasa/project-talos:latest
 ```
 
+Docker upgrade note:
+
+```bash
+sudo bash install.sh --upgrade --docker
+```
+
+Do not rely on `docker restart talos` after a new image pull. Restarting an existing container keeps it on the old image; Talos must recreate the container to apply the new version.
+
 ## Domain Setup
 
 The installer will ask if you have a domain. You have two options:
