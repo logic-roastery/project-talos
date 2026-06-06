@@ -35,14 +35,23 @@ If you choose **domain mode**, make sure your DNS A record points to your server
 Talos uses a GitHub App to automatically receive push events and trigger deploys. This is the recommended integration — no manual workflow files needed.
 
 1. Go to **Settings > GitHub Setup** in the Talos web UI.
-2. Click **Create GitHub App** and follow the wizard.
-3. Install the GitHub App on your repository.
-4. Talos will generate the necessary webhook configuration automatically.
+2. Click **Create GitHub App**. Talos will redirect you to GitHub using GitHub's supported **manifest flow**.
+3. Review the generated app on GitHub and complete the registration.
+4. Install the GitHub App on your repository.
+5. Talos will receive the generated credentials automatically and store them for you.
 
 Once connected, every push to your app's configured branch will trigger an automatic deployment.
 
 ::: tip
 The GitHub App handles authentication, webhook delivery, and secret management for you. You don't need to manually configure webhook URLs or signing secrets.
+:::
+
+::: info What to Expect on GitHub
+Talos uses the GitHub App **manifest** flow, not the manual "fill every field yourself" flow. GitHub may not show every field as visibly prefilled on the page, but Talos is still passing the webhook URL, callback URL, permissions, and subscribed events in the manifest. The app name can still be edited before you submit it.
+:::
+
+::: warning No Domain Yet?
+If Talos is running on a raw IP address without a domain, the generated GitHub App manifest will use `http://<your-server-ip>:3000` for the homepage, webhook URL, and setup callback URL. This is acceptable for local testing, but a proper domain with HTTPS is strongly recommended before relying on GitHub App webhooks in a real deployment.
 :::
 
 ## Step 3: Push Your Code

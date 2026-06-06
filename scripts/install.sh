@@ -54,6 +54,24 @@ ok()    { echo -e "${GREEN}[ok]${NC}    $*"; }
 warn()  { echo -e "${YELLOW}[warn]${NC}  $*"; }
 die()   { echo -e "${RED}[error]${NC} $*" >&2; exit 1; }
 
+detect_host_ip() {
+    local ip=""
+
+    if command -v curl &>/dev/null; then
+        ip=$(curl -fsS --max-time 3 https://api.ipify.org 2>/dev/null || true)
+    fi
+
+    if [[ -z "${ip}" ]] && command -v ip &>/dev/null; then
+        ip=$(ip route get 1.1.1.1 2>/dev/null | awk '/src/ {for (i = 1; i <= NF; i++) if ($i == "src") {print $(i+1); exit}}')
+    fi
+
+    if [[ -z "${ip}" ]] && command -v hostname &>/dev/null; then
+        ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+    fi
+
+    printf '%s' "${ip:-<your-server-ip>}"
+}
+
 # ---------------------------------------------------------------------------
 # Argument parsing
 # ---------------------------------------------------------------------------
@@ -462,8 +480,16 @@ if [[ -z "$TALOS_DOMAIN" ]]; then
         read -rp "Enter your email for Let's Encrypt certificates: " TALOS_ACME_EMAIL
         ok "Domain: ${TALOS_DOMAIN}"
     else
-        info "No domain — Talos will be accessible at http://<your-ip>:${TALOS_PORT}"
+        ACCESS_HOST=$(detect_host_ip)
+        info "No domain — Talos will be accessible at http://${ACCESS_HOST}:${TALOS_PORT}"
     fi
+fi
+
+ACCESS_HOST="${TALOS_DOMAIN:-$(detect_host_ip)}"
+if [[ -n "${TALOS_DOMAIN}" ]]; then
+    ACCESS_URL="https://${TALOS_DOMAIN}"
+else
+    ACCESS_URL="http://${ACCESS_HOST}:${TALOS_PORT}"
 fi
 
 # ---------------------------------------------------------------------------
@@ -664,7 +690,7 @@ EOF
     echo "  Start:          docker start talos"
     echo "  Upgrade:        docker pull ${GHCR_IMAGE} && docker restart talos"
     echo ""
-    echo "  Open in browser: http://<your-server-ip>:${TALOS_PORT}"
+    echo "  Open in browser: ${ACCESS_URL}"
     echo "============================================="
     echo ""
 
@@ -891,6 +917,6 @@ echo "  Check status:   sudo systemctl status talos"
 echo ""
 echo "  Traefik:        docker logs ${TRAEFIK_CONTAINER}"
 echo ""
-echo "  Open in browser: http://<your-server-ip>:${TALOS_PORT}"
+echo "  Open in browser: ${ACCESS_URL}"
 echo "============================================="
 echo ""

@@ -264,27 +264,21 @@ func (h *GitHubHandler) SetupPage(w http.ResponseWriter, r *http.Request) {
 	}
 	talosURL := fmt.Sprintf("%s://%s", scheme, host)
 
-	// For now, return a simple HTML page
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head><title>GitHub App Setup - Talos</title></head>
-<body style="background:#030712;color:#e5e7eb;font-family:monospace;padding:2rem;">
-<h1>GitHub App Setup</h1>
-<p>Click the button below to create a GitHub App for auto-deployments.</p>
-<p>This will redirect you to GitHub where you can create and configure the app.</p>
-<p style="color:#6b7280;font-size:0.875rem;">Talos URL: %s</p>
-<br>
-<a href="/api/github/create-manifest" style="background:#4ade80;color:#030712;padding:0.75rem 1.5rem;text-decoration:none;border-radius:0.375rem;font-weight:bold;">
-    Create GitHub App
-</a>
-<br><br>
-<p style="color:#6b7280;font-size:0.875rem;">
-    After creating the app, GitHub will redirect you back here with the credentials.
-    Talos will store them automatically.
-</p>
-</body>
-</html>`, talosURL)
+	user := UserFromContext(r.Context())
+	var userData *web.UserData
+	if user != nil {
+		userData = &web.UserData{Username: user.Username}
+	}
+
+	data := struct {
+		TalosURL  string
+		HasDomain bool
+	}{
+		TalosURL:  talosURL,
+		HasDomain: h.domain != "",
+	}
+
+	h.renderer.Render(w, "github_setup.html", "GitHub App Setup", userData, data)
 }
 
 // CreateManifest generates a manifest and redirects to GitHub.
