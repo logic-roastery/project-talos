@@ -15,22 +15,24 @@ import (
 const traefikContainerName = "talos-traefik"
 
 type Manager struct {
-	configDir string
-	dataDir   string
-	network   string
-	domain    string
-	acmeEmail string
-	logger    *slog.Logger
+	configDir  string
+	dataDir    string
+	network    string
+	domain     string
+	acmeEmail  string
+	serverPort int
+	logger     *slog.Logger
 }
 
-func NewManager(configDir, dataDir, network, domain, acmeEmail string, logger *slog.Logger) *Manager {
+func NewManager(configDir, dataDir, network, domain, acmeEmail string, serverPort int, logger *slog.Logger) *Manager {
 	return &Manager{
-		configDir: configDir,
-		dataDir:   dataDir,
-		network:   network,
-		domain:    domain,
-		acmeEmail: acmeEmail,
-		logger:    logger,
+		configDir:  configDir,
+		dataDir:    dataDir,
+		network:    network,
+		domain:     domain,
+		acmeEmail:  acmeEmail,
+		serverPort: serverPort,
+		logger:     logger,
 	}
 }
 
@@ -60,6 +62,22 @@ var appRouteTemplate = template.Must(template.New("route").Parse(`http:
           - url: "http://{{.ContainerName}}:{{.InternalPort}}"
 `))
 
+var staticRouteTemplate = template.Must(template.New("static-route").Parse(`http:
+  routers:
+    {{.Name}}:
+      rule: "{{.Rule}}"
+      service: "{{.Name}}"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+  services:
+    {{.Name}}:
+      loadBalancer:
+        servers:
+          - url: "{{.TargetURL}}"
+`))
+
 type routeData struct {
 	Name          string
 	Rule          string
@@ -67,6 +85,12 @@ type routeData struct {
 	InternalPort  int
 	EntryPoints   []string
 	TLS           bool
+}
+
+type staticRouteData struct {
+	Name      string
+	Rule      string
+	TargetURL string
 }
 
 func (m *Manager) UpdateRoute(ctx context.Context, app *domain.App, containerName string) error {
@@ -105,6 +129,36 @@ func (m *Manager) UpdateRoute(ctx context.Context, app *domain.App, containerNam
 	return nil
 }
 
+func (m *Manager) EnsureTalosRoute(ctx context.Context, installMode string) error {
+	if m.domain == "" {
+		return nil
+	}
+
+	targetURL := fmt.Sprintf("http://talos:%d", m.serverPort)
+	if installMode != "docker" {
+		targetURL = fmt.Sprintf("http://host.docker.internal:%d", m.serverPort)
+	}
+
+	path := filepath.Join(m.configDir, "talos-ui.yml")
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("create talos route file: %w", err)
+	}
+	defer f.Close()
+
+	data := staticRouteData{
+		Name:      "talos-ui",
+		Rule:      fmt.Sprintf("Host(`%s`)", m.domain),
+		TargetURL: targetURL,
+	}
+	if err := staticRouteTemplate.Execute(f, data); err != nil {
+		return fmt.Errorf("write talos route: %w", err)
+	}
+
+	m.logger.Info("talos ui route updated", "domain", m.domain, "target", targetURL, "install_mode", installMode)
+	return nil
+}
+
 func (m *Manager) RemoveRoute(ctx context.Context, appName string) error {
 	path := filepath.Join(m.configDir, appName+".yml")
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
@@ -124,6 +178,15 @@ func (m *Manager) EnsureTraefik(ctx context.Context, dc *docker.Client, image st
 	if m.domain == "" {
 		m.logger.Info("no domain configured, skipping traefik")
 		return nil
+	}
+
+	installMode := "bare"
+	if _, err := dc.Inspect(ctx, "talos"); err == nil {
+		installMode = "docker"
+	}
+
+	if err := m.EnsureTalosRoute(ctx, installMode); err != nil {
+		return fmt.Errorf("write talos ui route: %w", err)
 	}
 
 	// Check if container already exists and is running.
@@ -159,6 +222,9 @@ func (m *Manager) EnsureTraefik(ctx context.Context, dc *docker.Client, image st
 		},
 		Labels: map[string]string{"managed-by": "talos"},
 		Ports:  []string{"80:80", "443:443"},
+		ExtraHosts: []string{
+			"host.docker.internal:host-gateway",
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("start traefik: %w", err)
