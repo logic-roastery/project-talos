@@ -139,6 +139,7 @@ docker run -d \
   -p 3000:3000 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v /opt/talos/data:/data \
+  -v /opt/talos/.env:/opt/talos/.env \
   --env-file /opt/talos/.env \
   ghcr.io/logic-roastery/project-talos:latest
 ```
@@ -167,6 +168,7 @@ docker run -d \
   -p 3000:3000 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v /opt/talos/data:/data \
+  -v /opt/talos/.env:/opt/talos/.env \
   --env-file /opt/talos/.env \
   ghcr.io/logic-roastery/project-talos:rollback-<timestamp>
 ```

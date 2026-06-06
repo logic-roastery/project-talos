@@ -1,6 +1,11 @@
 # Routing
 
-Talos uses Traefik as its reverse proxy to route public traffic to deployed applications. This page covers the two routing modes, HTTPS configuration, and migration between modes.
+Talos supports two proxy topologies:
+
+- `internal` proxy mode: Talos manages its own Traefik instance and can route app custom domains.
+- `external` proxy mode: another reverse proxy owns `80/443` and publishes the Talos UI. App custom domains are not yet supported in this mode.
+
+This page covers those proxy modes, app access modes, and the related HTTPS behavior.
 
 ## Routing Modes
 
@@ -17,6 +22,7 @@ app2.example.com --> Traefik --> talos-app2 container
 
 **Requirements:**
 
+- `TALOS_PROXY_MODE=internal`
 - `TALOS_DOMAIN` must be set for the Talos UI itself
 - Each app's `domain` field must be set
 - DNS A records must point to the server IP
@@ -29,7 +35,7 @@ app2.example.com --> Traefik --> talos-app2 container
 
 ### IP:Port Fallback Mode
 
-When no domain is configured, each app gets a unique external port. Traefik is not used -- containers expose ports directly.
+When no app domain is configured, each app gets a unique external port. Talos binds the app container directly to that fallback port.
 
 ```
 <server-ip>:8080 --> talos-app1 container (port 8080)
@@ -46,6 +52,22 @@ When no domain is configured, each app gets a unique external port. Traefik is n
 - No domain or DNS configuration needed
 - Works immediately after install
 - Suitable for development and testing
+
+## Proxy Ownership
+
+### Internal Mode
+
+When `TALOS_PROXY_MODE=internal`, Talos starts `talos-traefik`, binds `80/443`, and writes file-provider routes for the Talos UI and domain-based apps.
+
+### External Mode
+
+When `TALOS_PROXY_MODE=external`, Talos does not start `talos-traefik`. Instead:
+
+1. Your existing edge proxy must own `80/443`.
+2. The Talos container must join the shared proxy network such as `traefik-public`.
+3. The edge proxy must watch Talos container labels and route `Host(TALOS_DOMAIN)` to Talos port `3000`.
+
+In v1, this mode supports the Talos UI hostname only. Talos-managed app custom domains remain internal-mode-only.
 
 ## Traefik Configuration
 
@@ -88,7 +110,7 @@ log:
 
 ### Dynamic Configuration (Per-App Routes)
 
-Each app gets a route file in the Traefik config directory. Talos generates these automatically on deploy.
+In internal proxy mode, each domain-based app gets a route file in the Traefik config directory. Talos generates these automatically on deploy.
 
 **Domain mode route:**
 
@@ -109,28 +131,11 @@ http:
           - url: "http://talos-my-app:3000"
 ```
 
-**IP mode route:**
-
-```yaml
-http:
-  routers:
-    my-app:
-      rule: "Host(`*`)"
-      service: "my-app"
-      entryPoints:
-        - web
-  services:
-    my-app:
-      loadBalancer:
-        servers:
-          - url: "http://talos-my-app:3000"
-```
-
-Traefik watches the config directory for changes and picks up new route files automatically.
+Port-mode apps do not use a Traefik route file; Talos binds the app container directly to its fallback host port.
 
 ## HTTPS via Let's Encrypt
 
-When `TALOS_DOMAIN` is set, Talos configures Traefik with automatic TLS:
+When `TALOS_PROXY_MODE=internal` and `TALOS_DOMAIN` is set, Talos configures Traefik with automatic TLS:
 
 1. Traefik listens on ports 80 (HTTP) and 443 (HTTPS).
 2. HTTP requests are redirected to HTTPS.
@@ -145,6 +150,7 @@ Set these environment variables:
 ```bash
 TALOS_DOMAIN=talos.example.com
 TALOS_ACME_EMAIL=admin@example.com
+TALOS_PROXY_MODE=internal
 ```
 
 :::tip
@@ -153,7 +159,7 @@ The ACME email is used for certificate expiration notifications from Let's Encry
 
 ### Custom Domains for Apps
 
-When the Talos server has a domain configured, individual apps can also use custom domains:
+When Talos is in internal proxy mode, individual apps can also use custom domains:
 
 1. Set the app's `access_mode` to `domain`.
 2. Set the app's `domain` to the desired hostname (e.g., `app.example.com`).
@@ -164,7 +170,7 @@ When the Talos server has a domain configured, individual apps can also use cust
 
 ### From IP Mode to Domain Mode
 
-1. Set `TALOS_DOMAIN` and `TALOS_ACME_EMAIL` in your `.env` file.
+1. Set `TALOS_DOMAIN`, `TALOS_ACME_EMAIL`, and `TALOS_PROXY_MODE=internal` in your `.env` file.
 2. Point your domain's DNS A record to the server IP.
 3. Restart Talos:
    ```bash
@@ -176,7 +182,7 @@ When the Talos server has a domain configured, individual apps can also use cust
 
 ### From Domain Mode to IP Mode
 
-1. Remove `TALOS_DOMAIN` and `TALOS_ACME_EMAIL` from your `.env` file.
+1. Remove `TALOS_DOMAIN` and `TALOS_ACME_EMAIL` from your `.env` file, or keep the Talos UI behind an external proxy with `TALOS_PROXY_MODE=external`.
 2. Update each app's `access_mode` to `port` and set a `fallback_port`.
 3. Restart Talos.
 4. Redeploy each app.
@@ -202,11 +208,26 @@ TALOS_TRAEFIK_DASHBOARD=true
 The Traefik dashboard is unauthenticated by default. Only enable it for debugging and disable it in production.
 :::
 
+## External Proxy Example
+
+For a VPS that already runs a shared Traefik edge proxy:
+
+1. Set:
+   ```bash
+   TALOS_PROXY_MODE=external
+   TALOS_DOMAIN=talos.example.com
+   TALOS_EDGE_NETWORK=traefik-public
+   TALOS_EDGE_CERT_RESOLVER=letsencrypt
+   ```
+2. Recreate Talos with `/opt/talos/.env` bind-mounted into the container.
+3. Attach the Talos container to `traefik-public`.
+4. Let the external Traefik route `Host(talos.example.com)` to Talos port `3000`.
+
 ## Container Networking
 
 All Talos-managed containers join the `talos` Docker network (configurable via `TALOS_DOCKER_NETWORK`). This allows:
 
-- Traefik to reach app containers by name
+- Talos-managed Traefik to reach app containers by name in internal proxy mode
 - App containers to reach service containers by name
 - DNS resolution between containers on the same network
 

@@ -17,11 +17,21 @@ type Config struct {
 	EncryptionKey string // base64-encoded 32-byte key, auto-generated if empty
 }
 
+type ProxyMode string
+
+const (
+	ProxyModeInternal ProxyMode = "internal"
+	ProxyModeExternal ProxyMode = "external"
+)
+
 type ServerConfig struct {
-	Host      string
-	Port      int
-	Domain    string // TALOS_DOMAIN, empty = IP mode
-	ACMEEmail string // TALOS_ACME_EMAIL, for Let's Encrypt
+	Host             string
+	Port             int
+	Domain           string    // TALOS_DOMAIN, empty = IP mode
+	ACMEEmail        string    // TALOS_ACME_EMAIL, for Let's Encrypt
+	ProxyMode        ProxyMode // TALOS_PROXY_MODE
+	EdgeNetwork      string    // TALOS_EDGE_NETWORK, shared external proxy network
+	EdgeCertResolver string    // TALOS_EDGE_CERT_RESOLVER, e.g. letsencrypt
 }
 
 type DatabaseConfig struct {
@@ -63,10 +73,13 @@ type BackupConfig struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
-			Host:      hostDefault("0.0.0.0"),
-			Port:      portDefault(3000),
-			Domain:    envOrDefault("TALOS_DOMAIN", ""),
-			ACMEEmail: envOrDefault("TALOS_ACME_EMAIL", ""),
+			Host:             hostDefault("0.0.0.0"),
+			Port:             portDefault(3000),
+			Domain:           envOrDefault("TALOS_DOMAIN", ""),
+			ACMEEmail:        envOrDefault("TALOS_ACME_EMAIL", ""),
+			ProxyMode:        proxyModeDefault("TALOS_PROXY_MODE", ProxyModeInternal),
+			EdgeNetwork:      envOrDefault("TALOS_EDGE_NETWORK", "traefik-public"),
+			EdgeCertResolver: envOrDefault("TALOS_EDGE_CERT_RESOLVER", "letsencrypt"),
 		},
 		Database: DatabaseConfig{
 			Path: envOrDefault("TALOS_DB_PATH", "data/talos.db"),
@@ -154,4 +167,14 @@ func int64Default(key string, fallback int64) int64 {
 		}
 	}
 	return fallback
+}
+
+func proxyModeDefault(key string, fallback ProxyMode) ProxyMode {
+	v := envOrDefault(key, string(fallback))
+	switch ProxyMode(v) {
+	case ProxyModeInternal, ProxyModeExternal:
+		return ProxyMode(v)
+	default:
+		return fallback
+	}
 }

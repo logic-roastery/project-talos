@@ -16,7 +16,7 @@ This will:
 
 1. Install Docker if not present
 2. Install the Talos binary
-3. Configure Traefik as a reverse proxy
+3. Configure Talos routing for either internal Traefik or an external edge proxy
 4. Set up systemd services
 5. Create the runtime directory layout
 
@@ -65,9 +65,9 @@ Changes the Talos web UI port (default: 3000).
 | Component | Location |
 |-----------|----------|
 | Talos binary | `/usr/local/bin/talos` |
-| Configuration | `/etc/talos/.env` |
-| Data directory | `/var/lib/talos/` |
-| Traefik config | `/var/lib/talos/traefik/` |
+| Configuration | `/opt/talos/.env` |
+| Data directory | `/opt/talos/data/` |
+| Traefik config | `/opt/talos/data/traefik/` |
 | Systemd service | `/etc/systemd/system/talos.service` |
 
 ## Post-Install
@@ -75,7 +75,7 @@ Changes the Talos web UI port (default: 3000).
 After installation, open `http://YOUR_VPS_IP:3000` and create your admin account.
 
 ::: tip
-If you have a domain, configure it in the app settings after creation. Traefik will automatically provision HTTPS via Let's Encrypt.
+If you have a domain, configure it in Talos Settings. Use `internal` proxy mode if Talos should own `80/443`, or `external` proxy mode if another reverse proxy on the VPS already owns public HTTPS.
 :::
 
 ## Upgrading

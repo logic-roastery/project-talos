@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/logic-roastery/project-talos/internal/config"
 	"github.com/logic-roastery/project-talos/internal/domain"
 	"github.com/logic-roastery/project-talos/internal/store"
 )
@@ -17,10 +18,11 @@ type AppHandler struct {
 	deploys      store.DeployStore
 	serverHost   string
 	serverDomain string
+	proxyMode    config.ProxyMode
 }
 
-func NewAppHandler(apps store.AppStore, deploys store.DeployStore, serverHost, serverDomain string) *AppHandler {
-	return &AppHandler{apps: apps, deploys: deploys, serverHost: serverHost, serverDomain: serverDomain}
+func NewAppHandler(apps store.AppStore, deploys store.DeployStore, serverHost, serverDomain string, proxyMode config.ProxyMode) *AppHandler {
+	return &AppHandler{apps: apps, deploys: deploys, serverHost: serverHost, serverDomain: serverDomain, proxyMode: proxyMode}
 }
 
 type createAppRequest struct {
@@ -90,6 +92,10 @@ func (h *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var fallbackPort int
 
 	if req.Domain != "" {
+		if h.proxyMode == config.ProxyModeExternal {
+			writeError(w, http.StatusBadRequest, "custom app domains require internal proxy mode")
+			return
+		}
 		accessMode = domain.AccessModeDomain
 		accessURL = "https://" + req.Domain
 	} else {
@@ -157,10 +163,29 @@ func (h *AppHandler) Update(w http.ResponseWriter, r *http.Request) {
 		app.InternalPort = *req.InternalPort
 	}
 	if req.Domain != nil {
+		if *req.Domain != "" && h.proxyMode == config.ProxyModeExternal {
+			writeError(w, http.StatusBadRequest, "custom app domains require internal proxy mode")
+			return
+		}
 		app.Domain = *req.Domain
 		if *req.Domain != "" {
 			app.AccessMode = domain.AccessModeDomain
 			app.AccessURL = "https://" + *req.Domain
+		} else {
+			if app.FallbackPort == 0 {
+				port, err := h.apps.NextFallbackPort(r.Context())
+				if err != nil {
+					writeError(w, http.StatusInternalServerError, "failed to assign port")
+					return
+				}
+				app.FallbackPort = port
+			}
+			app.AccessMode = domain.AccessModePort
+			host := h.serverHost
+			if h.serverDomain != "" {
+				host = h.serverDomain
+			}
+			app.AccessURL = fmt.Sprintf("http://%s:%d", host, app.FallbackPort)
 		}
 	}
 

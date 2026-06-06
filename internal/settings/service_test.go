@@ -4,8 +4,10 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/logic-roastery/project-talos/internal/config"
 	"github.com/moby/moby/api/types/container"
 )
 
@@ -41,7 +43,7 @@ func TestSavePreservesUnrelatedKeysAndRemovesEmptyValues(t *testing.T) {
 		t.Fatalf("read env file: %v", err)
 	}
 
-	want := "# Talos\nKEEP_ME=1\n"
+	want := "# Talos\nKEEP_ME=1\n\nTALOS_PROXY_MODE=internal\nTALOS_EDGE_NETWORK=traefik-public\nTALOS_EDGE_CERT_RESOLVER=letsencrypt\n"
 	if string(got) != want {
 		t.Fatalf("env file mismatch\nwant:\n%s\ngot:\n%s", want, string(got))
 	}
@@ -60,8 +62,11 @@ func TestSaveCreatesEnvFileWithConfiguredValues(t *testing.T) {
 	svc.fileExists = func(path string) bool { return path == envPath }
 
 	_, err := svc.Save(context.Background(), UpdateInput{
-		Domain:    "talos.example.com",
-		ACMEEmail: "ops@example.com",
+		Domain:           "talos.example.com",
+		ACMEEmail:        "ops@example.com",
+		ProxyMode:        config.ProxyModeExternal,
+		EdgeNetwork:      "traefik-public",
+		EdgeCertResolver: "letsencrypt",
 	}, "0.0.0.0", 3000)
 	if err != nil {
 		t.Fatalf("save settings: %v", err)
@@ -72,7 +77,7 @@ func TestSaveCreatesEnvFileWithConfiguredValues(t *testing.T) {
 		t.Fatalf("read env file: %v", err)
 	}
 
-	want := "TALOS_DOMAIN=talos.example.com\nTALOS_ACME_EMAIL=ops@example.com\n"
+	want := "TALOS_DOMAIN=talos.example.com\nTALOS_ACME_EMAIL=ops@example.com\nTALOS_PROXY_MODE=external\nTALOS_EDGE_NETWORK=traefik-public\nTALOS_EDGE_CERT_RESOLVER=letsencrypt\n"
 	if string(got) != want {
 		t.Fatalf("env file mismatch\nwant:\n%s\ngot:\n%s", want, string(got))
 	}
@@ -83,7 +88,7 @@ func TestLoadDetectsDockerModeAndBuildsApplyCommand(t *testing.T) {
 
 	dir := t.TempDir()
 	envPath := filepath.Join(dir, ".env")
-	if err := os.WriteFile(envPath, []byte("TALOS_DOMAIN=talos.example.com\n"), 0600); err != nil {
+	if err := os.WriteFile(envPath, []byte("TALOS_DOMAIN=talos.example.com\nTALOS_PROXY_MODE=external\n"), 0600); err != nil {
 		t.Fatalf("write env file: %v", err)
 	}
 
@@ -107,6 +112,12 @@ func TestLoadDetectsDockerModeAndBuildsApplyCommand(t *testing.T) {
 	}
 	if snapshot.DockerImage != "ghcr.io/example/talos:v1" {
 		t.Fatalf("unexpected docker image: %s", snapshot.DockerImage)
+	}
+	if snapshot.ProxyMode != config.ProxyModeExternal {
+		t.Fatalf("unexpected proxy mode: %s", snapshot.ProxyMode)
+	}
+	if !strings.Contains(snapshot.ApplyCommand, "traefik.enable=true") {
+		t.Fatalf("expected external proxy labels in apply command, got:\n%s", snapshot.ApplyCommand)
 	}
 	if snapshot.ApplyCommand == "" || snapshot.ApplyTitle == "" {
 		t.Fatalf("expected apply guidance, got %+v", snapshot)
