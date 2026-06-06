@@ -105,9 +105,19 @@ The Docker upgrade process:
 
 ### Upgrade to a Specific Version
 
+If you installed with `curl | bash`:
+
 ```bash
-sudo bash install.sh --upgrade --docker --version-tag v1.2.0
+curl -fsSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo bash -s -- --upgrade --docker --version-tag 0.2.6
 ```
+
+If you saved `install.sh` locally:
+
+```bash
+sudo bash install.sh --upgrade --docker --version-tag 0.2.6
+```
+
+`--version-tag` must exactly match the repository tag name shown on GitHub. If your repo uses `v0.2.6`, include the `v`. If your repo uses `0.2.6`, do not add one.
 
 ### Manual Docker Upgrade
 

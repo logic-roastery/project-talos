@@ -10,26 +10,29 @@ import (
 	"github.com/logic-roastery/project-talos/internal/deploy"
 	"github.com/logic-roastery/project-talos/internal/domain"
 	"github.com/logic-roastery/project-talos/internal/github"
+	"github.com/logic-roastery/project-talos/internal/settings"
 	"github.com/logic-roastery/project-talos/internal/store"
 	"github.com/logic-roastery/project-talos/web"
 )
 
 type PageHandler struct {
-	renderer   *web.Renderer
-	apps       store.AppStore
-	deploys    store.DeployStore
-	users      store.UserStore
-	services   store.ServiceStore
+	renderer    *web.Renderer
+	apps        store.AppStore
+	deploys     store.DeployStore
+	users       store.UserStore
+	services    store.ServiceStore
 	backupStore store.BackupStore
-	authSvc    *auth.Service
-	engine     *deploy.Engine
-	ghClient   *github.AppClient
-	host       string
-	domain     string
+	authSvc     *auth.Service
+	engine      *deploy.Engine
+	ghClient    *github.AppClient
+	settings    *settings.Service
+	host        string
+	domain      string
+	port        int
 }
 
 func NewPageHandler(renderer *web.Renderer, apps store.AppStore, deploys store.DeployStore,
-	users store.UserStore, services store.ServiceStore, backupStore store.BackupStore, authSvc *auth.Service, engine *deploy.Engine, ghClient *github.AppClient, host, domain string) *PageHandler {
+	users store.UserStore, services store.ServiceStore, backupStore store.BackupStore, authSvc *auth.Service, engine *deploy.Engine, ghClient *github.AppClient, settingsSvc *settings.Service, host, domain string, port int) *PageHandler {
 	return &PageHandler{
 		renderer:    renderer,
 		apps:        apps,
@@ -41,7 +44,9 @@ func NewPageHandler(renderer *web.Renderer, apps store.AppStore, deploys store.D
 		engine:      engine,
 		domain:      domain,
 		ghClient:    ghClient,
+		settings:    settingsSvc,
 		host:        host,
+		port:        port,
 	}
 }
 
@@ -511,4 +516,84 @@ func (h *PageHandler) BackupPage(w http.ResponseWriter, r *http.Request) {
 		Backups: backups,
 	}
 	h.renderer.Render(w, "backups.html", "Backups", h.userData(r), data)
+}
+
+func (h *PageHandler) SettingsPage(w http.ResponseWriter, r *http.Request) {
+	data := struct {
+		User *web.UserData
+	}{
+		User: h.userData(r),
+	}
+	h.renderer.Render(w, "settings.html", "Settings", h.userData(r), data)
+}
+
+func (h *PageHandler) GeneralSettingsPage(w http.ResponseWriter, r *http.Request) {
+	h.renderGeneralSettingsPage(w, r, false, "")
+}
+
+func (h *PageHandler) GeneralSettingsSubmit(w http.ResponseWriter, r *http.Request) {
+	if h.settings == nil {
+		http.Error(w, "settings unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	snapshot, err := h.settings.Save(r.Context(), settings.UpdateInput{
+		Domain:    r.FormValue("domain"),
+		ACMEEmail: r.FormValue("acme_email"),
+	}, h.requestHost(r), h.port)
+	if err != nil {
+		http.Error(w, "failed to save settings", http.StatusInternalServerError)
+		return
+	}
+
+	h.renderGeneralSettings(w, r, snapshot, true, "")
+}
+
+func (h *PageHandler) renderGeneralSettingsPage(w http.ResponseWriter, r *http.Request, saved bool, errorMessage string) {
+	if h.settings == nil {
+		http.Error(w, "settings unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	snapshot, err := h.settings.Load(r.Context(), h.requestHost(r), h.port)
+	if err != nil {
+		http.Error(w, "failed to load settings", http.StatusInternalServerError)
+		return
+	}
+
+	h.renderGeneralSettings(w, r, snapshot, saved, errorMessage)
+}
+
+func (h *PageHandler) renderGeneralSettings(w http.ResponseWriter, r *http.Request, snapshot settings.Snapshot, saved bool, errorMessage string) {
+	modeLabel := "IP mode"
+	if snapshot.Domain != "" {
+		modeLabel = "Domain mode"
+	}
+
+	data := struct {
+		User         *web.UserData
+		Current      settings.Snapshot
+		ModeLabel    string
+		Saved        bool
+		ErrorMessage string
+	}{
+		User:         h.userData(r),
+		Current:      snapshot,
+		ModeLabel:    modeLabel,
+		Saved:        saved,
+		ErrorMessage: errorMessage,
+	}
+
+	h.renderer.Render(w, "settings_general.html", "Domain & HTTPS", h.userData(r), data)
+}
+
+func (h *PageHandler) requestHost(r *http.Request) string {
+	host := r.Host
+	if host == "" {
+		host = h.host
+	}
+	if host == "0.0.0.0" || host == "0.0.0.0:0" {
+		host = "localhost"
+	}
+	return host
 }

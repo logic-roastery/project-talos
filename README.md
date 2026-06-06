@@ -79,6 +79,14 @@ If you saved `install.sh` locally during installation, you can also run:
 sudo bash install.sh --upgrade --docker
 ```
 
+If `latest release` lookup fails, upgrade to a specific tag explicitly:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo bash -s -- --upgrade --docker --version-tag 0.2.6
+```
+
+`--version-tag` must exactly match the Git tag name in the repository.
+
 Do not rely on `docker restart talos` after a new image pull. Restarting an existing container keeps it on the old image; Talos must recreate the container to apply the new version.
 
 ## Domain Setup
