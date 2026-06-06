@@ -54,6 +54,95 @@ Talos uses the GitHub App **manifest** flow, not the manual "fill every field yo
 If Talos is running on a raw IP address without a domain, the generated GitHub App manifest will use `http://<your-server-ip>:3000` for the homepage, webhook URL, and setup callback URL. This is acceptable for local testing, but a proper domain with HTTPS is strongly recommended before relying on GitHub App webhooks in a real deployment.
 :::
 
+### Manual Fallback: Fill the GitHub App Form Yourself
+
+If you cannot use Talos's **Create GitHub App** button, use these values when GitHub shows the manual registration form.
+
+Assuming Talos is published at `https://talos.example.com`:
+
+- **GitHub App name**: any unique name such as `talos-example-deploy`
+- **Homepage URL**: `https://talos.example.com`
+- **Callback URL**: `https://talos.example.com/api/github/setup-callback`
+- **Setup URL**: leave empty
+- **Webhook Active**: enabled
+- **Webhook URL**: `https://talos.example.com/api/webhooks/github`
+- **Webhook Secret**: generate a random secret and reuse the same value in `TALOS_GITHUB_WEBHOOK_SECRET`
+
+Keep these options disabled unless you explicitly need them:
+
+- **Expire user authorization tokens**
+- **Request user authorization (OAuth) during installation**
+- **Enable Device Flow**
+- **Redirect on update**
+
+Use these repository permissions:
+
+- **Contents**: `Read and write`
+- **Actions**: `Read and write`
+- **Metadata**: `Read-only`
+- **Packages**: `Read-only`
+
+Leave all other repository, organization, and account permissions as **No access**.
+
+Subscribe only to these events:
+
+- `Workflow run`
+- `Installation`
+
+For installation scope, choose:
+
+- **Only on this account** if you only deploy your own repositories
+- **Any account** only if you intentionally want wider installation support
+
+### Add the GitHub App Credentials to Talos
+
+After you create the app on GitHub, copy these values into `/opt/talos/.env`:
+
+```env
+TALOS_GITHUB_WEBHOOK_SECRET=your-webhook-secret
+TALOS_GITHUB_APP_ID=1234567
+TALOS_GITHUB_APP_SLUG=talos-example-deploy
+TALOS_GITHUB_APP_PRIVATE_KEY=/opt/talos/github-app.private-key.pem
+TALOS_GITHUB_APP_CLIENT_ID=Iv23li...
+TALOS_GITHUB_APP_CLIENT_SECRET=your-client-secret
+```
+
+Save the GitHub private key as a PEM file on the server:
+
+```bash
+sudo mkdir -p /opt/talos
+sudo nano /opt/talos/github-app.private-key.pem
+sudo chmod 600 /opt/talos/github-app.private-key.pem
+```
+
+Paste the full private key including:
+
+```pem
+-----BEGIN RSA PRIVATE KEY-----
+...
+-----END RSA PRIVATE KEY-----
+```
+
+Then recreate Talos so it reloads the updated env file and mounted PEM key. In Docker mode, make sure both are mounted:
+
+```bash
+docker stop talos
+docker rm talos
+docker run -d \
+  --name talos \
+  --restart unless-stopped \
+  --network talos \
+  -p 3000:3000 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /opt/talos/data:/data \
+  -v /opt/talos/.env:/opt/talos/.env \
+  -v /opt/talos/github-app.private-key.pem:/opt/talos/github-app.private-key.pem:ro \
+  --env-file /opt/talos/.env \
+  ghcr.io/logic-roastery/project-talos:latest
+```
+
+Talos logs should then show that the GitHub App is configured.
+
 ## Step 3: Push Your Code
 
 ```bash

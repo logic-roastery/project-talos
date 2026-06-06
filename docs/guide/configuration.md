@@ -35,9 +35,12 @@ Talos is configured through environment variables stored in `/opt/talos/.env`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `GITHUB_APP_ID` | | GitHub App ID |
-| `GITHUB_APP_PRIVATE_KEY` | | GitHub App private key (base64) |
-| `GITHUB_WEBHOOK_SECRET` | | Webhook signing secret |
+| `TALOS_GITHUB_WEBHOOK_SECRET` | | Webhook signing secret configured on the GitHub App |
+| `TALOS_GITHUB_APP_ID` | | GitHub App ID |
+| `TALOS_GITHUB_APP_SLUG` | | GitHub App slug |
+| `TALOS_GITHUB_APP_PRIVATE_KEY` | | GitHub App private key as a PEM string or PEM file path |
+| `TALOS_GITHUB_APP_CLIENT_ID` | | GitHub App client ID |
+| `TALOS_GITHUB_APP_CLIENT_SECRET` | | GitHub App client secret |
 
 ## Environment File Example
 
