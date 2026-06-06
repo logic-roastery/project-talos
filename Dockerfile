@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.25-alpine AS builder
+FROM golang:1.25.11-alpine3.23 AS builder
 
 ARG VERSION=dev
 ARG COMMIT=none
@@ -13,7 +13,7 @@ RUN CGO_ENABLED=0 go build \
     -o /talos ./cmd/talos
 
 # Runtime stage
-FROM alpine:3.20
+FROM alpine:3.23
 
 RUN apk add --no-cache ca-certificates docker-cli
 

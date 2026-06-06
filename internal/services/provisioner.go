@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/logic-roastery/project-talos/internal/crypto"
 	"github.com/logic-roastery/project-talos/internal/domain"
 	"github.com/logic-roastery/project-talos/internal/runtime/docker"
 	"github.com/logic-roastery/project-talos/internal/store"
+	"github.com/moby/moby/api/types/container"
 )
 
 type Provisioner struct {
