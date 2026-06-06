@@ -117,6 +117,7 @@ type ContainerConfig struct {
 	Env          []string // KEY=VALUE pairs
 	Volumes      []string // hostPath:containerPath
 	Ports        []string // host:container bindings, e.g. "80:80", "443:443"
+	ExtraHosts   []string // host mappings, e.g. "host.docker.internal:host-gateway"
 	HealthCheck  *container.HealthConfig
 	Labels       map[string]string
 }
@@ -196,6 +197,7 @@ func (c *Client) StartContainerWithConfig(ctx context.Context, cfg ContainerConf
 		NetworkMode:  container.NetworkMode(c.network),
 		Binds:        cfg.Volumes,
 		PortBindings: portBindings,
+		ExtraHosts:   cfg.ExtraHosts,
 	}
 
 	resp, err := c.cli.ContainerCreate(ctx, client.ContainerCreateOptions{
