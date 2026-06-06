@@ -41,6 +41,7 @@ DOCKER_GROUP="docker"
 TALOS_PROXY_MODE="internal"
 TALOS_EDGE_NETWORK="traefik-public"
 TALOS_EDGE_CERT_RESOLVER="letsencrypt"
+TALOS_DOMAIN=""
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -77,11 +78,12 @@ detect_host_ip() {
 
 load_existing_proxy_settings() {
     if [[ -f "${TALOS_ENV}" ]]; then
-        local existing_proxy_mode existing_edge_network existing_edge_cert_resolver existing_port
+        local existing_proxy_mode existing_edge_network existing_edge_cert_resolver existing_port existing_domain
         existing_proxy_mode=$(grep "^TALOS_PROXY_MODE=" "${TALOS_ENV}" 2>/dev/null | cut -d= -f2-)
         existing_edge_network=$(grep "^TALOS_EDGE_NETWORK=" "${TALOS_ENV}" 2>/dev/null | cut -d= -f2-)
         existing_edge_cert_resolver=$(grep "^TALOS_EDGE_CERT_RESOLVER=" "${TALOS_ENV}" 2>/dev/null | cut -d= -f2-)
         existing_port=$(grep "^TALOS_PORT=" "${TALOS_ENV}" 2>/dev/null | cut -d= -f2-)
+        existing_domain=$(grep "^TALOS_DOMAIN=" "${TALOS_ENV}" 2>/dev/null | cut -d= -f2-)
 
         if [[ -n "${existing_proxy_mode}" ]]; then
             TALOS_PROXY_MODE="${existing_proxy_mode}"
@@ -94,6 +96,9 @@ load_existing_proxy_settings() {
         fi
         if [[ -n "${existing_port}" ]]; then
             TALOS_PORT="${existing_port}"
+        fi
+        if [[ -n "${existing_domain}" ]]; then
+            TALOS_DOMAIN="${existing_domain}"
         fi
     fi
 }
