@@ -20,11 +20,16 @@ This will:
 4. Set up systemd services
 5. Create the runtime directory layout
 
+:::tip
+This `curl | bash` method does not save `install.sh` on the server. If you want to rerun `sudo bash install.sh ...` later, download the script first and keep it locally.
+:::
+
 ## Installation Modes
 
 ### Bare Binary (default)
 
 ```bash
+curl -fsSL -o install.sh https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh
 sudo bash install.sh
 ```
 
@@ -33,6 +38,7 @@ Installs Talos as a native binary managed by systemd. Best for production use.
 ### Docker Mode
 
 ```bash
+curl -fsSL -o install.sh https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh
 sudo bash install.sh --docker
 ```
 
@@ -73,6 +79,14 @@ If you have a domain, configure it in the app settings after creation. Traefik w
 :::
 
 ## Upgrading
+
+If you installed via `curl | bash`, upgrade the same way:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo bash -s -- --upgrade
+```
+
+If you downloaded and kept `install.sh` locally, use:
 
 ```bash
 sudo bash install.sh --upgrade
