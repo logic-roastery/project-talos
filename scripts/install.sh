@@ -529,17 +529,19 @@ download_binary() {
     fi
 }
 
-if [[ -x "${TALOS_BIN}" ]]; then
-    ok "Talos binary already exists at ${TALOS_BIN}."
-    if [[ "${FROM_SOURCE}" == "true" ]]; then
-        info "Rebuilding from source (--from-source flag)..."
-        build_from_source
-    fi
-else
-    if [[ "${FROM_SOURCE}" == "true" ]]; then
-        build_from_source
+if [[ "${DOCKER_MODE}" != "true" ]]; then
+    if [[ -x "${TALOS_BIN}" ]]; then
+        ok "Talos binary already exists at ${TALOS_BIN}."
+        if [[ "${FROM_SOURCE}" == "true" ]]; then
+            info "Rebuilding from source (--from-source flag)..."
+            build_from_source
+        fi
     else
-        download_binary
+        if [[ "${FROM_SOURCE}" == "true" ]]; then
+            build_from_source
+        else
+            download_binary
+        fi
     fi
 fi
 
