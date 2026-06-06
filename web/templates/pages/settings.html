@@ -1,0 +1,33 @@
+{{define "settings.html"}}
+<div class="max-w-4xl mx-auto">
+    <div class="mb-8">
+        <p class="text-xs font-bold uppercase tracking-widest text-violet-mid mb-2">Settings</p>
+        <h1 class="text-2xl font-medium text-heading">Talos Settings</h1>
+        <p class="text-sm text-muted mt-1">Manage Talos-wide configuration and external integrations.</p>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2">
+        <a href="/settings/general" class="group bg-night border border-hairline rounded-xl p-6 hover:border-violet/40 transition">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-widest text-violet-mid mb-2">General</p>
+                    <h2 class="text-lg font-semibold text-heading">Domain &amp; HTTPS</h2>
+                    <p class="text-sm text-muted mt-2">Update <code class="bg-canvas-dark px-1.5 py-0.5 rounded text-body">TALOS_DOMAIN</code> and <code class="bg-canvas-dark px-1.5 py-0.5 rounded text-body">TALOS_ACME_EMAIL</code>, then apply the saved config manually.</p>
+                </div>
+                <span class="text-violet group-hover:translate-x-0.5 transition">→</span>
+            </div>
+        </a>
+
+        <a href="/settings/github/status" class="group bg-night border border-hairline rounded-xl p-6 hover:border-violet/40 transition">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-widest text-violet-mid mb-2">Integration</p>
+                    <h2 class="text-lg font-semibold text-heading">GitHub</h2>
+                    <p class="text-sm text-muted mt-2">Set up the GitHub App manifest flow and inspect the current GitHub webhook configuration.</p>
+                </div>
+                <span class="text-violet group-hover:translate-x-0.5 transition">→</span>
+            </div>
+        </a>
+    </div>
+</div>
+{{end}}

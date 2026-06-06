@@ -13,6 +13,7 @@ import (
 	"github.com/logic-roastery/project-talos/internal/runtime/docker"
 	"github.com/logic-roastery/project-talos/internal/server/handlers"
 	"github.com/logic-roastery/project-talos/internal/services"
+	"github.com/logic-roastery/project-talos/internal/settings"
 	"github.com/logic-roastery/project-talos/internal/store"
 	"github.com/logic-roastery/project-talos/web"
 )
@@ -39,6 +40,7 @@ func New(
 	backupStore store.BackupStore,
 	serverHost string,
 	serverDomain string,
+	serverPort int,
 	logger *slog.Logger,
 ) *Server {
 	r := chi.NewRouter()
@@ -211,7 +213,8 @@ func New(
 	})
 
 	// Page routes (HTML)
-	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, svcStore, backupStore, authSvc, engine, ghClient, serverHost, serverDomain)
+	settingsSvc := settings.NewService(dockerClient)
+	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, svcStore, backupStore, authSvc, engine, ghClient, settingsSvc, serverHost, serverDomain, serverPort)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/dashboard", http.StatusFound)
@@ -225,6 +228,9 @@ func New(
 		r.Use(WebAuthMiddleware(authSvc))
 
 		r.Get("/dashboard", pageH.DashboardPage)
+		r.Get("/settings", pageH.SettingsPage)
+		r.Get("/settings/general", pageH.GeneralSettingsPage)
+		r.Post("/settings/general", pageH.GeneralSettingsSubmit)
 		r.Get("/apps/new", pageH.AppCreatePage)
 		r.Post("/apps/new", pageH.AppCreateSubmit)
 		r.Get("/apps/{appID}", pageH.AppDetailPage)
