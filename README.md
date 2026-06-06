@@ -1,5 +1,10 @@
 # Talos
 
+[![Release Version](https://img.shields.io/github/v/release/logic-roastery/project-talos)](https://github.com/logic-roastery/project-talos/releases)
+[![CI](https://github.com/logic-roastery/project-talos/actions/workflows/ci.yml/badge.svg)](https://github.com/logic-roastery/project-talos/actions/workflows/ci.yml)
+[![Build Image](https://github.com/logic-roastery/project-talos/actions/workflows/release-image.yml/badge.svg)](https://github.com/logic-roastery/project-talos/actions/workflows/release-image.yml)
+[![Binary Release](https://github.com/logic-roastery/project-talos/actions/workflows/release-binaries.yml/badge.svg)](https://github.com/logic-roastery/project-talos/actions/workflows/release-binaries.yml)
+
 Self-hosted deployment platform for Dockerized applications on a single VPS.
 
 ## Quick Start
@@ -32,6 +37,26 @@ curl -sSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/
 ```
 
 After install, open `http://<your-server-ip>:3000` and create your admin account.
+
+### Container Images
+
+Talos publishes container images to both GitHub Container Registry and Docker Hub:
+
+- `ghcr.io/logic-roastery/project-talos`
+- `docker.io/egasa/project-talos`
+
+Recommended tags:
+
+- `latest` for the newest stable container image
+- `vX.Y.Z` for a specific release
+- `X.Y` for the latest patch within a minor series
+
+Example pulls:
+
+```bash
+docker pull ghcr.io/logic-roastery/project-talos:latest
+docker pull egasa/project-talos:latest
+```
 
 ## Domain Setup
 
