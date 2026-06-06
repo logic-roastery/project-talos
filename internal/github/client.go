@@ -137,6 +137,31 @@ func (c *AppClient) GetInstallation(ctx context.Context, installationID int64) (
 	return install, nil
 }
 
+// ListInstallations returns all installations of the GitHub App.
+func (c *AppClient) ListInstallations(ctx context.Context) ([]*github.Installation, error) {
+	appClient, err := c.AppGitHubClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var all []*github.Installation
+	opts := &github.ListOptions{PerPage: 100}
+
+	for {
+		installs, resp, err := appClient.Apps.ListInstallations(ctx, opts)
+		if err != nil {
+			return nil, fmt.Errorf("list installations: %w", err)
+		}
+		all = append(all, installs...)
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+
+	return all, nil
+}
+
 // ListInstallationRepos returns the list of repositories accessible to an installation.
 func (c *AppClient) ListInstallationRepos(ctx context.Context, installationID int64) ([]*github.Repository, error) {
 	client, err := c.InstallationClient(ctx, installationID)

@@ -196,7 +196,12 @@ func (h *PageHandler) DashboardPage(w http.ResponseWriter, r *http.Request) {
 // --- App CRUD ---
 
 func (h *PageHandler) AppCreatePage(w http.ResponseWriter, r *http.Request) {
-	h.renderer.Render(w, "app_create.html", "New App", h.userData(r), nil)
+	data := struct {
+		GitHubConfigured bool
+	}{
+		GitHubConfigured: h.ghClient != nil && h.ghClient.IsConfigured(),
+	}
+	h.renderer.Render(w, "app_create.html", "New App", h.userData(r), data)
 }
 
 func (h *PageHandler) AppCreateSubmit(w http.ResponseWriter, r *http.Request) {
@@ -260,6 +265,19 @@ func (h *PageHandler) AppCreateSubmit(w http.ResponseWriter, r *http.Request) {
 		AccessMode:   accessMode,
 		AccessURL:    accessURL,
 		Status:       domain.AppStatusInactive,
+	}
+
+	// Set GitHub connection if provided (repo was selected from dropdown)
+	if installIDStr := r.FormValue("github_installation_id"); installIDStr != "" {
+		if installID, err := strconv.ParseInt(installIDStr, 10, 64); err == nil {
+			app.GitHubInstallationID = &installID
+		}
+	}
+	if repoIDStr := r.FormValue("github_repo_id"); repoIDStr != "" {
+		if repoID, err := strconv.ParseInt(repoIDStr, 10, 64); err == nil {
+			app.GitHubRepoID = &repoID
+			app.RegistryURL = "ghcr.io"
+		}
 	}
 
 	if err := h.apps.CreateApp(r.Context(), app); err != nil {
