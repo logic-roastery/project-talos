@@ -9,6 +9,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
+  actions: write
   contents: write
 
 jobs:
@@ -39,3 +40,18 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: talos-linux-${{ matrix.arch }}
+
+  refresh-docs:
+    name: Refresh Docs
+    needs: binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch docs workflow on master
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -sS -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/docs.yml/dispatches \
+            -d '{"ref":"master"}'
