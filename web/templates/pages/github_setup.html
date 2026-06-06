@@ -1,0 +1,76 @@
+{{define "github_setup.html"}}
+<div class="max-w-3xl mx-auto">
+    <div class="mb-8">
+        <p class="text-xs font-bold uppercase tracking-widest text-violet-mid mb-2">Settings</p>
+        <h1 class="text-2xl font-medium text-heading">GitHub App Setup</h1>
+        <p class="text-sm text-muted mt-1">Create a GitHub App for automatic deployments using Talos's manifest flow.</p>
+    </div>
+
+    <div class="bg-night border border-hairline rounded-xl p-6 mb-6">
+        <div class="flex items-start gap-4">
+            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-violet/10 flex items-center justify-center">
+                <svg class="w-5 h-5 text-violet" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h8m-4-4v8m9 0a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h8l2 2h4a2 2 0 012 2v8z"/>
+                </svg>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h2 class="text-lg font-semibold text-heading mb-1">What this does</h2>
+                <p class="text-sm text-muted mb-4">Talos sends a GitHub App manifest that preconfigures the webhook URL, callback URL, permissions, and subscribed events for you.</p>
+
+                <div class="bg-night/50 border border-hairline rounded-lg p-4 mb-4">
+                    <p class="text-xs text-muted uppercase tracking-wider mb-1">Talos URL</p>
+                    <p class="text-sm font-mono text-body break-all">{{.TalosURL}}</p>
+                </div>
+
+                <a href="/api/github/create-manifest" class="inline-flex items-center gap-2 bg-lime-accent text-midnight font-bold px-4 py-2.5 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                    </svg>
+                    Create GitHub App
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-night border border-hairline rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-heading mb-3">What to expect on GitHub</h3>
+        <ul class="space-y-2.5 text-sm text-muted">
+            <li class="flex items-start gap-2">
+                <span class="text-violet mt-0.5">1.</span>
+                <span>GitHub opens its standard GitHub App registration page.</span>
+            </li>
+            <li class="flex items-start gap-2">
+                <span class="text-violet mt-0.5">2.</span>
+                <span>The app name may still be visibly editable. That is expected for the manifest flow.</span>
+            </li>
+            <li class="flex items-start gap-2">
+                <span class="text-violet mt-0.5">3.</span>
+                <span>You do not need to manually fill in the webhook URL, callback URL, permissions, or subscribed events.</span>
+            </li>
+            <li class="flex items-start gap-2">
+                <span class="text-violet mt-0.5">4.</span>
+                <span>After you create the app, GitHub redirects back to Talos and Talos stores the generated credentials automatically.</span>
+            </li>
+        </ul>
+    </div>
+
+    <div class="bg-night border border-hairline rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-heading mb-3">No Domain Yet?</h3>
+        {{if .HasDomain}}
+        <p class="text-sm text-muted">Talos is configured with a domain, so the generated GitHub App URLs will use HTTPS for webhook delivery and setup callbacks.</p>
+        {{else}}
+        <p class="text-sm text-muted mb-3">Talos is currently generating GitHub App URLs from the current host, which may be an IP-based HTTP address. This is acceptable for testing, but a real domain with HTTPS is recommended before relying on GitHub App webhooks in production.</p>
+        <p class="text-sm text-muted">Once you configure <code class="bg-canvas-dark px-1.5 py-0.5 rounded text-body">TALOS_DOMAIN</code> and point DNS to this server, rerun the setup so GitHub uses the final HTTPS URLs.</p>
+        {{end}}
+    </div>
+
+    <div class="mt-6">
+        <a href="/settings/github/status" class="text-sm text-muted hover:text-body transition inline-flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Back to GitHub Integration
+        </a>
+    </div>
+</div>
+{{end}}

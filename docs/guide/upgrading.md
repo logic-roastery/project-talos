@@ -109,6 +109,10 @@ docker run -d \
   ghcr.io/logic-roastery/project-talos:latest
 ```
 
+:::warning
+`docker restart talos` is not a Docker upgrade. It only restarts the existing container and keeps it on the old image. To apply a new Talos image, recreate the container after `docker pull`, or use `sudo bash install.sh --upgrade --docker`.
+:::
+
 ### Docker Rollback
 
 If the upgrade fails, roll back to the previous image:
