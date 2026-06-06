@@ -112,18 +112,27 @@ func (r *Renderer) Render(w http.ResponseWriter, pageName string, title string, 
 	}
 }
 
-func (r *Renderer) RenderPartial(w http.ResponseWriter, pageName string, data any) {
+func (r *Renderer) RenderPartial(w http.ResponseWriter, partialName string, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	t, ok := r.pages[pageName]
-	if !ok {
-		http.Error(w, "page not found: "+pageName, http.StatusInternalServerError)
+	// Try direct page lookup first
+	if t, ok := r.pages[partialName]; ok {
+		if err := t.ExecuteTemplate(w, partialName, data); err != nil {
+			http.Error(w, "template error", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	if err := t.ExecuteTemplate(w, pageName, data); err != nil {
-		http.Error(w, "template error", http.StatusInternalServerError)
+	// Partials live in templates/partials/ and are included in every page's
+	// template tree via the glob.  Grab any page template and execute the
+	// named partial from it.
+	for _, t := range r.pages {
+		if err := t.ExecuteTemplate(w, partialName, data); err == nil {
+			return
+		}
 	}
+
+	http.Error(w, "partial not found: "+partialName, http.StatusInternalServerError)
 }
 
 func (r *Renderer) RenderStatus(w http.ResponseWriter, status int, pageName string, data any) {
