@@ -180,7 +180,7 @@ If your server fails and you need to rebuild from a backup:
 ### 1. Install Talos on the New Server
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo sh
+curl -sSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo bash
 ```
 
 ### 2. Copy the Backup and .env File
