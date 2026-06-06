@@ -124,6 +124,8 @@ func New(
 			ghH := handlers.NewGitHubHandler(apps, ghClient, ghCfg, renderer, serverHost, serverDomain, logger)
 			r.Get("/api/github/install", ghH.StartInstall)
 			r.Get("/api/github/callback", ghH.HandleCallback)
+			r.Get("/api/github/repos", ghH.ListRepos)
+			r.Get("/partials/github-repos", ghH.RepoSelectorPartial)
 			r.Post("/api/github/disconnect", ghH.Disconnect)
 		}
 	})

@@ -460,6 +460,92 @@ func (h *GitHubHandler) StatusPage(w http.ResponseWriter, r *http.Request) {
 	h.renderer.Render(w, "github_status.html", "GitHub Integration", userData, data)
 }
 
+// RepoInfo is a minimal repo representation for the creation UI.
+type RepoInfo struct {
+	ID             int64
+	FullName       string
+	DefaultBranch  string
+	HTMLURL        string
+	InstallationID int64
+}
+
+// ListRepos returns all repos accessible across all GitHub App installations as JSON.
+func (h *GitHubHandler) ListRepos(w http.ResponseWriter, r *http.Request) {
+	if h.ghClient == nil || !h.ghClient.IsConfigured() {
+		http.Error(w, "GitHub App not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	repos, err := h.listAllRepos(r.Context())
+	if err != nil {
+		h.logger.Error("failed to list repos", "error", err)
+		http.Error(w, "failed to list repos", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(repos)
+}
+
+// RepoSelectorPartial returns an HTML fragment with a repo dropdown for HTMX.
+func (h *GitHubHandler) RepoSelectorPartial(w http.ResponseWriter, r *http.Request) {
+	if h.ghClient == nil || !h.ghClient.IsConfigured() {
+		http.Error(w, "GitHub App not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	repos, err := h.listAllRepos(r.Context())
+	if err != nil {
+		h.logger.Error("failed to list repos", "error", err)
+		http.Error(w, "failed to list repos", http.StatusInternalServerError)
+		return
+	}
+
+	h.renderer.RenderPartial(w, "github_repo_selector.html", repos)
+}
+
+// listAllRepos fetches all repos across all installations of the GitHub App.
+// Results are capped at 500 repos to avoid excessive API calls and large payloads.
+func (h *GitHubHandler) listAllRepos(ctx context.Context) ([]RepoInfo, error) {
+	installations, err := h.ghClient.ListInstallations(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list installations: %w", err)
+	}
+
+	const maxRepos = 500
+	var repos []RepoInfo
+	seen := make(map[int64]bool)
+
+	for _, inst := range installations {
+		instID := inst.GetID()
+		installationRepos, err := h.ghClient.ListInstallationRepos(ctx, instID)
+		if err != nil {
+			h.logger.Warn("failed to list repos for installation", "installation_id", instID, "error", err)
+			continue
+		}
+
+		for _, repo := range installationRepos {
+			rid := repo.GetID()
+			if seen[rid] {
+				continue
+			}
+			seen[rid] = true
+			repos = append(repos, RepoInfo{
+				ID:             rid,
+				FullName:       repo.GetFullName(),
+				DefaultBranch:  repo.GetDefaultBranch(),
+				HTMLURL:        repo.GetHTMLURL(),
+				InstallationID: instID,
+			})
+			if len(repos) >= maxRepos {
+				return repos, nil
+			}
+		}
+	}
+
+	return repos, nil
+}
+
 // LoadCredentials loads GitHub App credentials from the JSON file.
 func LoadCredentials(dataDir string) (*github.ManifestResponse, error) {
 	credsPath := filepath.Join(dataDir, "github-app.json")

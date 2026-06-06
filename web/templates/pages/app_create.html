@@ -12,11 +12,20 @@
                 <input type="text" name="name" required placeholder="my-app"
                     class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
             </div>
+            {{if .GitHubConfigured}}
+            <div hx-get="/partials/github-repos" hx-trigger="load" hx-swap="outerHTML">
+                <div class="flex items-center gap-2 text-muted text-sm py-2">
+                    <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                    Loading repositories...
+                </div>
+            </div>
+            {{else}}
             <div>
                 <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Repository URL</label>
                 <input type="url" name="repo_url" required placeholder="https://github.com/user/repo"
                     class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
             </div>
+            {{end}}
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Branch</label>
