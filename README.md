@@ -1,9 +1,9 @@
 # Talos
 
 [![Release Version](https://img.shields.io/github/v/release/logic-roastery/project-talos)](https://github.com/logic-roastery/project-talos/releases)
-[![CI](https://github.com/logic-roastery/project-talos/actions/workflows/ci.yml/badge.svg)](https://github.com/logic-roastery/project-talos/actions/workflows/ci.yml)
-[![Build Image](https://github.com/logic-roastery/project-talos/actions/workflows/release-image.yml/badge.svg)](https://github.com/logic-roastery/project-talos/actions/workflows/release-image.yml)
-[![Binary Release](https://github.com/logic-roastery/project-talos/actions/workflows/release-binaries.yml/badge.svg)](https://github.com/logic-roastery/project-talos/actions/workflows/release-binaries.yml)
+[![CI](https://github.com/logic-roastery/project-talos/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/logic-roastery/project-talos/actions/workflows/ci.yml?query=branch%3Amaster)
+[![Build Image](https://github.com/logic-roastery/project-talos/actions/workflows/release-image.yml/badge.svg?branch=master)](https://github.com/logic-roastery/project-talos/actions/workflows/release-image.yml?query=branch%3Amaster)
+[![Binary Release](https://github.com/logic-roastery/project-talos/actions/workflows/release-binaries.yml/badge.svg?branch=master)](https://github.com/logic-roastery/project-talos/actions/workflows/release-binaries.yml?query=branch%3Amaster)
 
 Self-hosted deployment platform for Dockerized applications on a single VPS.
 
