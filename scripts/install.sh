@@ -688,7 +688,7 @@ EOF
     echo "  View logs:      docker logs -f talos"
     echo "  Stop:           docker stop talos"
     echo "  Start:          docker start talos"
-    echo "  Upgrade:        docker pull ${GHCR_IMAGE} && docker restart talos"
+    echo "  Upgrade:        sudo bash install.sh --upgrade --docker"
     echo ""
     echo "  Open in browser: ${ACCESS_URL}"
     echo "============================================="
