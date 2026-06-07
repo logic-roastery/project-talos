@@ -52,6 +52,7 @@ func New(
 	r.Get("/health", handlers.Health)
 
 	authH := handlers.NewAuthHandler(authSvc)
+	ghH := handlers.NewGitHubHandler(apps, ghClient, ghCfg, renderer, serverHost, serverDomain, logger)
 	r.Post("/api/auth/setup", authH.Setup)
 	r.Post("/api/auth/login", authH.Login)
 	r.Get("/api/auth/status", authH.SetupStatus)
@@ -61,6 +62,7 @@ func New(
 
 		r.Get("/api/auth/me", authH.Me)
 		r.Post("/api/auth/logout", authH.Logout)
+		r.Get("/api/github/debug", ghH.Debug)
 
 		appH := handlers.NewAppHandler(apps, deploys, serverHost, serverDomain, serverProxyMode)
 		r.Route("/api/apps", func(r chi.Router) {
@@ -121,7 +123,6 @@ func New(
 
 		// GitHub integration routes
 		if ghClient != nil && ghClient.IsConfigured() {
-			ghH := handlers.NewGitHubHandler(apps, ghClient, ghCfg, renderer, serverHost, serverDomain, logger)
 			r.Get("/api/github/install", ghH.StartInstall)
 			r.Get("/api/github/callback", ghH.HandleCallback)
 			r.Get("/api/github/repos", ghH.ListRepos)
@@ -131,7 +132,6 @@ func New(
 	})
 
 	// GitHub setup routes (always available, even without config)
-	ghH := handlers.NewGitHubHandler(apps, ghClient, ghCfg, renderer, serverHost, serverDomain, logger)
 	r.Get("/settings/github/setup", ghH.SetupPage)
 	r.Get("/settings/github/status", ghH.StatusPage)
 	r.Get("/api/github/create-manifest", ghH.CreateManifest)
@@ -217,7 +217,7 @@ func New(
 
 	// Page routes (HTML)
 	settingsSvc := settings.NewService(dockerClient)
-	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, svcStore, backupStore, authSvc, engine, ghClient, settingsSvc, serverHost, serverDomain, serverProxyMode, serverPort)
+	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, svcStore, backupStore, authSvc, engine, ghClient, settingsSvc, serverHost, serverDomain, serverProxyMode, serverPort, logger)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/dashboard", http.StatusFound)

@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -31,10 +32,11 @@ type PageHandler struct {
 	domain      string
 	proxyMode   config.ProxyMode
 	port        int
+	logger      *slog.Logger
 }
 
 func NewPageHandler(renderer *web.Renderer, apps store.AppStore, deploys store.DeployStore,
-	users store.UserStore, services store.ServiceStore, backupStore store.BackupStore, authSvc *auth.Service, engine *deploy.Engine, ghClient *github.AppClient, settingsSvc *settings.Service, host, domain string, proxyMode config.ProxyMode, port int) *PageHandler {
+	users store.UserStore, services store.ServiceStore, backupStore store.BackupStore, authSvc *auth.Service, engine *deploy.Engine, ghClient *github.AppClient, settingsSvc *settings.Service, host, domain string, proxyMode config.ProxyMode, port int, logger *slog.Logger) *PageHandler {
 	return &PageHandler{
 		renderer:    renderer,
 		apps:        apps,
@@ -50,6 +52,7 @@ func NewPageHandler(renderer *web.Renderer, apps store.AppStore, deploys store.D
 		host:        host,
 		proxyMode:   proxyMode,
 		port:        port,
+		logger:      logger,
 	}
 }
 
@@ -198,9 +201,21 @@ func (h *PageHandler) DashboardPage(w http.ResponseWriter, r *http.Request) {
 func (h *PageHandler) AppCreatePage(w http.ResponseWriter, r *http.Request) {
 	data := struct {
 		GitHubConfigured bool
+		Repos            []RepoInfo
+		RepoError        string
 	}{
 		GitHubConfigured: h.ghClient != nil && h.ghClient.IsConfigured(),
 	}
+
+	if data.GitHubConfigured {
+		repos, err := listAllRepos(r.Context(), h.ghClient, h.logger)
+		if err != nil {
+			data.RepoError = "Talos could not load repositories from GitHub right now. Enter the repository URL manually or refresh after checking the GitHub App installation."
+		} else {
+			data.Repos = repos
+		}
+	}
+
 	h.renderer.Render(w, "app_create.html", "New App", h.userData(r), data)
 }
 

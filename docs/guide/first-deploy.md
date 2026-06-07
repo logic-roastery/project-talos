@@ -143,6 +143,36 @@ docker run -d \
 
 Talos logs should then show that the GitHub App is configured.
 
+### Troubleshooting GitHub Repo Discovery
+
+If the **New App** page loads but the GitHub repository list looks incomplete or fails to load, Talos includes a temporary authenticated debug endpoint for GitHub App diagnostics.
+
+Enable it only while troubleshooting:
+
+```env
+TALOS_DEBUG_ENDPOINTS=true
+```
+
+Then recreate or restart Talos and call:
+
+```bash
+curl -s http://127.0.0.1:3000/api/github/debug \
+  -H 'Cookie: talos_session=YOUR_SESSION_COOKIE'
+```
+
+This endpoint can help confirm:
+
+- whether the GitHub App is configured
+- whether the private key is readable
+- how many installations GitHub returned
+- whether Talos can list repositories for each installation
+
+When you are done debugging, disable it again:
+
+```env
+TALOS_DEBUG_ENDPOINTS=false
+```
+
 ## Step 3: Push Your Code
 
 ```bash

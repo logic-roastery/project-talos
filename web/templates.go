@@ -9,8 +9,9 @@ import (
 )
 
 type Renderer struct {
-	layout *template.Template
-	pages  map[string]*template.Template
+	layout   *template.Template
+	pages    map[string]*template.Template
+	partials *template.Template
 }
 
 func NewRenderer() (*Renderer, error) {
@@ -71,7 +72,12 @@ func NewRenderer() (*Renderer, error) {
 		pages[name] = t
 	}
 
-	return &Renderer{layout: layout, pages: pages}, nil
+	partials, err := template.New("partials").Funcs(funcMap).ParseFS(TemplateFS, "templates/partials/*.html")
+	if err != nil {
+		return nil, fmt.Errorf("parse partials: %w", err)
+	}
+
+	return &Renderer{layout: layout, pages: pages, partials: partials}, nil
 }
 
 type layoutData struct {
@@ -118,21 +124,19 @@ func (r *Renderer) RenderPartial(w http.ResponseWriter, partialName string, data
 	// Try direct page lookup first
 	if t, ok := r.pages[partialName]; ok {
 		if err := t.ExecuteTemplate(w, partialName, data); err != nil {
-			http.Error(w, "template error", http.StatusInternalServerError)
+			http.Error(w, "template error: "+err.Error(), http.StatusInternalServerError)
 		}
 		return
 	}
 
-	// Partials live in templates/partials/ and are included in every page's
-	// template tree via the glob.  Grab any page template and execute the
-	// named partial from it.
-	for _, t := range r.pages {
-		if err := t.ExecuteTemplate(w, partialName, data); err == nil {
-			return
-		}
+	if r.partials == nil {
+		http.Error(w, "partial renderer not initialized", http.StatusInternalServerError)
+		return
 	}
 
-	http.Error(w, "partial not found: "+partialName, http.StatusInternalServerError)
+	if err := r.partials.ExecuteTemplate(w, partialName, data); err != nil {
+		http.Error(w, "template error: "+err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (r *Renderer) RenderStatus(w http.ResponseWriter, status int, pageName string, data any) {
