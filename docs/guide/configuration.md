@@ -15,6 +15,7 @@ Talos is configured through environment variables stored in `/opt/talos/.env`.
 | `TALOS_PROXY_MODE` | `internal` | `internal` for Talos-managed Traefik, `external` for a shared edge proxy |
 | `TALOS_EDGE_NETWORK` | `traefik-public` | Shared Docker network for external proxy mode |
 | `TALOS_EDGE_CERT_RESOLVER` | `letsencrypt` | External Traefik cert resolver label value |
+| `TALOS_DEBUG_ENDPOINTS` | `false` | Enables authenticated diagnostic endpoints such as `/api/github/debug` for temporary troubleshooting |
 
 ## Traefik Variables
 
@@ -53,6 +54,7 @@ TALOS_ENCRYPTION_KEY=auto-generated-key-here
 TALOS_PROXY_MODE=internal
 TALOS_EDGE_NETWORK=traefik-public
 TALOS_EDGE_CERT_RESOLVER=letsencrypt
+TALOS_DEBUG_ENDPOINTS=false
 
 # Traefik
 TALOS_TRAEFIK_IMAGE=traefik:v3.0
@@ -72,3 +74,26 @@ Never commit your `.env` file to version control. The `TALOS_ENCRYPTION_KEY` is 
 
 - `internal`: Talos starts `talos-traefik`, owns `80/443`, and supports Talos-managed app custom domains.
 - `external`: another reverse proxy owns `80/443`. Talos only publishes its UI hostname through container labels in Docker mode. App custom domains remain unsupported in this mode in v1.
+
+## Debug Endpoints
+
+Talos keeps diagnostic endpoints disabled by default.
+
+- `TALOS_DEBUG_ENDPOINTS=false`: `/api/github/debug` returns `404`
+- `TALOS_DEBUG_ENDPOINTS=true`: `/api/github/debug` is available to authenticated Talos users
+
+The GitHub debug endpoint is intended for temporary troubleshooting only. It can confirm whether the GitHub App is configured, whether Talos can read the private key, how many installations GitHub returned, and whether repository listing is succeeding per installation.
+
+Recommended use:
+
+1. Set `TALOS_DEBUG_ENDPOINTS=true` in `/opt/talos/.env`
+2. Recreate or restart Talos
+3. Call the endpoint with an authenticated Talos session cookie
+4. Set `TALOS_DEBUG_ENDPOINTS=false` again after debugging
+
+Example:
+
+```bash
+curl -s http://127.0.0.1:3000/api/github/debug \
+  -H 'Cookie: talos_session=YOUR_SESSION_COOKIE'
+```
