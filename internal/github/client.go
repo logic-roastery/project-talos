@@ -173,15 +173,15 @@ func (c *AppClient) ListInstallationRepos(ctx context.Context, installationID in
 	opts := &github.ListOptions{PerPage: 100}
 
 	for {
-		repos, _, err := client.Apps.ListRepos(ctx, opts)
+		repos, resp, err := client.Apps.ListRepos(ctx, opts)
 		if err != nil {
 			return nil, fmt.Errorf("list repos: %w", err)
 		}
 		allRepos = append(allRepos, repos.Repositories...)
-		if repos.TotalCount == nil || len(allRepos) >= *repos.TotalCount {
+		if resp.NextPage == 0 {
 			break
 		}
-		opts.Page++
+		opts.Page = resp.NextPage
 	}
 
 	return allRepos, nil

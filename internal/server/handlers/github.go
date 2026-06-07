@@ -505,7 +505,7 @@ func (h *GitHubHandler) ListRepos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	repos, err := h.listAllRepos(r.Context())
+	repos, err := listAllRepos(r.Context(), h.ghClient, h.logger)
 	if err != nil {
 		h.logger.Error("failed to list repos", "error", err)
 		http.Error(w, "failed to list repos", http.StatusInternalServerError)
@@ -519,12 +519,14 @@ func (h *GitHubHandler) ListRepos(w http.ResponseWriter, r *http.Request) {
 // RepoSelectorPartial returns an HTML fragment with a repo dropdown for HTMX.
 func (h *GitHubHandler) RepoSelectorPartial(w http.ResponseWriter, r *http.Request) {
 	if h.ghClient == nil || !h.ghClient.IsConfigured() {
+		h.logger.Warn("github repo selector unavailable", "reason", "github app not configured")
 		h.renderer.RenderPartial(w, "github_repo_selector.html", RepoSelectorData{
 			Error: "GitHub App is not fully configured yet. Enter the repository URL manually for now.",
 		})
 		return
 	}
 
+	h.logger.Info("loading github repo selector")
 	repos, err := h.listAllRepos(r.Context())
 	if err != nil {
 		h.logger.Error("failed to list repos", "error", err)
@@ -534,6 +536,7 @@ func (h *GitHubHandler) RepoSelectorPartial(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	h.logger.Info("github repo selector loaded", "repo_count", len(repos))
 	h.renderer.RenderPartial(w, "github_repo_selector.html", RepoSelectorData{
 		Repos: repos,
 	})
@@ -607,10 +610,16 @@ func (h *GitHubHandler) Debug(w http.ResponseWriter, r *http.Request) {
 // listAllRepos fetches all repos across all installations of the GitHub App.
 // Results are capped at 500 repos to avoid excessive API calls and large payloads.
 func (h *GitHubHandler) listAllRepos(ctx context.Context) ([]RepoInfo, error) {
-	installations, err := h.ghClient.ListInstallations(ctx)
+	return listAllRepos(ctx, h.ghClient, h.logger)
+}
+
+func listAllRepos(ctx context.Context, ghClient *github.AppClient, logger *slog.Logger) ([]RepoInfo, error) {
+	logger.Info("listing github app installations")
+	installations, err := ghClient.ListInstallations(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list installations: %w", err)
 	}
+	logger.Info("github app installations listed", "installation_count", len(installations))
 
 	const maxRepos = 500
 	var repos []RepoInfo
@@ -618,11 +627,17 @@ func (h *GitHubHandler) listAllRepos(ctx context.Context) ([]RepoInfo, error) {
 
 	for _, inst := range installations {
 		instID := inst.GetID()
-		installationRepos, err := h.ghClient.ListInstallationRepos(ctx, instID)
+		logger.Info("listing github installation repos",
+			"installation_id", instID,
+			"account_login", inst.GetAccount().GetLogin(),
+			"account_type", inst.GetAccount().GetType(),
+		)
+		installationRepos, err := ghClient.ListInstallationRepos(ctx, instID)
 		if err != nil {
-			h.logger.Warn("failed to list repos for installation", "installation_id", instID, "error", err)
+			logger.Warn("failed to list repos for installation", "installation_id", instID, "error", err)
 			continue
 		}
+		logger.Info("github installation repos listed", "installation_id", instID, "repo_count", len(installationRepos))
 
 		for _, repo := range installationRepos {
 			rid := repo.GetID()
@@ -638,11 +653,13 @@ func (h *GitHubHandler) listAllRepos(ctx context.Context) ([]RepoInfo, error) {
 				InstallationID: instID,
 			})
 			if len(repos) >= maxRepos {
+				logger.Info("github repo listing capped", "max_repos", maxRepos)
 				return repos, nil
 			}
 		}
 	}
 
+	logger.Info("github repo discovery complete", "unique_repo_count", len(repos))
 	return repos, nil
 }
 

@@ -1,7 +1,17 @@
 {{define "github_repo_selector.html"}}
-<div id="repo-selector">
-    <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Repository</label>
+<div id="repo-selector" class="space-y-3">
+    <div class="flex items-center justify-between gap-3">
+        <label class="block text-xs text-muted uppercase tracking-wider font-medium">Repository</label>
+        {{if .Repos}}
+        <p id="repo-search-status" class="text-xs text-muted">{{len .Repos}} repositories</p>
+        {{end}}
+    </div>
     {{if .Repos}}
+    <div>
+        <input type="search" id="repo-search" placeholder="Search repositories..."
+            oninput="filterRepoOptions(this.value)"
+            class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+    </div>
     <select name="repo_select" id="repo-select" required
         onchange="onRepoSelect(this)"
         class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
@@ -19,8 +29,9 @@
     <input type="hidden" name="repo_url" id="repo-url-hidden">
     <input type="hidden" name="github_installation_id" id="github-installation-id">
     <input type="hidden" name="github_repo_id" id="github-repo-id">
-    <div class="flex items-center justify-between mt-2">
-        <button type="button" onclick="document.getElementById('repo-selector').outerHTML='<div id=\"repo-selector\"></div>'; htmx.ajax('GET', '/partials/github-repos', {target:'#repo-selector', swap:'outerHTML'})"
+    <p class="text-xs text-muted">Choose a repo first. Talos will fill the branch from the repository default automatically.</p>
+    <div class="flex items-center justify-between gap-3">
+        <button type="button" hx-get="/partials/github-repos" hx-target="#repo-selector" hx-swap="outerHTML"
             class="text-xs text-muted hover:text-body transition cursor-pointer">
             ↻ Refresh list
         </button>
@@ -43,6 +54,35 @@
 
         var branchInput = document.querySelector('input[name="branch"]');
         if (branchInput && branch) branchInput.value = branch;
+    }
+    function filterRepoOptions(query) {
+        var select = document.getElementById('repo-select');
+        var status = document.getElementById('repo-search-status');
+        if (!select) return;
+
+        var normalized = (query || '').trim().toLowerCase();
+        var visibleCount = 0;
+
+        for (var i = 0; i < select.options.length; i++) {
+            var option = select.options[i];
+            if (!option.value) continue;
+
+            var matches = !normalized || option.text.toLowerCase().indexOf(normalized) !== -1;
+            option.hidden = !matches;
+            if (matches) visibleCount++;
+        }
+
+        var selected = select.options[select.selectedIndex];
+        if (selected && selected.hidden) {
+            select.selectedIndex = 0;
+            document.getElementById('repo-url-hidden').value = '';
+            document.getElementById('github-installation-id').value = '';
+            document.getElementById('github-repo-id').value = '';
+        }
+
+        if (status) {
+            status.textContent = normalized ? (visibleCount + ' match' + (visibleCount === 1 ? '' : 'es')) : (visibleCount + ' repositories');
+        }
     }
     function switchToManualInput() {
         var container = document.getElementById('repo-selector');
