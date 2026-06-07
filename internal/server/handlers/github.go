@@ -469,6 +469,35 @@ type RepoInfo struct {
 	InstallationID int64
 }
 
+type RepoSelectorData struct {
+	Repos []RepoInfo
+	Error string
+}
+
+type GitHubInstallationDebug struct {
+	ID               int64    `json:"id"`
+	AccountLogin     string   `json:"account_login,omitempty"`
+	AccountType      string   `json:"account_type,omitempty"`
+	Repositories     int      `json:"repositories"`
+	RepositorySample []string `json:"repository_sample,omitempty"`
+	Error            string   `json:"error,omitempty"`
+}
+
+type GitHubDebugResponse struct {
+	Configured             bool                      `json:"configured"`
+	AppID                  int64                     `json:"app_id,omitempty"`
+	AppSlug                string                    `json:"app_slug,omitempty"`
+	HasWebhookSecret       bool                      `json:"has_webhook_secret"`
+	HasClientID            bool                      `json:"has_client_id"`
+	HasClientSecret        bool                      `json:"has_client_secret"`
+	PrivateKeyPath         string                    `json:"private_key_path,omitempty"`
+	PrivateKeyReadable     bool                      `json:"private_key_readable"`
+	PrivateKeyCheckError   string                    `json:"private_key_check_error,omitempty"`
+	Installations          []GitHubInstallationDebug `json:"installations,omitempty"`
+	InstallationCount      int                       `json:"installation_count"`
+	ListInstallationsError string                    `json:"list_installations_error,omitempty"`
+}
+
 // ListRepos returns all repos accessible across all GitHub App installations as JSON.
 func (h *GitHubHandler) ListRepos(w http.ResponseWriter, r *http.Request) {
 	if h.ghClient == nil || !h.ghClient.IsConfigured() {
@@ -490,18 +519,89 @@ func (h *GitHubHandler) ListRepos(w http.ResponseWriter, r *http.Request) {
 // RepoSelectorPartial returns an HTML fragment with a repo dropdown for HTMX.
 func (h *GitHubHandler) RepoSelectorPartial(w http.ResponseWriter, r *http.Request) {
 	if h.ghClient == nil || !h.ghClient.IsConfigured() {
-		http.Error(w, "GitHub App not configured", http.StatusServiceUnavailable)
+		h.renderer.RenderPartial(w, "github_repo_selector.html", RepoSelectorData{
+			Error: "GitHub App is not fully configured yet. Enter the repository URL manually for now.",
+		})
 		return
 	}
 
 	repos, err := h.listAllRepos(r.Context())
 	if err != nil {
 		h.logger.Error("failed to list repos", "error", err)
-		http.Error(w, "failed to list repos", http.StatusInternalServerError)
+		h.renderer.RenderPartial(w, "github_repo_selector.html", RepoSelectorData{
+			Error: "Talos could not load repositories from GitHub right now. Enter the repository URL manually or refresh after checking the GitHub App installation.",
+		})
 		return
 	}
 
-	h.renderer.RenderPartial(w, "github_repo_selector.html", repos)
+	h.renderer.RenderPartial(w, "github_repo_selector.html", RepoSelectorData{
+		Repos: repos,
+	})
+}
+
+func (h *GitHubHandler) Debug(w http.ResponseWriter, r *http.Request) {
+	resp := GitHubDebugResponse{
+		Configured:       h.ghClient != nil && h.ghClient.IsConfigured(),
+		AppID:            h.cfg.AppID,
+		AppSlug:          h.cfg.AppSlug,
+		HasWebhookSecret: h.cfg.WebhookSecret != "",
+		HasClientID:      h.cfg.ClientID != "",
+		HasClientSecret:  h.cfg.ClientSecret != "",
+	}
+
+	if strings.HasPrefix(h.cfg.PrivateKey, "/") || strings.HasPrefix(h.cfg.PrivateKey, "./") || strings.HasPrefix(h.cfg.PrivateKey, "../") {
+		resp.PrivateKeyPath = h.cfg.PrivateKey
+	}
+	if h.cfg.PrivateKey != "" {
+		if _, err := github.ParsePrivateKey(h.cfg.PrivateKey); err != nil {
+			resp.PrivateKeyCheckError = err.Error()
+		} else {
+			resp.PrivateKeyReadable = true
+		}
+	}
+
+	if !resp.Configured {
+		writeJSON(w, http.StatusOK, resp)
+		return
+	}
+
+	installations, err := h.ghClient.ListInstallations(r.Context())
+	if err != nil {
+		resp.ListInstallationsError = err.Error()
+		writeJSON(w, http.StatusOK, resp)
+		return
+	}
+
+	resp.InstallationCount = len(installations)
+	resp.Installations = make([]GitHubInstallationDebug, 0, len(installations))
+
+	for _, inst := range installations {
+		item := GitHubInstallationDebug{
+			ID: inst.GetID(),
+		}
+		if inst.Account != nil {
+			item.AccountLogin = inst.Account.GetLogin()
+			item.AccountType = inst.Account.GetType()
+		}
+
+		repos, err := h.ghClient.ListInstallationRepos(r.Context(), inst.GetID())
+		if err != nil {
+			item.Error = err.Error()
+			resp.Installations = append(resp.Installations, item)
+			continue
+		}
+
+		item.Repositories = len(repos)
+		for i, repo := range repos {
+			if i >= 5 {
+				break
+			}
+			item.RepositorySample = append(item.RepositorySample, repo.GetFullName())
+		}
+		resp.Installations = append(resp.Installations, item)
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // listAllRepos fetches all repos across all installations of the GitHub App.

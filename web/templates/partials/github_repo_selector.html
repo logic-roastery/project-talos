@@ -1,12 +1,12 @@
 {{define "github_repo_selector.html"}}
 <div id="repo-selector">
     <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Repository</label>
-    {{if .}}
+    {{if .Repos}}
     <select name="repo_select" id="repo-select" required
         onchange="onRepoSelect(this)"
         class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
         <option value="" disabled selected class="text-muted">Select a repository...</option>
-        {{range .}}
+        {{range .Repos}}
         <option value="{{.FullName}}"
             data-url="{{.HTMLURL}}"
             data-branch="{{.DefaultBranch}}"
@@ -56,7 +56,11 @@
     }
     </script>
     {{else}}
+    {{if .Error}}
+    <p class="text-yellow-300 text-sm mb-2">{{.Error}}</p>
+    {{else}}
     <p class="text-muted text-sm mb-2">No repositories found. Make sure the GitHub App has access to your repos.</p>
+    {{end}}
     <a href="/settings/github/status" target="_blank"
         class="text-xs text-violet hover:text-lime-accent transition">
         Manage GitHub App settings →
