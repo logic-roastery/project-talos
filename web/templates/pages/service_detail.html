@@ -92,28 +92,50 @@ async function loadCredentials() {
     const eyeIcon = '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M2.25 12S5.25 5.25 12 5.25 21.75 12 21.75 12 18.75 18.75 12 18.75 2.25 12 2.25 12Z"></path><circle cx="12" cy="12" r="3" stroke-width="1.75"></circle></svg>';
     const eyeOffIcon = '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="m3 3 18 18m-9-2.25c-6.75 0-9.75-6.75-9.75-6.75a18.81 18.81 0 0 1 4.306-5.774m3.145-1.327A10.46 10.46 0 0 1 12 5.25c6.75 0 9.75 6.75 9.75 6.75a18.84 18.84 0 0 1-2.877 4.177M14.12 14.12A3 3 0 0 1 9.88 9.88"></path></svg>';
     const copyIcon = '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M15.75 17.25v1.125A2.625 2.625 0 0 1 13.125 21H6.375A2.625 2.625 0 0 1 3.75 18.375V9.375A2.625 2.625 0 0 1 6.375 6.75H7.5m3.375-3.75h6.75A2.625 2.625 0 0 1 20.25 5.625v9a2.625 2.625 0 0 1-2.625 2.625h-6.75A2.625 2.625 0 0 1 8.25 14.625v-9A2.625 2.625 0 0 1 10.875 3Z"></path></svg>';
+    const checkIcon = '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="m4.5 12.75 6 6 9-13.5"></path></svg>';
     for (const [key, val] of Object.entries(creds)) {
         if (!val) continue;
         const row = document.createElement('div');
         row.className = 'flex items-start justify-between gap-4 rounded-lg border border-hairline/80 bg-canvas-dark/40 px-3 py-2.5';
-        row.innerHTML = '<span class="pt-1 text-muted">' + key + '</span>' +
+        row.innerHTML = '<div class="space-y-1">' +
+            '<span class="block pt-1 text-muted">' + key + '</span>' +
+            '<span class="credential-state inline-flex items-center rounded-full border border-hairline bg-night/60 px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-muted">Hidden</span>' +
+            '</div>' +
             '<div class="flex min-w-0 items-center gap-2">' +
-            '<code class="credential-value rounded-md bg-night/70 px-2 py-1 text-xs text-subtle font-mono" data-value="' + escapeHTML(val) + '">••••••••</code>' +
+            '<code class="credential-value max-w-[16rem] overflow-x-auto rounded-md bg-night/70 px-2 py-1 text-xs text-subtle font-mono" data-value="' + escapeHTML(val) + '">••••••••</code>' +
             '<button type="button" onclick="toggleCred(this)" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Toggle credential visibility" data-eye="' + eyeIcon.replace(/"/g, '&quot;') + '" data-eye-off="' + eyeOffIcon.replace(/"/g, '&quot;') + '">' + eyeIcon + '</button>' +
-            '<button type="button" onclick="copyCred(this)" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Copy credential" data-value="' + escapeHTML(val) + '">' + copyIcon + '</button>' +
+            '<button type="button" onclick="copyCred(this)" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Copy credential" data-value="' + escapeHTML(val) + '" data-copy-icon="' + copyIcon.replace(/"/g, '&quot;') + '" data-check-icon="' + checkIcon.replace(/"/g, '&quot;') + '">' + copyIcon + '</button>' +
             '</div>';
         container.appendChild(row);
     }
 }
 
 function toggleCred(btn) {
+    const row = btn.closest('.flex');
     const code = btn.parentElement.querySelector('.credential-value');
+    const state = row.querySelector('.credential-state');
     const revealing = code.textContent === '••••••••';
     code.textContent = revealing ? code.dataset.value : '••••••••';
     btn.innerHTML = revealing ? btn.dataset.eyeOff : btn.dataset.eye;
+    state.textContent = revealing ? 'Visible' : 'Hidden';
+    state.className = revealing
+        ? 'credential-state inline-flex items-center rounded-full border border-lime-accent/30 bg-lime-accent/10 px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-lime-accent'
+        : 'credential-state inline-flex items-center rounded-full border border-hairline bg-night/60 px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-muted';
 }
 
-function copyCred(btn) { navigator.clipboard.writeText(btn.dataset.value); }
+async function copyCred(btn) {
+    try {
+        await navigator.clipboard.writeText(btn.dataset.value);
+        btn.innerHTML = btn.dataset.checkIcon;
+        btn.classList.add('text-lime-accent');
+        window.setTimeout(function() {
+            btn.innerHTML = btn.dataset.copyIcon;
+            btn.classList.remove('text-lime-accent');
+        }, 1200);
+    } catch (err) {
+        console.error('copy failed', err);
+    }
+}
 
 function escapeHTML(value) {
     return String(value)
