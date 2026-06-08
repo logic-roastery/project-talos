@@ -72,37 +72,52 @@
 </div>
 
 <!-- Actions -->
-<div class="flex items-end gap-3 mb-8">
+<div class="mb-8 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
     <form hx-post="/apps/{{.App.ID}}/deploy" hx-target="#deploy-history" hx-swap="afterbegin"
-          class="flex items-end gap-2">
-        <div>
+          class="flex flex-1 flex-col gap-3 rounded-xl border border-hairline bg-night p-4 sm:flex-row sm:items-end">
+        <div class="min-w-0 flex-1">
             <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Image Ref</label>
             <input type="text" name="image_ref" required placeholder="user/app:tag"
                 value="{{.App.ImageRef}}"
-                class="bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition text-sm">
+                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2.5 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition text-sm">
         </div>
         <input type="hidden" name="branch" value="{{.App.Branch}}">
         <button type="submit"
-            class="bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition text-sm cursor-pointer whitespace-nowrap uppercase tracking-wider">
+            class="inline-flex items-center justify-center gap-2 bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition text-sm cursor-pointer whitespace-nowrap uppercase tracking-wider">
+            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4.5 12h11.25m0 0-4.5-4.5m4.5 4.5-4.5 4.5m3.75-12h3A2.25 2.25 0 0 1 21 6.75v10.5A2.25 2.25 0 0 1 18.75 19.5h-3"></path>
+            </svg>
             Deploy
         </button>
     </form>
-    <form hx-post="/apps/{{.App.ID}}/rollback" hx-target="#deploy-history" hx-swap="afterbegin">
-        <button type="submit" hx-confirm="Rollback to last successful deploy?"
-            class="bg-hairline text-muted px-4 py-2 rounded-xl hover:text-body transition text-sm cursor-pointer">
-            Rollback
-        </button>
-    </form>
-    <a href="/apps/{{.App.ID}}/settings"
-        class="bg-violet-mid text-white px-4 py-2 rounded-xl hover:bg-violet transition text-sm">
-        Settings
-    </a>
-    <div class="ml-auto">
-        <button hx-delete="/apps/{{.App.ID}}" hx-confirm="Delete {{.App.Name}}? This cannot be undone."
-            hx-on::after-request="if(event.detail.successful) window.location.href='/dashboard'"
-            class="text-muted hover:text-pink-accent transition text-sm cursor-pointer">
-            Delete App
-        </button>
+
+    <div class="flex flex-wrap items-center gap-3 xl:justify-end">
+        <form hx-post="/apps/{{.App.ID}}/rollback" hx-target="#deploy-history" hx-swap="afterbegin">
+            <button type="submit" hx-confirm="Rollback to last successful deploy?"
+                class="inline-flex items-center gap-2 rounded-xl border border-hairline bg-hairline px-4 py-2.5 text-sm text-muted transition hover:text-body cursor-pointer">
+                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 14 4.5 9.5 9 5m-4.5 4h9.75a5.25 5.25 0 0 1 0 10.5H12"></path>
+                </svg>
+                Rollback
+            </button>
+        </form>
+        <a href="/apps/{{.App.ID}}/settings"
+            class="inline-flex items-center gap-2 rounded-xl bg-violet-mid px-4 py-2.5 text-sm text-white transition hover:bg-violet">
+            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M10.5 6h9m-9 6h9m-9 6h9M4.5 6h.008v.008H4.5V6Zm0 6h.008v.008H4.5V12Zm0 6h.008v.008H4.5V18Z"></path>
+            </svg>
+            Settings
+        </a>
+        <div class="xl:ml-2">
+            <button hx-delete="/apps/{{.App.ID}}" hx-confirm="Delete {{.App.Name}}? This cannot be undone."
+                hx-on::after-request="if(event.detail.successful) window.location.href='/dashboard'"
+                class="inline-flex items-center gap-2 px-1 py-2 text-sm text-muted transition hover:text-pink-accent cursor-pointer">
+                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6 7.5h12m-9.75 0V6A2.25 2.25 0 0 1 10.5 3.75h3A2.25 2.25 0 0 1 15.75 6v1.5m-8.25 0v10.125A2.625 2.625 0 0 0 10.125 20.25h3.75A2.625 2.625 0 0 0 16.5 17.625V7.5m-6 3v6m3-6v6"></path>
+                </svg>
+                Delete App
+            </button>
+        </div>
     </div>
 </div>
 

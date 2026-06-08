@@ -27,22 +27,24 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-6 mb-6">
+    <div class="grid gap-6 mb-6 lg:grid-cols-2">
         <div class="bg-night border border-hairline rounded-xl p-6">
             <h2 class="text-sm font-semibold text-muted uppercase tracking-wider mb-4">Status</h2>
             <div class="space-y-3 text-sm">
-                <div class="flex justify-between">
+                <div class="flex items-start justify-between gap-4">
                     <span class="text-muted">Status</span>
                     <span class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full {{statusBg .Service.Status}} {{statusText .Service.Status}} border {{statusBorder .Service.Status}}">
                         <span class="w-1.5 h-1.5 rounded-full {{statusDot .Service.Status}}"></span>
                         {{.Service.Status}}
                     </span>
                 </div>
-                <div class="flex justify-between">
-                    <span class="text-muted">Container ID</span>
-                    <span class="font-mono text-xs text-subtle">{{if .Service.ContainerID}}{{.Service.ContainerID}}{{else}}—{{end}}</span>
+                <div class="flex items-start justify-between gap-4">
+                    <span class="text-muted shrink-0">Container ID</span>
+                    <span class="max-w-[18rem] break-all text-right font-mono text-xs leading-relaxed text-subtle">
+                        {{if .Service.ContainerID}}{{.Service.ContainerID}}{{else}}—{{end}}
+                    </span>
                 </div>
-                <div class="flex justify-between">
+                <div class="flex items-start justify-between gap-4">
                     <span class="text-muted">Port</span>
                     <span class="text-subtle">{{.Service.InternalPort}}</span>
                 </div>
@@ -53,7 +55,11 @@
             <h2 class="text-sm font-semibold text-muted uppercase tracking-wider mb-4">Credentials</h2>
             <div id="creds-display" class="space-y-3 text-sm">
                 <button onclick="loadCredentials()" id="creds-btn"
-                    class="w-full bg-hairline text-muted px-4 py-2 rounded-md hover:text-body transition text-sm cursor-pointer">
+                    class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-hairline bg-hairline px-4 py-2.5 text-sm text-muted transition hover:text-body cursor-pointer">
+                    <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M2.25 12S5.25 5.25 12 5.25 21.75 12 21.75 12 18.75 18.75 12 18.75 2.25 12 2.25 12Z"></path>
+                        <circle cx="12" cy="12" r="3" stroke-width="1.75"></circle>
+                    </svg>
                     Show Credentials
                 </button>
             </div>
@@ -83,15 +89,18 @@ async function loadCredentials() {
     const creds = await res.json();
     const container = document.getElementById('creds-display');
     container.innerHTML = '';
+    const eyeIcon = '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M2.25 12S5.25 5.25 12 5.25 21.75 12 21.75 12 18.75 18.75 12 18.75 2.25 12 2.25 12Z"></path><circle cx="12" cy="12" r="3" stroke-width="1.75"></circle></svg>';
+    const eyeOffIcon = '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="m3 3 18 18m-9-2.25c-6.75 0-9.75-6.75-9.75-6.75a18.81 18.81 0 0 1 4.306-5.774m3.145-1.327A10.46 10.46 0 0 1 12 5.25c6.75 0 9.75 6.75 9.75 6.75a18.84 18.84 0 0 1-2.877 4.177M14.12 14.12A3 3 0 0 1 9.88 9.88"></path></svg>';
+    const copyIcon = '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M15.75 17.25v1.125A2.625 2.625 0 0 1 13.125 21H6.375A2.625 2.625 0 0 1 3.75 18.375V9.375A2.625 2.625 0 0 1 6.375 6.75H7.5m3.375-3.75h6.75A2.625 2.625 0 0 1 20.25 5.625v9a2.625 2.625 0 0 1-2.625 2.625h-6.75A2.625 2.625 0 0 1 8.25 14.625v-9A2.625 2.625 0 0 1 10.875 3Z"></path></svg>';
     for (const [key, val] of Object.entries(creds)) {
         if (!val) continue;
         const row = document.createElement('div');
-        row.className = 'flex justify-between items-center';
-        row.innerHTML = '<span class="text-muted">' + key + '</span>' +
-            '<div class="flex items-center gap-2">' +
-            '<code class="text-xs text-subtle credential-value font-mono" data-value="' + val + '">••••••••</code>' +
-            '<button onclick="toggleCred(this)" class="text-muted hover:text-body text-xs">👁</button>' +
-            '<button onclick="copyCred(\'' + val + '\')" class="text-muted hover:text-body text-xs">📋</button>' +
+        row.className = 'flex items-start justify-between gap-4 rounded-lg border border-hairline/80 bg-canvas-dark/40 px-3 py-2.5';
+        row.innerHTML = '<span class="pt-1 text-muted">' + key + '</span>' +
+            '<div class="flex min-w-0 items-center gap-2">' +
+            '<code class="credential-value rounded-md bg-night/70 px-2 py-1 text-xs text-subtle font-mono" data-value="' + escapeHTML(val) + '">••••••••</code>' +
+            '<button type="button" onclick="toggleCred(this)" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Toggle credential visibility" data-eye="' + eyeIcon.replace(/"/g, '&quot;') + '" data-eye-off="' + eyeOffIcon.replace(/"/g, '&quot;') + '">' + eyeIcon + '</button>' +
+            '<button type="button" onclick="copyCred(this)" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Copy credential" data-value="' + escapeHTML(val) + '">' + copyIcon + '</button>' +
             '</div>';
         container.appendChild(row);
     }
@@ -99,9 +108,19 @@ async function loadCredentials() {
 
 function toggleCred(btn) {
     const code = btn.parentElement.querySelector('.credential-value');
-    code.textContent = code.textContent === '••••••••' ? code.dataset.value : '••••••••';
+    const revealing = code.textContent === '••••••••';
+    code.textContent = revealing ? code.dataset.value : '••••••••';
+    btn.innerHTML = revealing ? btn.dataset.eyeOff : btn.dataset.eye;
 }
 
-function copyCred(val) { navigator.clipboard.writeText(val); }
+function copyCred(btn) { navigator.clipboard.writeText(btn.dataset.value); }
+
+function escapeHTML(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
 </script>
 {{end}}
