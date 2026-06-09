@@ -173,7 +173,7 @@ func buildDashboardAppView(app *domain.App, proxyMode config.ProxyMode) dashboar
 			routeHint = "Published domain"
 		}
 	case app.AccessMode == domain.AccessModePort && app.FallbackPort > 0:
-		routeValue = fmt.Sprintf(":%d", app.FallbackPort)
+		routeValue = fmt.Sprintf("Port %d", app.FallbackPort)
 		routeHint = "Fallback port mode"
 		routeLink = app.AccessURL
 	case app.AppType == domain.AppTypeExternalService && app.ExternalTarget != "":

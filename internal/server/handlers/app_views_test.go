@@ -33,7 +33,7 @@ func TestBuildDashboardAppView(t *testing.T) {
 			proxyMode:    config.ProxyModeInternal,
 			summaryLabel: "Branch",
 			summaryValue: "main",
-			routeValue:   ":40001",
+			routeValue:   "Port 40001",
 			routeHint:    "Fallback port mode",
 		},
 		{

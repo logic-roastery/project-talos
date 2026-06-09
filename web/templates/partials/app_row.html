@@ -1,32 +1,37 @@
 {{define "app_row.html"}}
-<tr id="app-row-{{.ID}}" class="border-b border-hairline/50 hover:bg-ink/50 transition">
-    <td class="px-4 py-3">
-        <a href="/apps/{{.ID}}" class="text-violet hover:text-lime-accent font-medium transition">{{.Name}}</a>
-        <div class="mt-1 flex flex-wrap items-center gap-2">
-            <span class="inline-flex items-center rounded-full border border-hairline px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-muted">{{.TypeLabel}}</span>
-            <span class="text-xs text-muted">{{.OwnershipLabel}}</span>
+<tr id="app-row-{{.ID}}" class="border-b border-hairline/50 hover:bg-ink/30 transition">
+    <td class="px-5 py-3">
+        <div class="min-w-0">
+            <a href="/apps/{{.ID}}" class="block truncate text-sm font-semibold text-body hover:text-lime-accent transition">{{.Name}}</a>
+            <div class="mt-1 flex items-center gap-2 text-xs text-muted">
+                <span>{{.TypeLabel}}</span>
+                <span class="text-hairline">•</span>
+                <span>{{.OwnershipLabel}}</span>
+            </div>
         </div>
     </td>
-    <td class="px-4 py-3">
+    <td class="px-5 py-3 align-middle">
         <span class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full {{statusBg .Status}} {{statusText .Status}} border {{statusBorder .Status}}">
             <span class="w-1.5 h-1.5 rounded-full {{statusDot .Status}}"></span>
             {{.Status}}
         </span>
     </td>
-    <td class="px-4 py-3">
-        <div class="text-body text-sm">{{.SummaryValue}}</div>
-        <div class="mt-1 text-xs text-muted">{{.SummaryLabel}}</div>
+    <td class="px-5 py-3 align-middle">
+        <div class="truncate text-sm text-body">{{.SummaryValue}}</div>
+        <div class="mt-0.5 text-xs text-muted">{{.SummaryLabel}}</div>
     </td>
-    <td class="px-4 py-3">
+    <td class="px-5 py-3 align-middle">
         {{if .RouteLink}}
-        <a href="{{.RouteLink}}" target="_blank" class="text-body hover:text-lime-accent transition text-sm break-all">
+        <a href="{{.RouteLink}}" target="_blank" class="block truncate text-sm text-body hover:text-lime-accent transition">
             {{.RouteValue}}
         </a>
         {{else}}
-        <span class="text-body text-sm">{{.RouteValue}}</span>
+        <span class="block truncate text-sm text-body">{{.RouteValue}}</span>
         {{end}}
-        <div class="mt-1 text-xs text-muted">{{.RouteHint}}</div>
+        <div class="mt-0.5 text-xs text-muted">{{.RouteHint}}</div>
     </td>
-    <td class="px-4 py-3 text-muted text-xs">{{timeAgo .UpdatedAt}}</td>
+    <td class="px-5 py-3 align-middle text-sm text-muted whitespace-nowrap">
+        {{timeAgo .UpdatedAt}}
+    </td>
 </tr>
 {{end}}
