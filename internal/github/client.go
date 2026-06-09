@@ -86,6 +86,12 @@ func (c *AppClient) InstallationClient(ctx context.Context, installationID int64
 	return client, nil
 }
 
+// GetInstallationToken returns an installation access token for the given installation ID.
+// This is useful for operations that need the raw token, such as git clone.
+func (c *AppClient) GetInstallationToken(ctx context.Context, installationID int64) (string, error) {
+	return c.getInstallationToken(ctx, installationID)
+}
+
 // getInstallationToken returns a cached or fresh installation access token.
 func (c *AppClient) getInstallationToken(ctx context.Context, installationID int64) (string, error) {
 	c.mu.Lock()

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/logic-roastery/project-talos/internal/builder"
 	"github.com/logic-roastery/project-talos/internal/domain"
 	"github.com/logic-roastery/project-talos/internal/proxy/traefik"
 	"github.com/logic-roastery/project-talos/internal/runtime/docker"
@@ -22,10 +23,11 @@ type Engine struct {
 	provisioner *services.Provisioner
 	docker      *docker.Client
 	proxy       *traefik.Manager
+	builder     *builder.Builder
 	logger      *slog.Logger
 }
 
-func NewEngine(apps store.AppStore, deploys store.DeployStore, services store.ServiceStore, provisioner *services.Provisioner, docker *docker.Client, proxy *traefik.Manager, logger *slog.Logger) *Engine {
+func NewEngine(apps store.AppStore, deploys store.DeployStore, services store.ServiceStore, provisioner *services.Provisioner, docker *docker.Client, proxy *traefik.Manager, builder *builder.Builder, logger *slog.Logger) *Engine {
 	return &Engine{
 		apps:        apps,
 		deploys:     deploys,
@@ -33,6 +35,7 @@ func NewEngine(apps store.AppStore, deploys store.DeployStore, services store.Se
 		provisioner: provisioner,
 		docker:      docker,
 		proxy:       proxy,
+		builder:     builder,
 		logger:      logger,
 	}
 }
@@ -52,6 +55,18 @@ func (e *Engine) Deploy(ctx context.Context, appID int64, imageRef, commitSHA, b
 	}
 	if latest != nil && latest.Status == domain.DeployStatusRunning {
 		return nil, domain.ErrDeployInProgress
+	}
+
+	// For talos_build mode, build the image locally if no imageRef provided
+	if app.BuildMode == domain.BuildModeTalosBuild && imageRef == "" {
+		if e.builder == nil {
+			return nil, fmt.Errorf("builder not configured for talos_build mode")
+		}
+		builtImageRef, err := e.builder.CloneAndBuild(ctx, app, commitSHA)
+		if err != nil {
+			return nil, fmt.Errorf("clone and build: %w", err)
+		}
+		imageRef = builtImageRef
 	}
 
 	d := &domain.Deploy{

@@ -142,6 +142,69 @@ Set these to enable automatic deployments from GitHub pushes:
 
 Or use the setup wizard at `/settings/github/setup`.
 
+## Push to Deploy
+
+Talos supports automatic deployments when you push code to your GitHub repository. There are two build modes available:
+
+### Build Modes
+
+| Mode | Description | Best For |
+|------|-------------|----------|
+| **External CI** | GitHub Actions builds and pushes the image, then Talos deploys it | Teams already using GitHub Actions, complex build pipelines |
+| **Talos Build** | Talos clones the repository, builds the image locally, then deploys it | Simple projects, no external CI needed |
+
+### External CI Mode (Default)
+
+In this mode, Talos generates a GitHub Actions workflow that:
+1. Builds your Docker image on push
+2. Pushes it to GitHub Container Registry (GHCR)
+3. Notifies Talos webhook after success
+4. Talos deploys the new image automatically
+
+**Setup:**
+1. Create a managed app and select "External CI" build mode
+2. Connect your GitHub repository
+3. Push to your tracked branch
+4. GitHub Actions builds and pushes the image
+5. Talos deploys automatically
+
+### Talos Build Mode
+
+In this mode, Talos handles everything:
+1. Receives push event from GitHub
+2. Clones the repository at the pushed commit
+3. Builds the Docker image locally
+4. Deploys the image through the existing rollout engine
+
+**Setup:**
+1. Create a managed app and select "Talos Build" build mode
+2. Connect your GitHub repository
+3. Push to your tracked branch
+4. Talos clones, builds, and deploys automatically
+
+**Requirements:**
+- Docker must be available on the Talos server
+- Repository must have a Dockerfile in the root
+
+### How It Works
+
+When you push code to your tracked branch:
+
+1. **Webhook received**: Talos receives a push or workflow_run event from GitHub
+2. **App identified**: Talos finds the app using stable GitHub repo identity (not app name)
+3. **Branch validated**: Only deploys if the push is to the configured branch
+4. **Build mode checked**: Routes to the correct build path based on app configuration
+5. **Image built/pulled**: Either builds locally (talos_build) or pulls from registry (external_ci)
+6. **Blue/green deploy**: Starts staging container, health checks, then switches traffic
+7. **Rollback on failure**: If health check fails, staging container is destroyed and old one keeps running
+
+### Manual Deploy
+
+You can always trigger a manual deploy from the app detail page, regardless of build mode. This is useful for:
+- Deploying a specific image tag
+- Rolling back to a previous version
+- Testing before enabling auto-deploy
+
 ## Architecture
 
 ```mermaid

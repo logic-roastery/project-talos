@@ -238,6 +238,7 @@ func (h *PageHandler) AppCreatePage(w http.ResponseWriter, r *http.Request) {
 func (h *PageHandler) AppCreateSubmit(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	appType := normalizeAppType(domain.AppType(r.FormValue("app_type")))
+	buildMode := normalizeBuildMode(domain.BuildMode(r.FormValue("build_mode")))
 	repoURL := r.FormValue("repo_url")
 	branch := r.FormValue("branch")
 	portStr := r.FormValue("internal_port")
@@ -265,6 +266,7 @@ func (h *PageHandler) AppCreateSubmit(w http.ResponseWriter, r *http.Request) {
 	app := &domain.App{
 		Name:           name,
 		AppType:        appType,
+		BuildMode:      buildMode,
 		RuntimeOwner:   runtimeOwnerForType(appType),
 		EdgeProvider:   edgeProviderForMode(h.proxyMode),
 		Source:         sourceForType(appType),

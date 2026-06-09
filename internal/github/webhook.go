@@ -28,9 +28,12 @@ type WebhookResult struct {
 
 // WorkflowRunPayload represents a workflow_run webhook event.
 type WorkflowRunPayload struct {
-	Action     string     `json:"action"`
-	Repository Repository `json:"repository"`
-	Workflow   Workflow   `json:"workflow_run"`
+	Action       string     `json:"action"`
+	Repository   Repository `json:"repository"`
+	Workflow     Workflow   `json:"workflow_run"`
+	Installation struct {
+		ID int64 `json:"id"`
+	} `json:"installation"`
 }
 
 // InstallationPayload represents an installation webhook event.
@@ -38,6 +41,16 @@ type InstallationPayload struct {
 	Action       string              `json:"action"`
 	Installation Installation        `json:"installation"`
 	Repositories []RepositorySummary `json:"repositories"`
+}
+
+// PushPayload represents a push webhook event.
+type PushPayload struct {
+	Ref          string     `json:"ref"`
+	After        string     `json:"after"`
+	Repository   Repository `json:"repository"`
+	Installation struct {
+		ID int64 `json:"id"`
+	} `json:"installation"`
 }
 
 // Installation contains the installation details.
@@ -117,6 +130,15 @@ func ParseInstallation(payload []byte) (*InstallationPayload, error) {
 	var p InstallationPayload
 	if err := json.Unmarshal(payload, &p); err != nil {
 		return nil, fmt.Errorf("parse installation: %w", err)
+	}
+	return &p, nil
+}
+
+// ParsePush parses a push event payload.
+func ParsePush(payload []byte) (*PushPayload, error) {
+	var p PushPayload
+	if err := json.Unmarshal(payload, &p); err != nil {
+		return nil, fmt.Errorf("parse push: %w", err)
 	}
 	return &p, nil
 }

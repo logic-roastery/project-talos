@@ -202,3 +202,39 @@ jobs:
             }'
 `, cfg.Branch, cfg.ImageRef, cfg.WebhookURL)
 }
+
+// GenerateTalosBuildWorkflow generates a GitHub Actions workflow YAML for talos_build mode.
+// This workflow only notifies Talos on push - Talos handles the build.
+func GenerateTalosBuildWorkflow(cfg WorkflowConfig) string {
+	return fmt.Sprintf(`name: Notify Talos (talos_build)
+
+on:
+  push:
+    branches: [%s]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Notify Talos
+        run: |
+          curl -X POST "%s/api/webhooks/github" \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: push" \
+            -d '{
+              "ref": "${{ github.ref }}",
+              "after": "${{ github.sha }}",
+              "repository": {
+                "id": ${{ github.repository_id }},
+                "full_name": "${{ github.repository }}",
+                "clone_url": "${{ github.server_url }}/${{ github.repository }}.git"
+              },
+              "installation": {
+                "id": ${{ github.repository_owner.id }}
+              }
+            }'
+`, cfg.Branch, cfg.WebhookURL)
+}

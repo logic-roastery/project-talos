@@ -194,15 +194,28 @@ func (h *GitHubHandler) setupWorkflow(ctx context.Context, app *domain.App, repo
 			return fmt.Sprintf("http://%s", h.host)
 		}(),
 	}
-	workflowYAML := github.GenerateWorkflow(workflowCfg)
+
+	// Choose workflow based on build mode
+	var workflowYAML string
+	var workflowPath string
+	var commitMessage string
+	if app.BuildMode == domain.BuildModeTalosBuild {
+		workflowYAML = github.GenerateTalosBuildWorkflow(workflowCfg)
+		workflowPath = ".github/workflows/talos-notify.yml"
+		commitMessage = "Add Talos notify workflow (talos_build mode)"
+	} else {
+		workflowYAML = github.GenerateWorkflow(workflowCfg)
+		workflowPath = ".github/workflows/talos-deploy.yml"
+		commitMessage = "Add Talos deploy workflow"
+	}
 
 	// Commit the workflow file
 	if err := h.ghClient.CreateOrUpdateFile(ctx, installationID, owner, repoName,
-		".github/workflows/talos-deploy.yml", []byte(workflowYAML), "Add Talos deploy workflow"); err != nil {
+		workflowPath, []byte(workflowYAML), commitMessage); err != nil {
 		return fmt.Errorf("create workflow: %w", err)
 	}
 
-	h.logger.Info("workflow created", "repo", repo.FullName, "app", app.Name)
+	h.logger.Info("workflow created", "repo", repo.FullName, "app", app.Name, "build_mode", app.BuildMode)
 	return nil
 }
 

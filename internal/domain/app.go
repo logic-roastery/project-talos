@@ -25,6 +25,13 @@ const (
 	AppTypeExternalService  AppType = "external_service"
 )
 
+type BuildMode string
+
+const (
+	BuildModeExternalCI BuildMode = "external_ci" // GitHub Actions builds, Talos deploys
+	BuildModeTalosBuild BuildMode = "talos_build" // Talos clones and builds, then deploys
+)
+
 type RuntimeOwner string
 
 const (
@@ -43,6 +50,7 @@ type App struct {
 	ID                   int64        `json:"id"`
 	Name                 string       `json:"name"`
 	AppType              AppType      `json:"app_type"`
+	BuildMode            BuildMode    `json:"build_mode"`
 	RuntimeOwner         RuntimeOwner `json:"runtime_owner"`
 	EdgeProvider         EdgeProvider `json:"edge_provider"`
 	Source               string       `json:"source"`

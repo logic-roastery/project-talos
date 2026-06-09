@@ -14,6 +14,7 @@ import (
 
 	"github.com/logic-roastery/project-talos/internal/auth"
 	"github.com/logic-roastery/project-talos/internal/backup"
+	"github.com/logic-roastery/project-talos/internal/builder"
 	"github.com/logic-roastery/project-talos/internal/config"
 	"github.com/logic-roastery/project-talos/internal/crypto"
 	"github.com/logic-roastery/project-talos/internal/deploy"
@@ -130,7 +131,6 @@ func main() {
 
 	dataDir := filepath.Dir(cfg.Database.Path)
 	provisioner := services.NewProvisioner(db, dockerClient, dataDir, encKey, logger)
-	engine := deploy.NewEngine(db, db, db, provisioner, dockerClient, proxy, logger)
 	webhook := github.NewWebhookHandler(cfg.GitHub.WebhookSecret)
 
 	// Initialize GitHub App client (optional)
@@ -143,6 +143,14 @@ func main() {
 			logger.Info("github app configured", "app_id", cfg.GitHub.AppID)
 		}
 	}
+
+	// Initialize builder for talos_build mode (optional)
+	var buildr *builder.Builder
+	if ghClient != nil {
+		buildr = builder.NewBuilder(ghClient, dockerClient, logger, dataDir)
+	}
+
+	engine := deploy.NewEngine(db, db, db, provisioner, dockerClient, proxy, buildr, logger)
 
 	renderer, err := web.NewRenderer()
 	if err != nil {
