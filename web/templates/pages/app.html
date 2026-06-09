@@ -3,134 +3,46 @@
     <a href="/dashboard" class="text-muted hover:text-body text-sm transition">&larr; Back to dashboard</a>
 </div>
 
-<!-- App Info -->
 <div class="bg-night border border-hairline rounded-xl p-6 mb-6">
-    <div class="flex items-start justify-between mb-4">
-        <div>
-            <h1 class="text-xl font-semibold text-heading">{{.App.Name}}</h1>
-            <p class="text-muted text-sm mt-1">{{.App.RepoURL}}</p>
-        </div>
-        <span class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full {{statusBg .App.Status}} {{statusText .App.Status}} border {{statusBorder .App.Status}}">
-            <span class="w-1.5 h-1.5 rounded-full {{statusDot .App.Status}}"></span>
-            {{.App.Status}}
-        </span>
-    </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-        <div>
-            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Branch</span>
-            <span class="text-body">{{.App.Branch}}</span>
-        </div>
-        <div>
-            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Port</span>
-            <span class="text-body">{{.App.InternalPort}}</span>
-        </div>
-        <div>
-            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Access</span>
-            {{if .App.AccessURL}}
-            <a href="{{.App.AccessURL}}" target="_blank" class="text-violet hover:text-lime-accent transition">{{.App.AccessURL}}</a>
-            {{else}}
-            <span class="text-gray-600">—</span>
-            {{end}}
-        </div>
-        <div>
-            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Mode</span>
-            <span class="text-body">{{.App.AccessMode}}</span>
-        </div>
-    </div>
-</div>
-
-<!-- GitHub Integration -->
-<div class="bg-night border border-hairline rounded-xl p-6 mb-6">
-    <h2 class="text-lg font-semibold text-heading mb-4">GitHub Integration</h2>
-    {{if .App.GitHubInstallationID}}
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div class="space-y-4">
-            <div class="inline-flex items-center gap-2 rounded-full border border-lime-accent/20 bg-lime-accent/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-lime-accent">
-                <span class="h-1.5 w-1.5 rounded-full bg-lime-accent"></span>
-                Connected
+        <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-3">
+                <h1 class="text-xl font-semibold text-heading">{{.App.Name}}</h1>
+                <span class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full {{statusBg .App.Status}} {{statusText .App.Status}} border {{statusBorder .App.Status}}">
+                    <span class="w-1.5 h-1.5 rounded-full {{statusDot .App.Status}}"></span>
+                    {{.App.Status}}
+                </span>
+                <span class="inline-flex items-center rounded-full border border-hairline px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-muted">{{.App.AppType}}</span>
             </div>
-            <p class="text-faint text-sm max-w-2xl">Auto-deploy is enabled. Pushes to <strong class="text-body">{{.App.Branch}}</strong> will trigger automatic deployments for this app.</p>
-            <div class="grid gap-3 sm:grid-cols-2">
-                <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-3 py-3">
-                    <span class="block text-[11px] uppercase tracking-[0.18em] text-muted">Repository ID</span>
-                    <span class="mt-1 block font-mono text-sm text-subtle">{{.App.GitHubRepoID}}</span>
-                </div>
-                <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-3 py-3">
-                    <span class="block text-[11px] uppercase tracking-[0.18em] text-muted">Branch Watch</span>
-                    <span class="mt-1 block text-sm text-body">{{.App.Branch}}</span>
-                </div>
-            </div>
+            <p class="mt-2 text-sm text-muted">
+                {{if eq .App.AppType "managed"}}
+                {{.App.RepoURL}}
+                {{else if eq .App.AppType "adopted_container"}}
+                Existing container: <span class="text-body">{{.App.ContainerName}}</span>
+                {{else}}
+                External target: <span class="text-body">{{.App.ExternalTarget}}</span>
+                {{end}}
+            </p>
         </div>
-        <button hx-post="/api/github/disconnect?app_id={{.App.ID}}" hx-confirm="Disconnect GitHub? Auto-deploy will be disabled."
-            hx-on::after-request="if(event.detail.successful) window.location.reload()"
-            class="inline-flex items-center gap-2 rounded-xl border border-hairline bg-hairline px-4 py-2.5 text-sm text-muted transition hover:text-pink-accent cursor-pointer">
-            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M15.75 9V5.625A2.625 2.625 0 0 0 13.125 3h-6.75A2.625 2.625 0 0 0 3.75 5.625v12.75A2.625 2.625 0 0 0 6.375 21h6.75a2.625 2.625 0 0 0 2.625-2.625V15m4.5-3-3-3m3 3-3 3m3-3H9"></path>
-            </svg>
-            Disconnect GitHub
-        </button>
-    </div>
-    {{else if .GitHubConfigured}}
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-    <p class="text-faint text-sm max-w-2xl">Connect this app to GitHub to enable automatic deployments on every push to the tracked branch.</p>
-    <a href="/api/github/install?app_id={{.App.ID}}"
-        class="inline-flex items-center gap-2 rounded-xl bg-hairline text-body px-4 py-2.5 hover:bg-violet-mid transition text-sm">
-        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-        Connect to GitHub
-    </a>
-    </div>
-    {{else}}
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-    <p class="text-faint text-sm max-w-2xl">GitHub App is not configured yet. Set it up first to enable auto-deployments and repository-triggered releases.</p>
-    <a href="/settings/github/setup"
-        class="inline-flex items-center gap-2 rounded-xl bg-hairline text-body px-4 py-2.5 hover:bg-violet-mid transition text-sm">
-        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-        Set up GitHub App
-    </a>
-    </div>
-    {{end}}
-</div>
-
-<!-- Actions -->
-<div class="mb-8 space-y-4">
-    <form hx-post="/apps/{{.App.ID}}/deploy" hx-target="#deploy-history" hx-swap="afterbegin"
-          class="flex flex-1 flex-col gap-3 rounded-xl border border-hairline bg-night p-4 sm:flex-row sm:items-end">
-        <div class="min-w-0 flex-1">
-            <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Image Ref</label>
-            <input type="text" name="image_ref" required placeholder="user/app:tag"
-                value="{{.App.ImageRef}}"
-                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2.5 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition text-sm">
-        </div>
-        <input type="hidden" name="branch" value="{{.App.Branch}}">
-        <button type="submit"
-            class="inline-flex items-center justify-center gap-2 bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition text-sm cursor-pointer whitespace-nowrap uppercase tracking-wider">
-            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4.5 12h11.25m0 0-4.5-4.5m4.5 4.5-4.5 4.5m3.75-12h3A2.25 2.25 0 0 1 21 6.75v10.5A2.25 2.25 0 0 1 18.75 19.5h-3"></path>
-            </svg>
-            Deploy
-        </button>
-    </form>
-
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex flex-wrap items-center gap-3">
-        <form hx-post="/apps/{{.App.ID}}/rollback" hx-target="#deploy-history" hx-swap="afterbegin">
-            <button type="submit" hx-confirm="Rollback to last successful deploy?"
+        <div class="flex flex-wrap items-center gap-2">
+            {{if eq .App.AppType "adopted_container"}}
+            <button onclick="restartAdoptedApp()"
                 class="inline-flex items-center gap-2 rounded-xl border border-hairline bg-hairline px-4 py-2.5 text-sm text-muted transition hover:text-body cursor-pointer">
                 <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 14 4.5 9.5 9 5m-4.5 4h9.75a5.25 5.25 0 0 1 0 10.5H12"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M16.023 9.348h4.992V4.356m-.99 9.894a9 9 0 1 1-2.869-9.126l3.86 4.224"></path>
                 </svg>
-                Rollback
+                Restart Container
             </button>
-        </form>
-        <a href="/apps/{{.App.ID}}/settings"
-            class="inline-flex items-center gap-2 rounded-xl bg-violet-mid px-4 py-2.5 text-sm text-white transition hover:bg-violet">
-            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M10.5 6h9m-9 6h9m-9 6h9M4.5 6h.008v.008H4.5V6Zm0 6h.008v.008H4.5V12Zm0 6h.008v.008H4.5V18Z"></path>
-            </svg>
-            Settings
-        </a>
-        </div>
-        <div>
+            {{end}}
+            {{if eq .App.AppType "managed"}}
+            <a href="/apps/{{.App.ID}}/settings"
+                class="inline-flex items-center gap-2 rounded-xl bg-violet-mid px-4 py-2.5 text-sm text-white transition hover:bg-violet">
+                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M10.5 6h9m-9 6h9m-9 6h9M4.5 6h.008v.008H4.5V6Zm0 6h.008v.008H4.5V12Zm0 6h.008v.008H4.5V18Z"></path>
+                </svg>
+                Settings
+            </a>
+            {{end}}
             <button hx-delete="/apps/{{.App.ID}}" hx-confirm="Delete {{.App.Name}}? This cannot be undone."
                 hx-on::after-request="if(event.detail.successful) window.location.href='/dashboard'"
                 class="inline-flex items-center gap-2 px-1 py-2 text-sm text-muted transition hover:text-pink-accent cursor-pointer">
@@ -141,56 +53,181 @@
             </button>
         </div>
     </div>
-</div>
 
-<!-- Live Logs -->
-<div class="bg-night border border-hairline rounded-xl p-6 mb-6">
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-heading">Live Logs</h2>
-        <div class="flex items-center gap-3">
-            <span id="log-status" class="inline-flex items-center gap-2 rounded-full border border-hairline bg-canvas-dark/50 px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-muted">
-                <span id="log-status-dot" class="h-1.5 w-1.5 rounded-full bg-muted"></span>
-                <span id="log-status-label">Disconnected</span>
-            </span>
-            <button id="log-toggle" onclick="toggleLogs()"
-                class="inline-flex items-center gap-2 rounded-xl bg-hairline px-3 py-2 text-xs uppercase tracking-[0.16em] text-muted hover:text-body transition cursor-pointer">
-                <svg id="log-toggle-icon" class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6.75 4.5v15m10.5-15v15M9.75 8.25 15 12l-5.25 3.75V8.25Z"></path>
-                </svg>
-                Connect
-            </button>
+    <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4 text-sm">
+        <div>
+            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Edge</span>
+            <span class="text-body">{{.App.EdgeProvider}}</span>
+        </div>
+        <div>
+            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Access Mode</span>
+            <span class="text-body">{{.App.AccessMode}}</span>
+        </div>
+        <div>
+            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Public URL</span>
+            {{if .App.AccessURL}}
+            <a href="{{.App.AccessURL}}" target="_blank" class="text-violet hover:text-lime-accent transition break-all">{{.App.AccessURL}}</a>
+            {{else}}
+            <span class="text-gray-600">Not published</span>
+            {{end}}
+        </div>
+        <div>
+            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Runtime Owner</span>
+            <span class="text-body">{{.App.RuntimeOwner}}</span>
         </div>
     </div>
-    <p class="mb-4 text-sm text-muted">Stream the current container output directly from Docker. The panel auto-connects on load and can be reconnected any time.</p>
-    <div id="log-output" class="bg-canvas-dark border border-hairline rounded-md p-4 h-64 overflow-y-auto font-mono text-xs text-muted hidden">
-    </div>
 </div>
 
-<!-- Deploy History -->
-<h2 class="text-lg font-semibold text-heading mb-4">Deploy History</h2>
-<div class="bg-night border border-hairline rounded-xl overflow-hidden">
-    <table class="w-full text-sm">
-        <thead>
-            <tr class="border-b border-hairline text-left text-xs text-muted uppercase tracking-wider">
-                <th class="px-4 py-3">ID</th>
-                <th class="px-4 py-3">Image</th>
-                <th class="px-4 py-3">Status</th>
-                <th class="px-4 py-3">Triggered</th>
-                <th class="px-4 py-3">Commit</th>
-                <th class="px-4 py-3">Time</th>
-            </tr>
-        </thead>
-        <tbody id="deploy-history">
-            {{range .Deploys}}
-            {{template "deploy_row.html" dict "Deploy" . "AppID" $.App.ID}}
+<div class="grid gap-6 xl:grid-cols-[1.15fr_0.85fr] mb-6">
+    <div class="space-y-6">
+        <div class="bg-night border border-hairline rounded-xl p-6">
+            <div class="mb-4 flex items-center justify-between gap-3">
+                <h2 class="text-lg font-semibold text-heading">Runtime</h2>
+                {{if .RuntimeInfo}}
+                <span class="inline-flex items-center rounded-full border border-hairline px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-muted">{{.RuntimeInfo.State}}</span>
+                {{end}}
+            </div>
+            <div class="grid gap-3 sm:grid-cols-2">
+                <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                    <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Container</span>
+                    <span class="mt-2 block break-all text-sm text-body">{{if .App.ContainerName}}{{.App.ContainerName}}{{else if .App.LiveContainerName}}{{.App.LiveContainerName}}{{else}}—{{end}}</span>
+                </div>
+                <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                    <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Internal Port</span>
+                    <span class="mt-2 block text-sm text-body">{{if gt .App.InternalPort 0}}{{.App.InternalPort}}{{else}}—{{end}}</span>
+                </div>
+                <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                    <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Image</span>
+                    <span class="mt-2 block break-all text-sm text-subtle">{{if .RuntimeInfo}}{{.RuntimeInfo.Image}}{{else if .App.ImageRef}}{{.App.ImageRef}}{{else}}—{{end}}</span>
+                </div>
+                <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                    <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Networks</span>
+                    <span class="mt-2 block break-all text-sm text-subtle">{{if .RuntimeInfo}}{{range $index, $network := .RuntimeInfo.Networks}}{{if $index}}, {{end}}{{$network}}{{end}}{{else if .App.DockerNetwork}}{{.App.DockerNetwork}}{{else}}—{{end}}</span>
+                </div>
+            </div>
+        </div>
+
+        {{if .ManualRouteSnippet}}
+        <div class="bg-night border border-hairline rounded-xl p-6">
+            <div class="mb-4">
+                <h2 class="text-lg font-semibold text-heading">External Traefik Route</h2>
+                <p class="mt-1 text-sm text-muted">Talos cannot mutate this upstream target directly. Apply this route to your shared Traefik file provider.</p>
+            </div>
+            <pre class="overflow-x-auto rounded-lg border border-hairline bg-canvas-dark/50 p-4 text-xs text-subtle"><code>{{.ManualRouteSnippet}}</code></pre>
+        </div>
+        {{end}}
+
+        {{if eq .App.AppType "managed"}}
+        <div class="bg-night border border-hairline rounded-xl p-6">
+            <h2 class="text-lg font-semibold text-heading mb-4">GitHub Integration</h2>
+            {{if .App.GitHubInstallationID}}
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div class="space-y-4">
+                    <div class="inline-flex items-center gap-2 rounded-full border border-lime-accent/20 bg-lime-accent/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-lime-accent">
+                        <span class="h-1.5 w-1.5 rounded-full bg-lime-accent"></span>
+                        Connected
+                    </div>
+                    <p class="text-faint text-sm max-w-2xl">Auto-deploy is enabled. Pushes to <strong class="text-body">{{.App.Branch}}</strong> will trigger automatic deployments for this app.</p>
+                </div>
+                <button hx-post="/api/github/disconnect?app_id={{.App.ID}}" hx-confirm="Disconnect GitHub? Auto-deploy will be disabled."
+                    hx-on::after-request="if(event.detail.successful) window.location.reload()"
+                    class="inline-flex items-center gap-2 rounded-xl border border-hairline bg-hairline px-4 py-2.5 text-sm text-muted transition hover:text-pink-accent cursor-pointer">
+                    Disconnect GitHub
+                </button>
+            </div>
+            {{else if .GitHubConfigured}}
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <p class="text-faint text-sm max-w-2xl">Connect this app to GitHub to enable automatic deployments on every push to the tracked branch.</p>
+                <a href="/api/github/install?app_id={{.App.ID}}" class="inline-flex items-center gap-2 rounded-xl bg-hairline text-body px-4 py-2.5 hover:bg-violet-mid transition text-sm">Connect to GitHub</a>
+            </div>
+            {{else}}
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <p class="text-faint text-sm max-w-2xl">GitHub App is not configured yet. Set it up first to enable auto-deployments and repository-triggered releases.</p>
+                <a href="/settings/github/setup" class="inline-flex items-center gap-2 rounded-xl bg-hairline text-body px-4 py-2.5 hover:bg-violet-mid transition text-sm">Set up GitHub App</a>
+            </div>
             {{end}}
-            {{if not .Deploys}}
-            <tr>
-                <td colspan="6" class="px-4 py-8 text-center text-muted">No deploys yet.</td>
-            </tr>
-            {{end}}
-        </tbody>
-    </table>
+        </div>
+
+        <div class="mb-2 space-y-4">
+            <form hx-post="/apps/{{.App.ID}}/deploy" hx-target="#deploy-history" hx-swap="afterbegin"
+                  class="flex flex-1 flex-col gap-3 rounded-xl border border-hairline bg-night p-4 sm:flex-row sm:items-end">
+                <div class="min-w-0 flex-1">
+                    <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Image Ref</label>
+                    <input type="text" name="image_ref" required placeholder="user/app:tag"
+                        value="{{.App.ImageRef}}"
+                        class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2.5 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition text-sm">
+                </div>
+                <input type="hidden" name="branch" value="{{.App.Branch}}">
+                <button type="submit"
+                    class="inline-flex items-center justify-center gap-2 bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition text-sm cursor-pointer whitespace-nowrap uppercase tracking-wider">
+                    Deploy
+                </button>
+            </form>
+
+            <form hx-post="/apps/{{.App.ID}}/rollback" hx-target="#deploy-history" hx-swap="afterbegin">
+                <button type="submit" hx-confirm="Rollback to last successful deploy?"
+                    class="inline-flex items-center gap-2 rounded-xl border border-hairline bg-hairline px-4 py-2.5 text-sm text-muted transition hover:text-body cursor-pointer">
+                    Rollback
+                </button>
+            </form>
+        </div>
+        {{end}}
+    </div>
+
+    <div class="space-y-6">
+        {{if ne .App.AppType "external_service"}}
+        <div class="bg-night border border-hairline rounded-xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-heading">Live Logs</h2>
+                <div class="flex items-center gap-3">
+                    <span id="log-status" class="inline-flex items-center gap-2 rounded-full border border-hairline bg-canvas-dark/50 px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-muted">
+                        <span id="log-status-dot" class="h-1.5 w-1.5 rounded-full bg-muted"></span>
+                        <span id="log-status-label">Disconnected</span>
+                    </span>
+                    <button id="log-toggle" onclick="toggleLogs()"
+                        class="inline-flex items-center gap-2 rounded-xl bg-hairline px-3 py-2 text-xs uppercase tracking-[0.16em] text-muted hover:text-body transition cursor-pointer">
+                        <svg id="log-toggle-icon" class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6.75 4.5v15m10.5-15v15M9.75 8.25 15 12l-5.25 3.75V8.25Z"></path>
+                        </svg>
+                        Connect
+                    </button>
+                </div>
+            </div>
+            <p class="mb-4 text-sm text-muted">Stream the current container output directly from Docker.</p>
+            <div id="log-output" class="bg-canvas-dark border border-hairline rounded-md p-4 h-64 overflow-y-auto font-mono text-xs text-muted hidden"></div>
+        </div>
+        {{end}}
+
+        {{if eq .App.AppType "managed"}}
+        <div>
+            <h2 class="text-lg font-semibold text-heading mb-4">Deploy History</h2>
+            <div class="bg-night border border-hairline rounded-xl overflow-hidden">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-hairline text-left text-xs text-muted uppercase tracking-wider">
+                            <th class="px-4 py-3">ID</th>
+                            <th class="px-4 py-3">Image</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3">Triggered</th>
+                            <th class="px-4 py-3">Commit</th>
+                            <th class="px-4 py-3">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deploy-history">
+                        {{range .Deploys}}
+                        {{template "deploy_row.html" dict "Deploy" . "AppID" $.App.ID}}
+                        {{end}}
+                        {{if not .Deploys}}
+                        <tr>
+                            <td colspan="6" class="px-4 py-8 text-center text-muted">No deploys yet.</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {{end}}
+    </div>
 </div>
 
 <script>
@@ -205,6 +242,8 @@
     var appId = '{{.App.ID}}';
     var connectIcon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6.75 4.5v15m10.5-15v15M9.75 8.25 15 12l-5.25 3.75V8.25Z"></path>';
     var disconnectIcon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6.75 5.25h10.5m-10.5 13.5h10.5M9.75 8.25v7.5m4.5-7.5v7.5"></path>';
+
+    if (!logOutput || !logStatus || !logToggle || !logToggleIcon) return;
 
     function setStatus(text, color) {
         logStatusLabel.textContent = text;
@@ -221,12 +260,8 @@
     function appendLine(type, data) {
         var div = document.createElement('div');
         div.className = 'py-0.5';
-        var prefix = '';
-        if (type === 'stderr') {
-            div.className += ' text-pink-accent';
-            prefix = '[err] ';
-        }
-        div.textContent = prefix + data;
+        if (type === 'stderr') div.className += ' text-pink-accent';
+        div.textContent = (type === 'stderr' ? '[err] ' : '') + data;
         logOutput.appendChild(div);
         logOutput.scrollTop = logOutput.scrollHeight;
     }
@@ -240,60 +275,51 @@
             logToggle.prepend(logToggleIcon);
             logToggleIcon.innerHTML = connectIcon;
             logOutput.classList.add('hidden');
-        } else {
-            logOutput.classList.remove('hidden');
-            logOutput.innerHTML = '';
-            setStatus('Connecting...', 'text-yellow-400');
-            logToggle.textContent = 'Disconnect';
+            return;
+        }
+
+        logOutput.classList.remove('hidden');
+        logOutput.innerHTML = '';
+        setStatus('Connecting...', 'text-yellow-400');
+        logToggle.textContent = 'Disconnect';
+        logToggle.prepend(logToggleIcon);
+        logToggleIcon.innerHTML = disconnectIcon;
+
+        logSource = new EventSource('/api/apps/' + appId + '/logs/stream');
+        logSource.addEventListener('status', function(e) {
+            if (e.data === 'connected') {
+                setStatus('Connected', 'text-lime-accent');
+            } else if (e.data === 'stopped') {
+                setStatus('Container stopped', 'text-yellow-400');
+                logSource.close();
+                logSource = null;
+                logToggle.textContent = 'Connect';
+                logToggle.prepend(logToggleIcon);
+                logToggleIcon.innerHTML = connectIcon;
+            }
+        });
+        logSource.addEventListener('stdout', function(e) { appendLine('stdout', e.data); });
+        logSource.addEventListener('stderr', function(e) { appendLine('stderr', e.data); });
+        logSource.onerror = function() {
+            if (logSource) {
+                logSource.close();
+                logSource = null;
+            }
+            setStatus('Disconnected', 'text-muted');
+            logToggle.textContent = 'Connect';
             logToggle.prepend(logToggleIcon);
-            logToggleIcon.innerHTML = disconnectIcon;
-
-            logSource = new EventSource('/api/apps/' + appId + '/logs/stream');
-
-            logSource.addEventListener('status', function(e) {
-                if (e.data === 'connected') {
-                    setStatus('Connected', 'text-lime-accent');
-                } else if (e.data === 'stopped') {
-                    setStatus('Container stopped', 'text-yellow-400');
-                    logSource.close();
-                    logSource = null;
-                    logToggle.textContent = 'Connect';
-                    logToggle.prepend(logToggleIcon);
-                    logToggleIcon.innerHTML = connectIcon;
-                }
-            });
-
-            logSource.addEventListener('stdout', function(e) {
-                appendLine('stdout', e.data);
-            });
-
-            logSource.addEventListener('stderr', function(e) {
-                appendLine('stderr', e.data);
-            });
-
-            logSource.onerror = function() {
-                if (logSource) {
-                    logSource.close();
-                    logSource = null;
-                    setStatus('Disconnected', 'text-muted');
-                    logToggle.textContent = 'Connect';
-                    logToggle.prepend(logToggleIcon);
-                    logToggleIcon.innerHTML = connectIcon;
-                }
-            };
-        }
+            logToggleIcon.innerHTML = connectIcon;
+        };
     };
-
-    // Auto-connect on page load
-    window.toggleLogs();
-
-    // Clean disconnect on page unload
-    window.addEventListener('beforeunload', function() {
-        if (logSource) {
-            logSource.close();
-            logSource = null;
-        }
-    });
 })();
+
+async function restartAdoptedApp() {
+    const res = await fetch('/api/apps/{{.App.ID}}/restart', { method: 'POST' });
+    if (res.ok) {
+        window.location.reload();
+        return;
+    }
+    alert('Failed to restart container');
+}
 </script>
 {{end}}

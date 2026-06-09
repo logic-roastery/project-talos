@@ -111,6 +111,12 @@ var allMigrations = map[int]string{
 		status      TEXT    NOT NULL DEFAULT 'completed',
 		created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)`,
+	21: `ALTER TABLE apps ADD COLUMN app_type TEXT NOT NULL DEFAULT 'managed'`,
+	22: `ALTER TABLE apps ADD COLUMN runtime_owner TEXT NOT NULL DEFAULT 'talos'`,
+	23: `ALTER TABLE apps ADD COLUMN edge_provider TEXT NOT NULL DEFAULT 'internal_traefik'`,
+	24: `ALTER TABLE apps ADD COLUMN container_name TEXT NOT NULL DEFAULT ''`,
+	25: `ALTER TABLE apps ADD COLUMN external_target TEXT NOT NULL DEFAULT ''`,
+	26: `ALTER TABLE apps ADD COLUMN docker_network TEXT NOT NULL DEFAULT ''`,
 }
 
 func (s *SQLiteStore) migrate() error {

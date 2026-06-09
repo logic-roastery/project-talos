@@ -46,8 +46,10 @@ type Snapshot struct {
 	Domain             string
 	ACMEEmail          string
 	ProxyMode          config.ProxyMode
+	EdgeProvider       config.EdgeProvider
 	EdgeNetwork        string
 	EdgeCertResolver   string
+	EdgeEntrypoint     string
 	Mode               InstallMode
 	EnvPath            string
 	DockerImage        string
@@ -62,8 +64,10 @@ type UpdateInput struct {
 	Domain           string
 	ACMEEmail        string
 	ProxyMode        config.ProxyMode
+	EdgeProvider     config.EdgeProvider
 	EdgeNetwork      string
 	EdgeCertResolver string
+	EdgeEntrypoint   string
 }
 
 func NewService(docker DockerInspector) *Service {
@@ -95,15 +99,19 @@ func (s *Service) Load(ctx context.Context, fallbackHost string, port int) (Snap
 	domain := strings.TrimSpace(values["TALOS_DOMAIN"])
 	email := strings.TrimSpace(values["TALOS_ACME_EMAIL"])
 	proxyMode := parseProxyMode(values["TALOS_PROXY_MODE"])
+	edgeProvider := parseEdgeProvider(values["TALOS_EDGE_PROVIDER"])
 	edgeNetwork := defaultString(values["TALOS_EDGE_NETWORK"], "traefik-public")
 	edgeCertResolver := defaultString(values["TALOS_EDGE_CERT_RESOLVER"], "letsencrypt")
+	edgeEntrypoint := defaultString(values["TALOS_EDGE_ENTRYPOINT"], "websecure")
 
 	return Snapshot{
 		Domain:             domain,
 		ACMEEmail:          email,
 		ProxyMode:          proxyMode,
+		EdgeProvider:       edgeProvider,
 		EdgeNetwork:        edgeNetwork,
 		EdgeCertResolver:   edgeCertResolver,
+		EdgeEntrypoint:     edgeEntrypoint,
 		Mode:               mode,
 		EnvPath:            envPath,
 		DockerImage:        dockerImage,
@@ -123,8 +131,10 @@ func (s *Service) Save(ctx context.Context, input UpdateInput, fallbackHost stri
 		"TALOS_DOMAIN":             strings.TrimSpace(input.Domain),
 		"TALOS_ACME_EMAIL":         strings.TrimSpace(input.ACMEEmail),
 		"TALOS_PROXY_MODE":         string(parseProxyMode(string(input.ProxyMode))),
+		"TALOS_EDGE_PROVIDER":      string(parseEdgeProvider(string(input.EdgeProvider))),
 		"TALOS_EDGE_NETWORK":       defaultString(input.EdgeNetwork, "traefik-public"),
 		"TALOS_EDGE_CERT_RESOLVER": defaultString(input.EdgeCertResolver, "letsencrypt"),
+		"TALOS_EDGE_ENTRYPOINT":    defaultString(input.EdgeEntrypoint, "websecure"),
 	}
 	if err := s.updateEnvFile(envPath, updates); err != nil {
 		return Snapshot{}, err
@@ -134,8 +144,10 @@ func (s *Service) Save(ctx context.Context, input UpdateInput, fallbackHost stri
 		Domain:             updates["TALOS_DOMAIN"],
 		ACMEEmail:          updates["TALOS_ACME_EMAIL"],
 		ProxyMode:          parseProxyMode(updates["TALOS_PROXY_MODE"]),
+		EdgeProvider:       parseEdgeProvider(updates["TALOS_EDGE_PROVIDER"]),
 		EdgeNetwork:        updates["TALOS_EDGE_NETWORK"],
 		EdgeCertResolver:   updates["TALOS_EDGE_CERT_RESOLVER"],
+		EdgeEntrypoint:     updates["TALOS_EDGE_ENTRYPOINT"],
 		Mode:               mode,
 		EnvPath:            envPath,
 		DockerImage:        dockerImage,
@@ -417,6 +429,15 @@ func parseProxyMode(v string) config.ProxyMode {
 		return config.ProxyModeExternal
 	default:
 		return config.ProxyModeInternal
+	}
+}
+
+func parseEdgeProvider(v string) config.EdgeProvider {
+	switch config.EdgeProvider(strings.TrimSpace(v)) {
+	case config.EdgeProviderTraefik:
+		return config.EdgeProviderTraefik
+	default:
+		return config.EdgeProviderTraefik
 	}
 }
 

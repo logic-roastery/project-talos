@@ -1,219 +1,215 @@
 {{define "app_create.html"}}
-<div class="max-w-lg">
+<div class="max-w-3xl mx-auto">
     <div class="mb-6">
         <a href="/dashboard" class="text-muted hover:text-body text-sm transition">&larr; Back to dashboard</a>
     </div>
-    <h1 class="text-xl font-semibold text-heading mb-6">Create Application</h1>
+    <div class="mb-6">
+        <h1 class="text-xl font-semibold text-heading">Create Application</h1>
+        <p class="mt-2 text-sm text-muted">Deploy a Talos-managed app, adopt an existing container, or register an external service target.</p>
+    </div>
+
     <form hx-post="/apps/new" hx-target="#form-errors" hx-swap="innerHTML"
           hx-on::after-request="if(event.detail.successful) { const loc=event.detail.xhr.getResponseHeader('HX-Redirect'); if(loc) window.location.href=loc; }">
-        <div class="space-y-4">
-            <div>
-                <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">App Name</label>
-                <input type="text" name="name" required placeholder="my-app"
-                    class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+        <div class="space-y-6">
+            <div class="rounded-xl border border-hairline bg-night p-5">
+                <label class="block text-xs text-muted mb-3 uppercase tracking-wider font-medium">Application Type</label>
+                <div class="grid gap-3 md:grid-cols-3">
+                    <label class="rounded-xl border border-hairline bg-canvas-dark/40 px-4 py-4 transition hover:border-violet/40 cursor-pointer">
+                        <input type="radio" name="app_type" value="managed" checked onchange="switchAppType(this.value)" class="sr-only">
+                        <span class="block text-sm font-medium text-body">Managed</span>
+                        <span class="mt-1 block text-xs text-muted">Talos deploys and updates this app from GitHub or image releases.</span>
+                    </label>
+                    <label class="rounded-xl border border-hairline bg-canvas-dark/40 px-4 py-4 transition hover:border-violet/40 cursor-pointer">
+                        <input type="radio" name="app_type" value="adopted_container" onchange="switchAppType(this.value)" class="sr-only">
+                        <span class="block text-sm font-medium text-body">Adopted Container</span>
+                        <span class="mt-1 block text-xs text-muted">Track an existing Docker container for routing, logs, and restart actions.</span>
+                    </label>
+                    <label class="rounded-xl border border-hairline bg-canvas-dark/40 px-4 py-4 transition hover:border-violet/40 cursor-pointer">
+                        <input type="radio" name="app_type" value="external_service" onchange="switchAppType(this.value)" class="sr-only">
+                        <span class="block text-sm font-medium text-body">External Service</span>
+                        <span class="mt-1 block text-xs text-muted">Register a host, port, or URL that lives outside Talos-managed containers.</span>
+                    </label>
+                </div>
             </div>
-            {{if .GitHubConfigured}}
-            <div id="repo-picker" class="space-y-3 rounded-xl border border-hairline bg-canvas/40 p-4">
-                <div class="flex items-center justify-between gap-3">
+
+            <div class="rounded-xl border border-hairline bg-night p-5">
+                <div class="grid gap-4 md:grid-cols-2">
                     <div>
-                        <label class="block text-xs text-muted uppercase tracking-[0.2em] font-medium">Repository</label>
-                        <p class="mt-1 text-xs text-muted">Search and pick a GitHub repo, or switch to manual URL mode.</p>
-                    </div>
-                    <p id="repo-search-status" class="text-xs text-muted">{{len .Repos}} repositories</p>
-                </div>
-                {{if .Repos}}
-                <div id="repo-picker-search-wrap" class="space-y-3">
-                    <div class="relative">
-                        <input type="search" id="repo-search" placeholder="Search by owner or repository name"
-                            autocomplete="off"
-                            class="w-full rounded-lg border border-hairline bg-canvas-dark px-3 py-2.5 pr-10 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-muted">
-                            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 6.05 6.05a7.5 7.5 0 0 0 10.6 10.6Z"></path>
-                            </svg>
-                        </div>
-                    </div>
-
-                    <input type="hidden" name="repo_url" id="repo-url-hidden">
-                    <input type="hidden" name="github_installation_id" id="github-installation-id">
-                    <input type="hidden" name="github_repo_id" id="github-repo-id">
-
-                    <div id="repo-selected" class="hidden rounded-lg border border-violet/30 bg-violet/10 px-3 py-2 text-sm text-body"></div>
-
-                    <div id="repo-results" class="max-h-72 overflow-y-auto rounded-lg border border-hairline bg-canvas-dark/70">
-                        {{range .Repos}}
-                        <button type="button"
-                            data-repo-full-name="{{.FullName}}"
-                            data-repo-url="{{.HTMLURL}}"
-                            data-repo-branch="{{.DefaultBranch}}"
-                            data-installation-id="{{.InstallationID}}"
-                            data-repo-id="{{.ID}}"
-                            onclick="selectRepo(this)"
-                            class="repo-option flex w-full items-center justify-between gap-3 border-b border-hairline/70 px-3 py-3 text-left transition last:border-b-0 hover:bg-canvas hover:text-body">
-                            <span class="min-w-0">
-                                <span class="block truncate text-sm text-body">{{.FullName}}</span>
-                                <span class="mt-1 block text-xs text-muted">Default branch: {{.DefaultBranch}}</span>
-                            </span>
-                            <span class="shrink-0 rounded-full border border-hairline px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-muted">Select</span>
-                        </button>
-                        {{end}}
-                    </div>
-
-                    <div class="flex items-center justify-between gap-3">
-                        <button type="button" onclick="clearRepoSelection()" class="text-xs text-muted hover:text-body transition cursor-pointer">
-                            Clear selection
-                        </button>
-                        <button type="button" onclick="showManualRepoInput()" class="text-xs text-violet hover:text-lime-accent transition cursor-pointer">
-                            Enter URL manually →
-                        </button>
-                    </div>
-                </div>
-
-                <div id="repo-picker-manual" class="hidden space-y-3">
-                    <div>
-                        <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Repository URL</label>
-                        <input type="url" id="repo-url-manual" placeholder="https://github.com/user/repo"
-                            oninput="syncManualRepoURL(this.value)"
+                        <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">App Name</label>
+                        <input type="text" name="name" required placeholder="my-app"
                             class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
                     </div>
-                    <div class="flex items-center justify-between gap-3">
-                        <p class="text-xs text-muted">Manual mode skips GitHub auto-fill for branch and installation metadata.</p>
-                        <button type="button" onclick="showRepoPickerSearch()" class="text-xs text-violet hover:text-lime-accent transition cursor-pointer">
-                            ← Back to repository list
-                        </button>
+                    <div>
+                        <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Domain <span class="text-gray-600">(optional)</span></label>
+                        <input type="text" name="domain" placeholder="app.example.com"
+                            class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                        {{if eq .ProxyMode "external"}}
+                        <p class="mt-2 text-xs text-muted">External mode publishes managed app domains automatically through shared Traefik labels. Adopted containers and external services show manual routing guidance when Talos cannot mutate the upstream target.</p>
+                        {{else}}
+                        <p class="mt-2 text-xs text-muted">Internal mode publishes app domains through Talos-managed Traefik on this host.</p>
+                        {{end}}
                     </div>
                 </div>
+            </div>
 
-                <script>
-                function repoOptionButtons() {
-                    return Array.prototype.slice.call(document.querySelectorAll('.repo-option'));
-                }
+            <div id="managed-fields" class="space-y-6">
+                <div class="rounded-xl border border-hairline bg-night p-5">
+                    {{if .GitHubConfigured}}
+                    <div id="repo-picker" class="space-y-3">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <label class="block text-xs text-muted uppercase tracking-[0.2em] font-medium">Repository</label>
+                                <p class="mt-1 text-xs text-muted">Search and pick a GitHub repo, or switch to manual URL mode.</p>
+                            </div>
+                            <p id="repo-search-status" class="text-xs text-muted">{{len .Repos}} repositories</p>
+                        </div>
+                        {{if .Repos}}
+                        <div id="repo-picker-search-wrap" class="space-y-3">
+                            <div class="relative">
+                                <input type="search" id="repo-search" placeholder="Search by owner or repository name"
+                                    autocomplete="off"
+                                    class="w-full rounded-lg border border-hairline bg-canvas-dark px-3 py-2.5 pr-10 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-muted">
+                                    <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 6.05 6.05a7.5 7.5 0 0 0 10.6 10.6Z"></path>
+                                    </svg>
+                                </div>
+                            </div>
 
-                function updateRepoSearchStatus(text) {
-                    var status = document.getElementById('repo-search-status');
-                    if (status) status.textContent = text;
-                }
+                            <input type="hidden" name="repo_url" id="repo-url-hidden">
+                            <input type="hidden" name="github_installation_id" id="github-installation-id">
+                            <input type="hidden" name="github_repo_id" id="github-repo-id">
 
-                function clearRepoSelection() {
-                    document.getElementById('repo-url-hidden').value = '';
-                    document.getElementById('github-installation-id').value = '';
-                    document.getElementById('github-repo-id').value = '';
+                            <div id="repo-selected" class="hidden rounded-lg border border-violet/30 bg-violet/10 px-3 py-2 text-sm text-body"></div>
 
-                    var selected = document.getElementById('repo-selected');
-                    selected.classList.add('hidden');
-                    selected.textContent = '';
+                            <div id="repo-results" class="max-h-72 overflow-y-auto rounded-lg border border-hairline bg-canvas-dark/70">
+                                {{range .Repos}}
+                                <button type="button"
+                                    data-repo-full-name="{{.FullName}}"
+                                    data-repo-url="{{.HTMLURL}}"
+                                    data-repo-branch="{{.DefaultBranch}}"
+                                    data-installation-id="{{.InstallationID}}"
+                                    data-repo-id="{{.ID}}"
+                                    onclick="selectRepo(this)"
+                                    class="repo-option flex w-full items-center justify-between gap-3 border-b border-hairline/70 px-3 py-3 text-left transition last:border-b-0 hover:bg-canvas hover:text-body">
+                                    <span class="min-w-0">
+                                        <span class="block truncate text-sm text-body">{{.FullName}}</span>
+                                        <span class="mt-1 block text-xs text-muted">Default branch: {{.DefaultBranch}}</span>
+                                    </span>
+                                    <span class="shrink-0 rounded-full border border-hairline px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-muted">Select</span>
+                                </button>
+                                {{end}}
+                            </div>
 
-                    repoOptionButtons().forEach(function(button) {
-                        button.classList.remove('bg-violet/10');
-                    });
-                }
+                            <div class="flex items-center justify-between gap-3">
+                                <button type="button" onclick="clearRepoSelection()" class="text-xs text-muted hover:text-body transition cursor-pointer">
+                                    Clear selection
+                                </button>
+                                <button type="button" onclick="showManualRepoInput()" class="text-xs text-violet hover:text-lime-accent transition cursor-pointer">
+                                    Enter URL manually →
+                                </button>
+                            </div>
+                        </div>
 
-                function selectRepo(button) {
-                    clearRepoSelection();
-
-                    var repoURL = button.getAttribute('data-repo-url') || '';
-                    var branch = button.getAttribute('data-repo-branch') || 'main';
-                    var installID = button.getAttribute('data-installation-id') || '';
-                    var repoID = button.getAttribute('data-repo-id') || '';
-                    var fullName = button.getAttribute('data-repo-full-name') || repoURL;
-
-                    document.getElementById('repo-url-hidden').value = repoURL;
-                    document.getElementById('github-installation-id').value = installID;
-                    document.getElementById('github-repo-id').value = repoID;
-
-                    var branchInput = document.querySelector('input[name="branch"]');
-                    if (branchInput && branch) branchInput.value = branch;
-
-                    button.classList.add('bg-violet/10');
-
-                    var selected = document.getElementById('repo-selected');
-                    selected.textContent = 'Selected: ' + fullName + ' (' + branch + ')';
-                    selected.classList.remove('hidden');
-                }
-
-                function filterRepoButtons(query) {
-                    var normalized = (query || '').trim().toLowerCase();
-                    var visibleCount = 0;
-
-                    repoOptionButtons().forEach(function(button) {
-                        var fullName = (button.getAttribute('data-repo-full-name') || '').toLowerCase();
-                        var matches = !normalized || fullName.indexOf(normalized) !== -1;
-                        button.style.display = matches ? '' : 'none';
-                        if (matches) visibleCount++;
-                    });
-
-                    updateRepoSearchStatus(normalized ? (visibleCount + ' match' + (visibleCount === 1 ? '' : 'es')) : (visibleCount + ' repositories'));
-                }
-
-                function syncManualRepoURL(value) {
-                    document.getElementById('repo-url-hidden').value = value;
-                    document.getElementById('github-installation-id').value = '';
-                    document.getElementById('github-repo-id').value = '';
-                }
-
-                function showManualRepoInput() {
-                    clearRepoSelection();
-                    document.getElementById('repo-picker-search-wrap').classList.add('hidden');
-                    document.getElementById('repo-picker-manual').classList.remove('hidden');
-                    document.getElementById('repo-url-manual').focus();
-                }
-
-                function showRepoPickerSearch() {
-                    document.getElementById('repo-picker-manual').classList.add('hidden');
-                    document.getElementById('repo-picker-search-wrap').classList.remove('hidden');
-                    document.getElementById('repo-url-manual').value = '';
-                    syncManualRepoURL('');
-                    document.getElementById('repo-search').focus();
-                }
-
-                document.getElementById('repo-search').addEventListener('input', function(event) {
-                    filterRepoButtons(event.target.value);
-                });
-                </script>
-                {{else}}
-                <div class="space-y-3">
-                    {{if .RepoError}}
-                    <p class="text-sm text-yellow-300">{{.RepoError}}</p>
+                        <div id="repo-picker-manual" class="hidden space-y-3">
+                            <div>
+                                <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Repository URL</label>
+                                <input type="url" id="repo-url-manual" placeholder="https://github.com/user/repo"
+                                    oninput="syncManualRepoURL(this.value)"
+                                    class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                            </div>
+                            <div class="flex items-center justify-between gap-3">
+                                <p class="text-xs text-muted">Manual mode skips GitHub auto-fill for branch and installation metadata.</p>
+                                <button type="button" onclick="showRepoPickerSearch()" class="text-xs text-violet hover:text-lime-accent transition cursor-pointer">
+                                    ← Back to repository list
+                                </button>
+                            </div>
+                        </div>
+                        {{else}}
+                        <div class="space-y-3">
+                            {{if .RepoError}}
+                            <p class="text-sm text-yellow-300">{{.RepoError}}</p>
+                            {{else}}
+                            <p class="text-sm text-muted">No repositories were returned by the GitHub App. Enter the repository URL manually for now.</p>
+                            {{end}}
+                            <div>
+                                <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Repository URL</label>
+                                <input type="url" name="repo_url" required placeholder="https://github.com/user/repo"
+                                    class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                            </div>
+                        </div>
+                        {{end}}
+                    </div>
                     {{else}}
-                    <p class="text-sm text-muted">No repositories were returned by the GitHub App. Enter the repository URL manually for now.</p>
-                    {{end}}
                     <div>
                         <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Repository URL</label>
                         <input type="url" name="repo_url" required placeholder="https://github.com/user/repo"
                             class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
                     </div>
+                    {{end}}
                 </div>
-                {{end}}
-            </div>
-            {{else}}
-            <div>
-                <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Repository URL</label>
-                <input type="url" name="repo_url" required placeholder="https://github.com/user/repo"
-                    class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
-            </div>
-            {{end}}
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Branch</label>
-                    <input type="text" name="branch" value="main"
-                        class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+
+                <div class="rounded-xl border border-hairline bg-night p-5">
+                    <div class="grid gap-4 md:grid-cols-3">
+                        <div>
+                            <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Branch</label>
+                            <input type="text" name="branch" value="main"
+                                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Internal Port</label>
+                            <input type="number" name="internal_port" value="3000"
+                                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Initial Image Ref <span class="text-gray-600">(optional)</span></label>
+                            <input type="text" name="image_ref" placeholder="ghcr.io/user/app:tag"
+                                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Internal Port</label>
-                    <input type="number" name="internal_port" value="3000"
-                        class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+            </div>
+
+            <div id="adopted-fields" class="hidden space-y-6">
+                <div class="rounded-xl border border-hairline bg-night p-5">
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div>
+                            <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Container Name</label>
+                            <input list="adoptable-containers" name="container_name" placeholder="existing-container"
+                                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                            <datalist id="adoptable-containers">
+                                {{range .Containers}}
+                                <option value="{{.Name}}">{{.Image}} · {{.Status}}</option>
+                                {{end}}
+                            </datalist>
+                            <p class="mt-2 text-xs text-muted">Talos reads logs and runtime metadata from this existing Docker container.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Internal Port</label>
+                            <input type="number" name="internal_port" value="3000"
+                                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                            <p class="mt-2 text-xs text-muted">Use the port exposed inside the container for internal routing assumptions.</p>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Shared Docker Network <span class="text-gray-600">(optional)</span></label>
+                        <input type="text" name="docker_network" placeholder="traefik-public"
+                            class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                    </div>
                 </div>
             </div>
-            <div>
-                <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Domain <span class="text-gray-600">(optional)</span></label>
-                <input type="text" name="domain" placeholder="app.example.com"
-                    class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
-                {{if eq .ProxyMode "external"}}
-                <p class="mt-2 text-xs text-muted">External mode publishes app domains through your shared Traefik edge proxy. Make sure the edge proxy watches the configured shared network and Docker labels.</p>
-                {{else}}
-                <p class="mt-2 text-xs text-muted">Internal mode publishes app domains through Talos-managed Traefik on this host.</p>
-                {{end}}
+
+            <div id="external-fields" class="hidden space-y-6">
+                <div class="rounded-xl border border-hairline bg-night p-5">
+                    <div>
+                        <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">External Target</label>
+                        <input type="text" name="external_target" placeholder="http://10.0.0.20:8080"
+                            class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                        <p class="mt-2 text-xs text-muted">Use a full URL such as <code>http://host:port</code> when Talos should route to a target it does not run itself.</p>
+                    </div>
+                </div>
             </div>
+
             <button type="submit"
                 class="w-full bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition cursor-pointer uppercase tracking-wider text-sm">
                 Create App
@@ -222,4 +218,120 @@
     </form>
     <div id="form-errors" class="mt-4"></div>
 </div>
+
+<script>
+function repoOptionButtons() {
+    return Array.prototype.slice.call(document.querySelectorAll('.repo-option'));
+}
+
+function updateRepoSearchStatus(text) {
+    var status = document.getElementById('repo-search-status');
+    if (status) status.textContent = text;
+}
+
+function clearRepoSelection() {
+    var repoURL = document.getElementById('repo-url-hidden');
+    var install = document.getElementById('github-installation-id');
+    var repoID = document.getElementById('github-repo-id');
+    if (repoURL) repoURL.value = '';
+    if (install) install.value = '';
+    if (repoID) repoID.value = '';
+
+    var selected = document.getElementById('repo-selected');
+    if (selected) {
+        selected.classList.add('hidden');
+        selected.textContent = '';
+    }
+
+    repoOptionButtons().forEach(function(button) {
+        button.classList.remove('bg-violet/10');
+    });
+}
+
+function selectRepo(button) {
+    clearRepoSelection();
+
+    var repoURL = button.getAttribute('data-repo-url') || '';
+    var branch = button.getAttribute('data-repo-branch') || 'main';
+    var installID = button.getAttribute('data-installation-id') || '';
+    var repoID = button.getAttribute('data-repo-id') || '';
+    var fullName = button.getAttribute('data-repo-full-name') || repoURL;
+
+    document.getElementById('repo-url-hidden').value = repoURL;
+    document.getElementById('github-installation-id').value = installID;
+    document.getElementById('github-repo-id').value = repoID;
+
+    var branchInput = document.querySelector('#managed-fields input[name="branch"]');
+    if (branchInput && branch) branchInput.value = branch;
+
+    button.classList.add('bg-violet/10');
+
+    var selected = document.getElementById('repo-selected');
+    selected.textContent = 'Selected: ' + fullName + ' (' + branch + ')';
+    selected.classList.remove('hidden');
+}
+
+function filterRepoButtons(query) {
+    var normalized = (query || '').trim().toLowerCase();
+    var visibleCount = 0;
+
+    repoOptionButtons().forEach(function(button) {
+        var fullName = (button.getAttribute('data-repo-full-name') || '').toLowerCase();
+        var matches = !normalized || fullName.indexOf(normalized) !== -1;
+        button.style.display = matches ? '' : 'none';
+        if (matches) visibleCount++;
+    });
+
+    updateRepoSearchStatus(normalized ? (visibleCount + ' match' + (visibleCount === 1 ? '' : 'es')) : (visibleCount + ' repositories'));
+}
+
+function syncManualRepoURL(value) {
+    var repoURL = document.getElementById('repo-url-hidden');
+    if (repoURL) repoURL.value = value;
+    document.getElementById('github-installation-id').value = '';
+    document.getElementById('github-repo-id').value = '';
+}
+
+function showManualRepoInput() {
+    clearRepoSelection();
+    document.getElementById('repo-picker-search-wrap').classList.add('hidden');
+    document.getElementById('repo-picker-manual').classList.remove('hidden');
+    document.getElementById('repo-url-manual').focus();
+}
+
+function showRepoPickerSearch() {
+    document.getElementById('repo-picker-manual').classList.add('hidden');
+    document.getElementById('repo-picker-search-wrap').classList.remove('hidden');
+    document.getElementById('repo-url-manual').value = '';
+    syncManualRepoURL('');
+    document.getElementById('repo-search').focus();
+}
+
+function switchAppType(type) {
+    var managed = document.getElementById('managed-fields');
+    var adopted = document.getElementById('adopted-fields');
+    var external = document.getElementById('external-fields');
+
+    managed.classList.toggle('hidden', type !== 'managed');
+    adopted.classList.toggle('hidden', type !== 'adopted_container');
+    external.classList.toggle('hidden', type !== 'external_service');
+
+    setFieldRequirement('#managed-fields [name="repo_url"]', type === 'managed');
+    setFieldRequirement('#adopted-fields [name="container_name"]', type === 'adopted_container');
+    setFieldRequirement('#external-fields [name="external_target"]', type === 'external_service');
+}
+
+function setFieldRequirement(selector, required) {
+    document.querySelectorAll(selector).forEach(function(input) {
+        if (required) input.setAttribute('required', 'required');
+        else input.removeAttribute('required');
+    });
+}
+
+document.getElementById('repo-search')?.addEventListener('input', function(event) {
+    filterRepoButtons(event.target.value);
+});
+
+switchAppType('managed');
+</script>
 {{end}}

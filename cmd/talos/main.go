@@ -95,6 +95,7 @@ func main() {
 		cfg.Server.Domain,
 		cfg.Server.ACMEEmail,
 		cfg.Server.EdgeCertResolver,
+		cfg.Server.EdgeEntrypoint,
 		cfg.Server.ProxyMode,
 		cfg.Server.Port,
 		logger,
@@ -153,7 +154,7 @@ func main() {
 	backupMgr := backup.NewManager(db.DB(), db, dataDir, cfg.Backup.Dir, cfg.Backup.RetainCount, logger)
 	backupH := handlers.NewBackupHandler(backupMgr, db)
 
-	srv := server.New(db, db, db, db, authSvc, engine, provisioner, webhook, ghClient, cfg.GitHub, dockerClient, renderer, backupH, db, cfg.Server.Host, cfg.Server.Domain, cfg.Server.ProxyMode, cfg.Server.Port, logger)
+	srv := server.New(db, db, db, db, authSvc, engine, proxy, provisioner, webhook, ghClient, cfg.GitHub, dockerClient, renderer, backupH, db, cfg.Server.Host, cfg.Server.Domain, cfg.Server.ProxyMode, cfg.Server.Port, logger)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	httpServer := &http.Server{

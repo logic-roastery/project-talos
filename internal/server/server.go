@@ -10,6 +10,7 @@ import (
 	"github.com/logic-roastery/project-talos/internal/deploy"
 	"github.com/logic-roastery/project-talos/internal/domain"
 	"github.com/logic-roastery/project-talos/internal/github"
+	"github.com/logic-roastery/project-talos/internal/proxy/traefik"
 	"github.com/logic-roastery/project-talos/internal/runtime/docker"
 	"github.com/logic-roastery/project-talos/internal/server/handlers"
 	"github.com/logic-roastery/project-talos/internal/services"
@@ -30,6 +31,7 @@ func New(
 	svcStore store.ServiceStore,
 	authSvc *auth.Service,
 	engine *deploy.Engine,
+	proxy *traefik.Manager,
 	provisioner *services.Provisioner,
 	webhook *github.WebhookHandler,
 	ghClient *github.AppClient,
@@ -64,13 +66,14 @@ func New(
 		r.Post("/api/auth/logout", authH.Logout)
 		r.Get("/api/github/debug", ghH.Debug)
 
-		appH := handlers.NewAppHandler(apps, deploys, serverHost, serverDomain, serverProxyMode)
+		appH := handlers.NewAppHandler(apps, deploys, dockerClient, proxy, serverHost, serverDomain, serverProxyMode)
 		r.Route("/api/apps", func(r chi.Router) {
 			r.Get("/", appH.List)
 			r.Post("/", appH.Create)
 			r.Get("/{appID}", appH.Get)
 			r.Put("/{appID}", appH.Update)
 			r.Delete("/{appID}", appH.Delete)
+			r.Post("/{appID}/restart", appH.Restart)
 		})
 
 		deployH := handlers.NewDeployHandler(apps, deploys, engine)
@@ -217,7 +220,7 @@ func New(
 
 	// Page routes (HTML)
 	settingsSvc := settings.NewService(dockerClient)
-	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, svcStore, backupStore, authSvc, engine, ghClient, settingsSvc, serverHost, serverDomain, serverProxyMode, serverPort, logger)
+	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, svcStore, backupStore, authSvc, engine, dockerClient, proxy, ghClient, settingsSvc, serverHost, serverDomain, serverProxyMode, serverPort, logger)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/dashboard", http.StatusFound)

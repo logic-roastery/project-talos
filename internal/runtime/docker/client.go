@@ -21,6 +21,16 @@ type Client struct {
 	logger  *slog.Logger
 }
 
+type ContainerInfo struct {
+	ID       string
+	Name     string
+	Image    string
+	State    string
+	Status   string
+	Networks []string
+	Ports    []string
+}
+
 func NewClient(dockerHost, network string, logger *slog.Logger) (*Client, error) {
 	cli, err := client.NewClientWithOpts(client.WithHost(dockerHost), client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -58,12 +68,62 @@ func (c *Client) StopAndRemove(ctx context.Context, name string) error {
 	return err
 }
 
+func (c *Client) Restart(ctx context.Context, name string) error {
+	_, err := c.cli.ContainerRestart(ctx, name, client.ContainerRestartOptions{})
+	if err != nil {
+		return fmt.Errorf("restart container: %w", err)
+	}
+	return nil
+}
+
 func (c *Client) Inspect(ctx context.Context, name string) (container.InspectResponse, error) {
 	result, err := c.cli.ContainerInspect(ctx, name, client.ContainerInspectOptions{})
 	if err != nil {
 		return container.InspectResponse{}, err
 	}
 	return result.Container, nil
+}
+
+func (c *Client) ListContainers(ctx context.Context, all bool) ([]ContainerInfo, error) {
+	result, err := c.cli.ContainerList(ctx, client.ContainerListOptions{All: all})
+	if err != nil {
+		return nil, fmt.Errorf("list containers: %w", err)
+	}
+
+	items := make([]ContainerInfo, 0, len(result.Items))
+	for _, item := range result.Items {
+		info := ContainerInfo{
+			ID:     item.ID,
+			Image:  item.Image,
+			State:  string(item.State),
+			Status: item.Status,
+		}
+		if len(item.Names) > 0 {
+			info.Name = strings.TrimPrefix(item.Names[0], "/")
+		}
+		for _, port := range item.Ports {
+			privatePort := fmt.Sprintf("%d/%s", port.PrivatePort, port.Type)
+			if port.PublicPort > 0 {
+				hostIP := ""
+				if port.IP.IsValid() {
+					hostIP = port.IP.String()
+				}
+				if hostIP != "" {
+					info.Ports = append(info.Ports, fmt.Sprintf("%s:%d->%s", hostIP, port.PublicPort, privatePort))
+				} else {
+					info.Ports = append(info.Ports, fmt.Sprintf("%d->%s", port.PublicPort, privatePort))
+				}
+			} else {
+				info.Ports = append(info.Ports, privatePort)
+			}
+		}
+		for networkName := range item.NetworkSettings.Networks {
+			info.Networks = append(info.Networks, networkName)
+		}
+		items = append(items, info)
+	}
+
+	return items, nil
 }
 
 func (c *Client) StartContainer(ctx context.Context, name, imageRef string, internalPort int) (string, error) {

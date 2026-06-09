@@ -40,6 +40,10 @@
                         <p class="text-sm font-mono text-body break-all">{{.Current.ConfiguredURL}}</p>
                     </div>
                     <div class="bg-night/50 border border-hairline rounded-lg p-4">
+                        <p class="text-xs text-muted uppercase tracking-wider mb-1">Edge Provider</p>
+                        <p class="text-sm font-medium text-body">{{.EdgeProviderLabel}}</p>
+                    </div>
+                    <div class="bg-night/50 border border-hairline rounded-lg p-4">
                         <p class="text-xs text-muted uppercase tracking-wider mb-1">App Custom Domains</p>
                         <p class="text-sm font-medium {{if .Current.SupportsAppDomains}}text-lime-accent{{else}}text-yellow-300{{end}}">
                             {{if .Current.SupportsAppDomains}}Supported{{else}}Unavailable{{end}}
@@ -60,6 +64,10 @@
                     <div class="bg-night/50 border border-hairline rounded-lg p-4">
                         <p class="text-xs text-muted uppercase tracking-wider mb-1">TALOS_EDGE_CERT_RESOLVER</p>
                         <p class="text-sm font-mono text-body break-all">{{.Current.EdgeCertResolver}}</p>
+                    </div>
+                    <div class="bg-night/50 border border-hairline rounded-lg p-4 sm:col-span-2">
+                        <p class="text-xs text-muted uppercase tracking-wider mb-1">TALOS_EDGE_ENTRYPOINT</p>
+                        <p class="text-sm font-mono text-body break-all">{{.Current.EdgeEntrypoint}}</p>
                     </div>
                 </div>
             </div>
@@ -87,6 +95,13 @@
                     </div>
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
+                            <label for="edge_provider" class="block text-sm font-medium text-heading mb-2">TALOS_EDGE_PROVIDER</label>
+                            <select id="edge_provider" name="edge_provider"
+                                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
+                                <option value="traefik" {{if eq .Current.EdgeProvider "traefik"}}selected{{end}}>traefik</option>
+                            </select>
+                        </div>
+                        <div>
                             <label for="edge_network" class="block text-sm font-medium text-heading mb-2">TALOS_EDGE_NETWORK</label>
                             <input id="edge_network" name="edge_network" type="text" value="{{.Current.EdgeNetwork}}" placeholder="traefik-public"
                                 class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
@@ -94,6 +109,11 @@
                         <div>
                             <label for="edge_cert_resolver" class="block text-sm font-medium text-heading mb-2">TALOS_EDGE_CERT_RESOLVER</label>
                             <input id="edge_cert_resolver" name="edge_cert_resolver" type="text" value="{{.Current.EdgeCertResolver}}" placeholder="letsencrypt"
+                                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
+                        </div>
+                        <div>
+                            <label for="edge_entrypoint" class="block text-sm font-medium text-heading mb-2">TALOS_EDGE_ENTRYPOINT</label>
+                            <input id="edge_entrypoint" name="edge_entrypoint" type="text" value="{{.Current.EdgeEntrypoint}}" placeholder="websecure"
                                 class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
                         </div>
                     </div>

@@ -42,6 +42,9 @@ func (e *Engine) Deploy(ctx context.Context, appID int64, imageRef, commitSHA, b
 	if err != nil {
 		return nil, fmt.Errorf("get app: %w", err)
 	}
+	if app.AppType != domain.AppTypeManaged {
+		return nil, fmt.Errorf("deploys are only supported for managed apps")
+	}
 
 	latest, err := e.deploys.GetLatestDeploy(ctx, appID)
 	if err != nil && err != domain.ErrNotFound {
@@ -72,6 +75,9 @@ func (e *Engine) Rollback(ctx context.Context, appID int64) (*domain.Deploy, err
 	app, err := e.apps.GetApp(ctx, appID)
 	if err != nil {
 		return nil, fmt.Errorf("get app: %w", err)
+	}
+	if app.AppType != domain.AppTypeManaged {
+		return nil, fmt.Errorf("rollbacks are only supported for managed apps")
 	}
 
 	prev, err := e.deploys.GetLatestSuccessfulDeploy(ctx, appID)

@@ -26,12 +26,13 @@ type Manager struct {
 	domain           string
 	acmeEmail        string
 	edgeCertResolver string
+	edgeEntrypoint   string
 	proxyMode        config.ProxyMode
 	serverPort       int
 	logger           *slog.Logger
 }
 
-func NewManager(configDir, dataDir, network, edgeNetwork, domain, acmeEmail, edgeCertResolver string, proxyMode config.ProxyMode, serverPort int, logger *slog.Logger) *Manager {
+func NewManager(configDir, dataDir, network, edgeNetwork, domain, acmeEmail, edgeCertResolver, edgeEntrypoint string, proxyMode config.ProxyMode, serverPort int, logger *slog.Logger) *Manager {
 	return &Manager{
 		configDir:        configDir,
 		dataDir:          dataDir,
@@ -40,6 +41,7 @@ func NewManager(configDir, dataDir, network, edgeNetwork, domain, acmeEmail, edg
 		domain:           domain,
 		acmeEmail:        acmeEmail,
 		edgeCertResolver: edgeCertResolver,
+		edgeEntrypoint:   edgeEntrypoint,
 		proxyMode:        proxyMode,
 		serverPort:       serverPort,
 		logger:           logger,
@@ -108,6 +110,25 @@ func (m *Manager) UpdateRoute(ctx context.Context, app *domain.App, containerNam
 		return nil
 	}
 	if m.proxyMode == config.ProxyModeExternal {
+		return nil
+	}
+	if app.AppType == domain.AppTypeExternalService && app.ExternalTarget != "" {
+		path := filepath.Join(m.configDir, app.Name+".yml")
+		f, err := os.Create(path)
+		if err != nil {
+			return fmt.Errorf("create route file: %w", err)
+		}
+		defer f.Close()
+
+		data := staticRouteData{
+			Name:      app.Name,
+			Rule:      fmt.Sprintf("Host(`%s`)", app.Domain),
+			TargetURL: app.ExternalTarget,
+		}
+		if err := staticRouteTemplate.Execute(f, data); err != nil {
+			return fmt.Errorf("write static route: %w", err)
+		}
+		m.logger.Info("external service route updated", "app", app.Name, "target", app.ExternalTarget)
 		return nil
 	}
 
@@ -212,7 +233,7 @@ func (m *Manager) ExternalLabels(app *domain.App) map[string]string {
 		"traefik.enable":         "true",
 		"traefik.docker.network": m.edgeNetworkOrDefault(),
 		fmt.Sprintf("traefik.http.routers.%s.rule", serviceName):                      fmt.Sprintf("Host(`%s`)", app.Domain),
-		fmt.Sprintf("traefik.http.routers.%s.entrypoints", serviceName):               "websecure",
+		fmt.Sprintf("traefik.http.routers.%s.entrypoints", serviceName):               m.edgeEntrypointOrDefault(),
 		fmt.Sprintf("traefik.http.routers.%s.tls", serviceName):                       "true",
 		fmt.Sprintf("traefik.http.routers.%s.tls.certresolver", serviceName):          m.edgeCertResolverOrDefault(),
 		fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", serviceName): fmt.Sprintf("%d", app.InternalPort),
@@ -231,6 +252,13 @@ func (m *Manager) edgeCertResolverOrDefault() string {
 		return "letsencrypt"
 	}
 	return m.edgeCertResolver
+}
+
+func (m *Manager) edgeEntrypointOrDefault() string {
+	if m.edgeEntrypoint == "" {
+		return "websecure"
+	}
+	return m.edgeEntrypoint
 }
 
 // EnsureTraefik starts the Traefik container if it's not already running.

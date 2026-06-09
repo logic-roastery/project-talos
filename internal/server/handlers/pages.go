@@ -6,12 +6,15 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/logic-roastery/project-talos/internal/auth"
 	"github.com/logic-roastery/project-talos/internal/config"
 	"github.com/logic-roastery/project-talos/internal/deploy"
 	"github.com/logic-roastery/project-talos/internal/domain"
 	"github.com/logic-roastery/project-talos/internal/github"
+	"github.com/logic-roastery/project-talos/internal/proxy/traefik"
+	"github.com/logic-roastery/project-talos/internal/runtime/docker"
 	"github.com/logic-roastery/project-talos/internal/settings"
 	"github.com/logic-roastery/project-talos/internal/store"
 	"github.com/logic-roastery/project-talos/web"
@@ -26,6 +29,8 @@ type PageHandler struct {
 	backupStore store.BackupStore
 	authSvc     *auth.Service
 	engine      *deploy.Engine
+	docker      *docker.Client
+	proxy       *traefik.Manager
 	ghClient    *github.AppClient
 	settings    *settings.Service
 	host        string
@@ -36,7 +41,7 @@ type PageHandler struct {
 }
 
 func NewPageHandler(renderer *web.Renderer, apps store.AppStore, deploys store.DeployStore,
-	users store.UserStore, services store.ServiceStore, backupStore store.BackupStore, authSvc *auth.Service, engine *deploy.Engine, ghClient *github.AppClient, settingsSvc *settings.Service, host, domain string, proxyMode config.ProxyMode, port int, logger *slog.Logger) *PageHandler {
+	users store.UserStore, services store.ServiceStore, backupStore store.BackupStore, authSvc *auth.Service, engine *deploy.Engine, dockerClient *docker.Client, proxy *traefik.Manager, ghClient *github.AppClient, settingsSvc *settings.Service, host, domain string, proxyMode config.ProxyMode, port int, logger *slog.Logger) *PageHandler {
 	return &PageHandler{
 		renderer:    renderer,
 		apps:        apps,
@@ -46,6 +51,8 @@ func NewPageHandler(renderer *web.Renderer, apps store.AppStore, deploys store.D
 		backupStore: backupStore,
 		authSvc:     authSvc,
 		engine:      engine,
+		docker:      dockerClient,
+		proxy:       proxy,
 		domain:      domain,
 		ghClient:    ghClient,
 		settings:    settingsSvc,
@@ -204,6 +211,7 @@ func (h *PageHandler) AppCreatePage(w http.ResponseWriter, r *http.Request) {
 		Repos            []RepoInfo
 		RepoError        string
 		ProxyMode        config.ProxyMode
+		Containers       []docker.ContainerInfo
 	}{
 		GitHubConfigured: h.ghClient != nil && h.ghClient.IsConfigured(),
 		ProxyMode:        h.proxyMode,
@@ -217,84 +225,104 @@ func (h *PageHandler) AppCreatePage(w http.ResponseWriter, r *http.Request) {
 			data.Repos = repos
 		}
 	}
+	if h.docker != nil {
+		containers, err := h.docker.ListContainers(r.Context(), true)
+		if err == nil {
+			data.Containers = containers
+		}
+	}
 
 	h.renderer.Render(w, "app_create.html", "New App", h.userData(r), data)
 }
 
 func (h *PageHandler) AppCreateSubmit(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
+	appType := normalizeAppType(domain.AppType(r.FormValue("app_type")))
 	repoURL := r.FormValue("repo_url")
 	branch := r.FormValue("branch")
 	portStr := r.FormValue("internal_port")
 	domainName := r.FormValue("domain")
+	imageRef := r.FormValue("image_ref")
+	containerName := r.FormValue("container_name")
+	externalTarget := r.FormValue("external_target")
+	dockerNetwork := r.FormValue("docker_network")
 
-	if name == "" || repoURL == "" {
+	if name == "" {
 		h.renderer.RenderStatus(w, http.StatusUnprocessableEntity, "flash.html",
-			map[string]string{"Color": "red", "Message": "Name and repository URL are required."})
+			map[string]string{"Color": "red", "Message": "Name is required."})
 		return
 	}
 
 	if branch == "" {
 		branch = "main"
 	}
-	internalPort := 3000
+	internalPort := 0
 	if portStr != "" {
 		if p, err := strconv.Atoi(portStr); err == nil {
 			internalPort = p
 		}
 	}
-
-	accessMode := domain.AccessModePort
-	accessURL := ""
-	var fallbackPort int
-
-	if domainName != "" {
-		accessMode = domain.AccessModeDomain
-		accessURL = "https://" + domainName
-	} else {
-		port, err := h.apps.NextFallbackPort(r.Context())
-		if err != nil {
-			h.renderer.RenderStatus(w, http.StatusInternalServerError, "flash.html",
-				map[string]string{"Color": "red", "Message": "Failed to assign port."})
-			return
-		}
-		fallbackPort = port
-		host := h.host
-		if h.domain != "" {
-			host = h.domain
-		}
-		accessURL = fmt.Sprintf("http://%s:%d", host, port)
-	}
-
 	app := &domain.App{
-		Name:         name,
-		Source:       "github",
-		RepoURL:      repoURL,
-		Branch:       branch,
-		InternalPort: internalPort,
-		Domain:       domainName,
-		FallbackPort: fallbackPort,
-		AccessMode:   accessMode,
-		AccessURL:    accessURL,
-		Status:       domain.AppStatusInactive,
+		Name:           name,
+		AppType:        appType,
+		RuntimeOwner:   runtimeOwnerForType(appType),
+		EdgeProvider:   edgeProviderForMode(h.proxyMode),
+		Source:         sourceForType(appType),
+		RepoURL:        strings.TrimSpace(repoURL),
+		Branch:         branch,
+		InternalPort:   internalPort,
+		ImageRef:       strings.TrimSpace(imageRef),
+		Domain:         strings.TrimSpace(domainName),
+		Status:         domain.AppStatusInactive,
+		ContainerName:  strings.TrimSpace(containerName),
+		ExternalTarget: strings.TrimSpace(externalTarget),
+		DockerNetwork:  strings.TrimSpace(dockerNetwork),
+	}
+	if err := validateCreateRequest(createAppRequest{
+		Name:           app.Name,
+		AppType:        app.AppType,
+		RepoURL:        app.RepoURL,
+		Branch:         app.Branch,
+		InternalPort:   app.InternalPort,
+		Domain:         app.Domain,
+		ImageRef:       app.ImageRef,
+		ContainerName:  app.ContainerName,
+		ExternalTarget: app.ExternalTarget,
+		DockerNetwork:  app.DockerNetwork,
+	}); err != nil {
+		h.renderer.RenderStatus(w, http.StatusUnprocessableEntity, "flash.html",
+			map[string]string{"Color": "red", "Message": err.Error()})
+		return
+	}
+	if err := applyAccessFields(r.Context(), h.apps, h.host, h.domain, app); err != nil {
+		h.renderer.RenderStatus(w, http.StatusInternalServerError, "flash.html",
+			map[string]string{"Color": "red", "Message": "Failed to prepare app routing."})
+		return
 	}
 
 	// Set GitHub connection if provided (repo was selected from dropdown)
-	if installIDStr := r.FormValue("github_installation_id"); installIDStr != "" {
-		if installID, err := strconv.ParseInt(installIDStr, 10, 64); err == nil {
-			app.GitHubInstallationID = &installID
+	if app.AppType == domain.AppTypeManaged {
+		if installIDStr := r.FormValue("github_installation_id"); installIDStr != "" {
+			if installID, err := strconv.ParseInt(installIDStr, 10, 64); err == nil {
+				app.GitHubInstallationID = &installID
+			}
 		}
-	}
-	if repoIDStr := r.FormValue("github_repo_id"); repoIDStr != "" {
-		if repoID, err := strconv.ParseInt(repoIDStr, 10, 64); err == nil {
-			app.GitHubRepoID = &repoID
-			app.RegistryURL = "ghcr.io"
+		if repoIDStr := r.FormValue("github_repo_id"); repoIDStr != "" {
+			if repoID, err := strconv.ParseInt(repoIDStr, 10, 64); err == nil {
+				app.GitHubRepoID = &repoID
+				app.RegistryURL = "ghcr.io"
+			}
 		}
 	}
 
 	if err := h.apps.CreateApp(r.Context(), app); err != nil {
 		h.renderer.RenderStatus(w, http.StatusInternalServerError, "flash.html",
 			map[string]string{"Color": "red", "Message": "Failed to create app."})
+		return
+	}
+	if err := syncNonManagedRoute(r.Context(), h.proxy, app); err != nil {
+		h.renderer.RenderStatus(w, http.StatusInternalServerError, "flash.html",
+			map[string]string{"Color": "red", "Message": "Failed to configure route."})
 		return
 	}
 
@@ -324,16 +352,49 @@ func (h *PageHandler) AppDetailPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var runtimeInfo *docker.ContainerInfo
+	containerName := app.EffectiveContainerName()
+	if containerName != "" && h.docker != nil {
+		inspected, err := h.docker.Inspect(r.Context(), containerName)
+		if err == nil {
+			networks := make([]string, 0, len(inspected.NetworkSettings.Networks))
+			for networkName := range inspected.NetworkSettings.Networks {
+				networks = append(networks, networkName)
+			}
+			runtimeInfo = &docker.ContainerInfo{
+				ID:       inspected.ID,
+				Name:     strings.TrimPrefix(inspected.Name, "/"),
+				Image:    inspected.Config.Image,
+				State:    string(inspected.State.Status),
+				Status:   string(inspected.State.Status),
+				Networks: networks,
+			}
+		}
+	}
+
+	manualRouteSnippet := ""
+	if h.proxyMode == config.ProxyModeExternal && app.AppType != domain.AppTypeManaged && app.Domain != "" {
+		target := app.ExternalTarget
+		if target == "" {
+			target = fmt.Sprintf("http://%s:%d", app.EffectiveContainerName(), app.InternalPort)
+		}
+		manualRouteSnippet = renderExternalTraefikSnippet(app.Name, app.Domain, target)
+	}
+
 	data := struct {
-		User             *web.UserData
-		App              *domain.App
-		Deploys          []*domain.Deploy
-		GitHubConfigured bool
+		User               *web.UserData
+		App                *domain.App
+		Deploys            []*domain.Deploy
+		GitHubConfigured   bool
+		RuntimeInfo        *docker.ContainerInfo
+		ManualRouteSnippet string
 	}{
-		User:             h.userData(r),
-		App:              app,
-		Deploys:          deploys,
-		GitHubConfigured: h.ghClient != nil && h.ghClient.IsConfigured(),
+		User:               h.userData(r),
+		App:                app,
+		Deploys:            deploys,
+		GitHubConfigured:   h.ghClient != nil && h.ghClient.IsConfigured(),
+		RuntimeInfo:        runtimeInfo,
+		ManualRouteSnippet: manualRouteSnippet,
 	}
 	h.renderer.Render(w, "app.html", app.Name, h.userData(r), data)
 }
@@ -364,6 +425,16 @@ func (h *PageHandler) TriggerDeploy(w http.ResponseWriter, r *http.Request) {
 
 	imageRef := r.FormValue("image_ref")
 	branch := r.FormValue("branch")
+	app, err := h.apps.GetApp(r.Context(), appID)
+	if err != nil {
+		http.Error(w, "app not found", http.StatusNotFound)
+		return
+	}
+	if app.AppType != domain.AppTypeManaged {
+		h.renderer.RenderStatus(w, http.StatusBadRequest, "flash.html",
+			map[string]string{"Color": "yellow", "Message": "Only Talos-managed apps support deploys."})
+		return
+	}
 
 	if imageRef == "" || branch == "" {
 		h.renderer.RenderStatus(w, http.StatusUnprocessableEntity, "flash.html",
@@ -397,6 +468,17 @@ func (h *PageHandler) TriggerRollback(w http.ResponseWriter, r *http.Request) {
 	appID, err := parseID(r, "appID")
 	if err != nil {
 		http.Error(w, "invalid app id", http.StatusBadRequest)
+		return
+	}
+
+	app, err := h.apps.GetApp(r.Context(), appID)
+	if err != nil {
+		http.Error(w, "app not found", http.StatusNotFound)
+		return
+	}
+	if app.AppType != domain.AppTypeManaged {
+		h.renderer.RenderStatus(w, http.StatusBadRequest, "flash.html",
+			map[string]string{"Color": "yellow", "Message": "Only Talos-managed apps support rollback."})
 		return
 	}
 
@@ -579,8 +661,10 @@ func (h *PageHandler) GeneralSettingsSubmit(w http.ResponseWriter, r *http.Reque
 		Domain:           r.FormValue("domain"),
 		ACMEEmail:        r.FormValue("acme_email"),
 		ProxyMode:        config.ProxyMode(r.FormValue("proxy_mode")),
+		EdgeProvider:     config.EdgeProvider(r.FormValue("edge_provider")),
 		EdgeNetwork:      r.FormValue("edge_network"),
 		EdgeCertResolver: r.FormValue("edge_cert_resolver"),
+		EdgeEntrypoint:   r.FormValue("edge_entrypoint"),
 	}, h.requestHost(r), h.port)
 	if err != nil {
 		http.Error(w, "failed to save settings", http.StatusInternalServerError)
@@ -612,23 +696,25 @@ func (h *PageHandler) renderGeneralSettings(w http.ResponseWriter, r *http.Reque
 	}
 	proxyModeLabel := "Internal Traefik"
 	if snapshot.ProxyMode == config.ProxyModeExternal {
-		proxyModeLabel = "External edge proxy"
+		proxyModeLabel = "External Traefik"
 	}
 
 	data := struct {
-		User             *web.UserData
-		Current          settings.Snapshot
-		RoutingModeLabel string
-		ProxyModeLabel   string
-		Saved            bool
-		ErrorMessage     string
+		User              *web.UserData
+		Current           settings.Snapshot
+		RoutingModeLabel  string
+		ProxyModeLabel    string
+		EdgeProviderLabel string
+		Saved             bool
+		ErrorMessage      string
 	}{
-		User:             h.userData(r),
-		Current:          snapshot,
-		RoutingModeLabel: routingModeLabel,
-		ProxyModeLabel:   proxyModeLabel,
-		Saved:            saved,
-		ErrorMessage:     errorMessage,
+		User:              h.userData(r),
+		Current:           snapshot,
+		RoutingModeLabel:  routingModeLabel,
+		ProxyModeLabel:    proxyModeLabel,
+		EdgeProviderLabel: strings.ToUpper(string(snapshot.EdgeProvider)),
+		Saved:             saved,
+		ErrorMessage:      errorMessage,
 	}
 
 	h.renderer.Render(w, "settings_general.html", "Proxy & Domain", h.userData(r), data)
@@ -643,4 +729,23 @@ func (h *PageHandler) requestHost(r *http.Request) string {
 		host = "localhost"
 	}
 	return host
+}
+
+func renderExternalTraefikSnippet(name, domainName, target string) string {
+	serviceName := strings.ReplaceAll(name, "_", "-")
+	return fmt.Sprintf(`http:
+  routers:
+    %s:
+      rule: "Host(%c%s%c)"
+      entryPoints:
+        - websecure
+      service: %s
+      tls:
+          certResolver: letsencrypt
+  services:
+    %s:
+      loadBalancer:
+        servers:
+          - url: "%s"
+`, serviceName, '`', domainName, '`', serviceName, serviceName, target)
 }

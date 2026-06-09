@@ -16,7 +16,7 @@ func TestEnsureTalosRouteDockerMode(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	mgr := NewManager(dir, dir, "talos", "traefik-public", "talos.example.com", "ops@example.com", "letsencrypt", config.ProxyModeInternal, 3000, slog.Default())
+	mgr := NewManager(dir, dir, "talos", "traefik-public", "talos.example.com", "ops@example.com", "letsencrypt", "websecure", config.ProxyModeInternal, 3000, slog.Default())
 
 	if err := mgr.EnsureTalosRoute(context.Background(), "docker"); err != nil {
 		t.Fatalf("ensure talos route: %v", err)
@@ -40,7 +40,7 @@ func TestEnsureTalosRouteBareMode(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	mgr := NewManager(dir, dir, "talos", "traefik-public", "talos.example.com", "ops@example.com", "letsencrypt", config.ProxyModeInternal, 3000, slog.Default())
+	mgr := NewManager(dir, dir, "talos", "traefik-public", "talos.example.com", "ops@example.com", "letsencrypt", "websecure", config.ProxyModeInternal, 3000, slog.Default())
 
 	if err := mgr.EnsureTalosRoute(context.Background(), "bare"); err != nil {
 		t.Fatalf("ensure talos route: %v", err)
@@ -61,7 +61,7 @@ func TestUpdateRouteNoopsForDomainAppsInExternalMode(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	mgr := NewManager(dir, dir, "talos", "traefik-public", "talos.example.com", "ops@example.com", "letsencrypt", config.ProxyModeExternal, 3000, slog.Default())
+	mgr := NewManager(dir, dir, "talos", "traefik-public", "talos.example.com", "ops@example.com", "letsencrypt", "websecure", config.ProxyModeExternal, 3000, slog.Default())
 
 	err := mgr.UpdateRoute(context.Background(), &domain.App{
 		Name:         "demo",
@@ -81,7 +81,7 @@ func TestUpdateRouteNoopsForDomainAppsInExternalMode(t *testing.T) {
 func TestExternalLabelsForDomainApps(t *testing.T) {
 	t.Parallel()
 
-	mgr := NewManager("", "", "talos", "traefik-public", "talos.example.com", "ops@example.com", "letsencrypt", config.ProxyModeExternal, 3000, slog.Default())
+	mgr := NewManager("", "", "talos", "traefik-public", "talos.example.com", "ops@example.com", "letsencrypt", "websecure", config.ProxyModeExternal, 3000, slog.Default())
 
 	labels := mgr.ExternalLabels(&domain.App{
 		Name:         "demo",
@@ -107,7 +107,7 @@ func TestExternalLabelsForDomainApps(t *testing.T) {
 func TestExternalNetworksForDomainApps(t *testing.T) {
 	t.Parallel()
 
-	mgr := NewManager("", "", "talos", "traefik-public", "talos.example.com", "ops@example.com", "letsencrypt", config.ProxyModeExternal, 3000, slog.Default())
+	mgr := NewManager("", "", "talos", "traefik-public", "talos.example.com", "ops@example.com", "letsencrypt", "websecure", config.ProxyModeExternal, 3000, slog.Default())
 	networks := mgr.ExternalNetworks(&domain.App{
 		AccessMode: domain.AccessModeDomain,
 		Domain:     "app.example.com",
