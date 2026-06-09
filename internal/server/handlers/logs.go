@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/logic-roastery/project-talos/internal/domain"
 	"github.com/logic-roastery/project-talos/internal/runtime/docker"
 	"github.com/logic-roastery/project-talos/internal/store"
 )
@@ -40,7 +41,12 @@ func (h *LogHandler) StreamLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	containerName := app.LiveContainerName
+	if app.AppType == domain.AppTypeExternalService {
+		http.Error(w, "external services do not have container logs", http.StatusBadRequest)
+		return
+	}
+
+	containerName := app.EffectiveContainerName()
 	if containerName == "" {
 		containerName = fmt.Sprintf("talos-%s", app.Name)
 	}

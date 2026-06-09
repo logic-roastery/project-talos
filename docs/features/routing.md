@@ -3,7 +3,7 @@
 Talos supports two proxy topologies:
 
 - `internal` proxy mode: Talos manages its own Traefik instance and can route app custom domains.
-- `external` proxy mode: another reverse proxy owns `80/443` and publishes the Talos UI. App custom domains are not yet supported in this mode.
+- `external` proxy mode: another Traefik reverse proxy owns `80/443` and publishes both the Talos UI and app custom domains through Docker labels.
 
 This page covers those proxy modes, app access modes, and the related HTTPS behavior.
 
@@ -22,7 +22,8 @@ app2.example.com --> Traefik --> talos-app2 container
 
 **Requirements:**
 
-- `TALOS_PROXY_MODE=internal`
+- `TALOS_PROXY_MODE=internal` or `TALOS_PROXY_MODE=external`
+- In external mode, `TALOS_EDGE_PROVIDER=traefik`
 - `TALOS_DOMAIN` must be set for the Talos UI itself
 - Each app's `domain` field must be set
 - DNS A records must point to the server IP
@@ -65,9 +66,17 @@ When `TALOS_PROXY_MODE=external`, Talos does not start `talos-traefik`. Instead:
 
 1. Your existing edge proxy must own `80/443`.
 2. The Talos container must join the shared proxy network such as `traefik-public`.
-3. The edge proxy must watch Talos container labels and route `Host(TALOS_DOMAIN)` to Talos port `3000`.
+3. The edge proxy must watch Talos and app container labels.
+4. Talos routes `Host(TALOS_DOMAIN)` to Talos port `3000`.
+5. Domain-mode apps are published by labels on the deployed app container.
 
-In v1, this mode supports the Talos UI hostname only. Talos-managed app custom domains remain internal-mode-only.
+When Talos deploys a domain-mode app in external mode, it performs a brief stop/start cutover so the shared Traefik router targets a single live container at a time.
+
+## App Types and Routing
+
+- `managed`: Talos deploys the workload itself. In external mode, Talos publishes Traefik labels automatically.
+- `adopted_container`: Talos can inspect logs and metadata from an existing Docker container. In internal mode, Talos can route the domain directly. In external mode, Talos shows the manual Traefik routing snippet because Docker labels on an existing container are not mutable in-place.
+- `external_service`: Talos stores a host or URL target outside Docker. In internal mode, Talos writes a Traefik file-provider route. In external mode, Talos shows the manual Traefik routing snippet in the app detail page.
 
 ## Traefik Configuration
 
@@ -221,7 +230,8 @@ For a VPS that already runs a shared Traefik edge proxy:
    ```
 2. Recreate Talos with `/opt/talos/.env` bind-mounted into the container.
 3. Attach the Talos container to `traefik-public`.
-4. Let the external Traefik route `Host(talos.example.com)` to Talos port `3000`.
+4. Let the external Traefik watch Docker labels on `traefik-public`.
+5. Talos will publish `Host(talos.example.com)` for the UI and custom-domain labels for app containers on new deploys.
 
 ## Container Networking
 

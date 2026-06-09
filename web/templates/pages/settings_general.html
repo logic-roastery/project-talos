@@ -40,9 +40,13 @@
                         <p class="text-sm font-mono text-body break-all">{{.Current.ConfiguredURL}}</p>
                     </div>
                     <div class="bg-night/50 border border-hairline rounded-lg p-4">
+                        <p class="text-xs text-muted uppercase tracking-wider mb-1">Edge Provider</p>
+                        <p class="text-sm font-medium text-body">{{.EdgeProviderLabel}}</p>
+                    </div>
+                    <div class="bg-night/50 border border-hairline rounded-lg p-4">
                         <p class="text-xs text-muted uppercase tracking-wider mb-1">App Custom Domains</p>
                         <p class="text-sm font-medium {{if .Current.SupportsAppDomains}}text-lime-accent{{else}}text-yellow-300{{end}}">
-                            {{if .Current.SupportsAppDomains}}Supported{{else}}Not available in external mode yet{{end}}
+                            {{if .Current.SupportsAppDomains}}Supported{{else}}Unavailable{{end}}
                         </p>
                     </div>
                     <div class="bg-night/50 border border-hairline rounded-lg p-4 sm:col-span-2">
@@ -60,6 +64,10 @@
                     <div class="bg-night/50 border border-hairline rounded-lg p-4">
                         <p class="text-xs text-muted uppercase tracking-wider mb-1">TALOS_EDGE_CERT_RESOLVER</p>
                         <p class="text-sm font-mono text-body break-all">{{.Current.EdgeCertResolver}}</p>
+                    </div>
+                    <div class="bg-night/50 border border-hairline rounded-lg p-4 sm:col-span-2">
+                        <p class="text-xs text-muted uppercase tracking-wider mb-1">TALOS_EDGE_ENTRYPOINT</p>
+                        <p class="text-sm font-mono text-body break-all">{{.Current.EdgeEntrypoint}}</p>
                     </div>
                 </div>
             </div>
@@ -87,6 +95,13 @@
                     </div>
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
+                            <label for="edge_provider" class="block text-sm font-medium text-heading mb-2">TALOS_EDGE_PROVIDER</label>
+                            <select id="edge_provider" name="edge_provider"
+                                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
+                                <option value="traefik" {{if eq .Current.EdgeProvider "traefik"}}selected{{end}}>traefik</option>
+                            </select>
+                        </div>
+                        <div>
                             <label for="edge_network" class="block text-sm font-medium text-heading mb-2">TALOS_EDGE_NETWORK</label>
                             <input id="edge_network" name="edge_network" type="text" value="{{.Current.EdgeNetwork}}" placeholder="traefik-public"
                                 class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
@@ -96,9 +111,14 @@
                             <input id="edge_cert_resolver" name="edge_cert_resolver" type="text" value="{{.Current.EdgeCertResolver}}" placeholder="letsencrypt"
                                 class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
                         </div>
+                        <div>
+                            <label for="edge_entrypoint" class="block text-sm font-medium text-heading mb-2">TALOS_EDGE_ENTRYPOINT</label>
+                            <input id="edge_entrypoint" name="edge_entrypoint" type="text" value="{{.Current.EdgeEntrypoint}}" placeholder="websecure"
+                                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30">
+                        </div>
                     </div>
                     <div class="bg-night/50 border border-hairline rounded-lg p-4">
-                        <p class="text-sm text-muted">Internal mode lets Talos manage its own Traefik and app custom domains. External mode assumes an existing edge proxy owns ports 80/443 and only publishes the Talos UI domain in v1.</p>
+                        <p class="text-sm text-muted">Internal mode lets Talos manage its own Traefik and app custom domains. External mode assumes an existing Traefik edge proxy owns ports 80/443 and publishes both the Talos UI and app custom domains through container labels.</p>
                     </div>
                     <button type="submit" class="inline-flex items-center gap-2 bg-lime-accent text-midnight font-bold px-4 py-2.5 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
                         Save Settings
@@ -124,11 +144,11 @@
                     </li>
                     <li class="flex items-start gap-2">
                         <span class="text-violet mt-0.5">2.</span>
-                        <span>In external proxy mode, the shared edge proxy must watch <code class="bg-canvas-dark px-1.5 py-0.5 rounded text-body">{{.Current.EdgeNetwork}}</code> and route the Talos container labels.</span>
+                        <span>In external proxy mode, the shared Traefik edge proxy must watch <code class="bg-canvas-dark px-1.5 py-0.5 rounded text-body">{{.Current.EdgeNetwork}}</code> and route both the Talos container labels and any app container labels created by new deploys.</span>
                     </li>
                     <li class="flex items-start gap-2">
                         <span class="text-violet mt-0.5">3.</span>
-                        <span>App custom domains remain internal-proxy-only in v1. Use port access for apps when Talos runs behind an external edge proxy.</span>
+                        <span>When an app in external mode uses a custom domain, Talos performs a brief stop/start cutover during deploy so the shared Traefik router points at only one live container at a time.</span>
                     </li>
                 </ul>
             </div>

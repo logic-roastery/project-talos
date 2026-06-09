@@ -46,8 +46,10 @@ type Snapshot struct {
 	Domain             string
 	ACMEEmail          string
 	ProxyMode          config.ProxyMode
+	EdgeProvider       config.EdgeProvider
 	EdgeNetwork        string
 	EdgeCertResolver   string
+	EdgeEntrypoint     string
 	Mode               InstallMode
 	EnvPath            string
 	DockerImage        string
@@ -62,8 +64,10 @@ type UpdateInput struct {
 	Domain           string
 	ACMEEmail        string
 	ProxyMode        config.ProxyMode
+	EdgeProvider     config.EdgeProvider
 	EdgeNetwork      string
 	EdgeCertResolver string
+	EdgeEntrypoint   string
 }
 
 func NewService(docker DockerInspector) *Service {
@@ -95,15 +99,19 @@ func (s *Service) Load(ctx context.Context, fallbackHost string, port int) (Snap
 	domain := strings.TrimSpace(values["TALOS_DOMAIN"])
 	email := strings.TrimSpace(values["TALOS_ACME_EMAIL"])
 	proxyMode := parseProxyMode(values["TALOS_PROXY_MODE"])
+	edgeProvider := parseEdgeProvider(values["TALOS_EDGE_PROVIDER"])
 	edgeNetwork := defaultString(values["TALOS_EDGE_NETWORK"], "traefik-public")
 	edgeCertResolver := defaultString(values["TALOS_EDGE_CERT_RESOLVER"], "letsencrypt")
+	edgeEntrypoint := defaultString(values["TALOS_EDGE_ENTRYPOINT"], "websecure")
 
 	return Snapshot{
 		Domain:             domain,
 		ACMEEmail:          email,
 		ProxyMode:          proxyMode,
+		EdgeProvider:       edgeProvider,
 		EdgeNetwork:        edgeNetwork,
 		EdgeCertResolver:   edgeCertResolver,
+		EdgeEntrypoint:     edgeEntrypoint,
 		Mode:               mode,
 		EnvPath:            envPath,
 		DockerImage:        dockerImage,
@@ -111,7 +119,7 @@ func (s *Service) Load(ctx context.Context, fallbackHost string, port int) (Snap
 		ApplyCommand:       applyCommand(mode, proxyMode, dockerImage, envPath, port, edgeNetwork, edgeCertResolver, domain),
 		ApplyTitle:         applyTitle(mode, proxyMode),
 		ApplyDescription:   applyDescription(mode, proxyMode),
-		SupportsAppDomains: proxyMode == config.ProxyModeInternal,
+		SupportsAppDomains: true,
 	}, nil
 }
 
@@ -123,8 +131,10 @@ func (s *Service) Save(ctx context.Context, input UpdateInput, fallbackHost stri
 		"TALOS_DOMAIN":             strings.TrimSpace(input.Domain),
 		"TALOS_ACME_EMAIL":         strings.TrimSpace(input.ACMEEmail),
 		"TALOS_PROXY_MODE":         string(parseProxyMode(string(input.ProxyMode))),
+		"TALOS_EDGE_PROVIDER":      string(parseEdgeProvider(string(input.EdgeProvider))),
 		"TALOS_EDGE_NETWORK":       defaultString(input.EdgeNetwork, "traefik-public"),
 		"TALOS_EDGE_CERT_RESOLVER": defaultString(input.EdgeCertResolver, "letsencrypt"),
+		"TALOS_EDGE_ENTRYPOINT":    defaultString(input.EdgeEntrypoint, "websecure"),
 	}
 	if err := s.updateEnvFile(envPath, updates); err != nil {
 		return Snapshot{}, err
@@ -134,8 +144,10 @@ func (s *Service) Save(ctx context.Context, input UpdateInput, fallbackHost stri
 		Domain:             updates["TALOS_DOMAIN"],
 		ACMEEmail:          updates["TALOS_ACME_EMAIL"],
 		ProxyMode:          parseProxyMode(updates["TALOS_PROXY_MODE"]),
+		EdgeProvider:       parseEdgeProvider(updates["TALOS_EDGE_PROVIDER"]),
 		EdgeNetwork:        updates["TALOS_EDGE_NETWORK"],
 		EdgeCertResolver:   updates["TALOS_EDGE_CERT_RESOLVER"],
+		EdgeEntrypoint:     updates["TALOS_EDGE_ENTRYPOINT"],
 		Mode:               mode,
 		EnvPath:            envPath,
 		DockerImage:        dockerImage,
@@ -143,7 +155,7 @@ func (s *Service) Save(ctx context.Context, input UpdateInput, fallbackHost stri
 		ApplyCommand:       applyCommand(mode, parseProxyMode(updates["TALOS_PROXY_MODE"]), dockerImage, envPath, port, updates["TALOS_EDGE_NETWORK"], updates["TALOS_EDGE_CERT_RESOLVER"], updates["TALOS_DOMAIN"]),
 		ApplyTitle:         applyTitle(mode, parseProxyMode(updates["TALOS_PROXY_MODE"])),
 		ApplyDescription:   applyDescription(mode, parseProxyMode(updates["TALOS_PROXY_MODE"])),
-		SupportsAppDomains: parseProxyMode(updates["TALOS_PROXY_MODE"]) == config.ProxyModeInternal,
+		SupportsAppDomains: true,
 	}, nil
 }
 
@@ -331,12 +343,12 @@ func applyDescription(mode InstallMode, proxyMode config.ProxyMode) string {
 	switch mode {
 	case InstallModeDocker:
 		if proxyMode == config.ProxyModeExternal {
-			return "Saving updates /opt/talos/.env, but the running Talos container keeps its old environment and external-proxy labels until you recreate it and reconnect it to the shared edge network."
+			return "Saving updates /opt/talos/.env, but the running Talos container and any new external-proxy label behavior keep using the old values until you recreate Talos and reconnect it to the shared edge network."
 		}
 		return "Saving updates /opt/talos/.env, but the running Talos container keeps using the old values until you recreate it."
 	case InstallModeBare:
 		if proxyMode == config.ProxyModeExternal {
-			return "Saving updates the env file, but the running Talos process and your external proxy keep using the old values until Talos restarts and the proxy route is refreshed."
+			return "Saving updates the env file, but the running Talos process and your external proxy keep using the old values until Talos restarts and new app deployments publish updated labels."
 		}
 		return "Saving updates the env file, but the running Talos process keeps using the old values until the systemd service restarts."
 	default:
@@ -417,6 +429,15 @@ func parseProxyMode(v string) config.ProxyMode {
 		return config.ProxyModeExternal
 	default:
 		return config.ProxyModeInternal
+	}
+}
+
+func parseEdgeProvider(v string) config.EdgeProvider {
+	switch config.EdgeProvider(strings.TrimSpace(v)) {
+	case config.EdgeProviderTraefik:
+		return config.EdgeProviderTraefik
+	default:
+		return config.EdgeProviderTraefik
 	}
 }
 

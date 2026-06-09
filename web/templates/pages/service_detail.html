@@ -1,78 +1,208 @@
 {{define "service_detail.html"}}
-<div class="max-w-3xl mx-auto">
-    <div class="flex items-center justify-between mb-8">
-        <div>
-            <h1 class="text-xl font-semibold text-heading">{{.Service.Name}}</h1>
-            <p class="text-sm text-muted">{{.Service.Type}} &middot; {{.Service.ImageRef}}</p>
+<div class="max-w-4xl mx-auto">
+    <div class="mb-8 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div class="min-w-0 flex items-start gap-4">
+            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-hairline bg-canvas-dark/60 text-muted">
+                {{if eq .Service.Type "redis"}}
+                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4.5 7.5 12 4.5l7.5 3-7.5 3-7.5-3Zm0 4.5 7.5 3 7.5-3M4.5 16.5l7.5 3 7.5-3"></path>
+                </svg>
+                {{else if eq .Service.Type "postgres"}}
+                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <ellipse cx="12" cy="6" rx="6.75" ry="2.75" stroke-width="1.75"></ellipse>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5.25 6v6c0 1.519 3.022 2.75 6.75 2.75s6.75-1.231 6.75-2.75V6m-13.5 6v6c0 1.519 3.022 2.75 6.75 2.75s6.75-1.231 6.75-2.75v-6"></path>
+                </svg>
+                {{else if eq .Service.Type "mysql"}}
+                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6.75 5.25h10.5A2.25 2.25 0 0 1 19.5 7.5v9a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 16.5v-9a2.25 2.25 0 0 1 2.25-2.25ZM8.25 9h7.5M8.25 12h7.5M8.25 15h4.5"></path>
+                </svg>
+                {{else}}
+                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3.75 15.75V6.75A2.25 2.25 0 0 1 6 4.5h6.879a2.25 2.25 0 0 1 1.591.659l4.371 4.371A2.25 2.25 0 0 1 19.5 11.12v4.63A2.25 2.25 0 0 1 17.25 18H6a2.25 2.25 0 0 1-2.25-2.25Z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12.75 4.5v4.5h4.5"></path>
+                </svg>
+                {{end}}
+            </div>
+            <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-3">
+                    <h1 class="text-2xl font-semibold text-heading">{{.Service.Name}}</h1>
+                    <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs uppercase tracking-[0.16em] {{statusBg .Service.Status}} {{statusText .Service.Status}} {{statusBorder .Service.Status}}">
+                        <span class="h-1.5 w-1.5 rounded-full {{statusDot .Service.Status}}"></span>
+                        {{.Service.Status}}
+                    </span>
+                </div>
+                <p class="mt-2 text-sm text-muted">{{.Service.Type}} &middot; {{.Service.ImageRef}}</p>
+                <p class="mt-1 text-sm text-faint">Managed backing service for app infrastructure. Use this page for runtime status, connection info, and linked app context.</p>
+            </div>
         </div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap items-center gap-2 lg:justify-end">
             {{if eq .Service.Status "active"}}
             <button hx-post="/api/services/{{.Service.ID}}/stop"
                 hx-confirm="Stop this service?"
-                class="bg-yellow-400/10 text-yellow-400 px-4 py-2 rounded-md hover:bg-yellow-400/20 transition text-sm cursor-pointer">
-                Stop
+                class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-2.5 text-sm text-yellow-400 transition hover:bg-yellow-400/20 cursor-pointer">
+                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 9h6v6H9z"></path>
+                </svg>
+                Stop service
             </button>
-            {{else if eq .Service.Status "stopped"}}
+            {{else}}
             <button hx-post="/api/services/{{.Service.ID}}/start"
-                class="bg-lime-accent/10 text-lime-accent px-4 py-2 rounded-md hover:bg-lime-accent/20 transition text-sm cursor-pointer">
-                Start
+                class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-lime-accent/20 bg-lime-accent/10 px-4 py-2.5 text-sm text-lime-accent transition hover:bg-lime-accent/20 cursor-pointer">
+                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M8.25 6.75v10.5L16.5 12 8.25 6.75Z"></path>
+                </svg>
+                {{if eq .Service.Status "stopped"}}Start service{{else}}Retry service{{end}}
             </button>
             {{end}}
             <button hx-delete="/api/services/{{.Service.ID}}"
                 hx-confirm="Delete {{.Service.Name}}? This cannot be undone."
                 hx-on::after-request="if(event.detail.successful) window.location.href='/services'"
-                class="text-muted hover:text-pink-accent transition text-sm cursor-pointer">
-                Delete
+                class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm text-muted transition hover:bg-pink-accent/10 hover:text-pink-accent cursor-pointer">
+                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6 7.5h12m-9.75 0V6A2.25 2.25 0 0 1 10.5 3.75h3A2.25 2.25 0 0 1 15.75 6v1.5m-8.25 0v10.125A2.625 2.625 0 0 0 10.125 20.25h3.75A2.625 2.625 0 0 0 16.5 17.625V7.5m-6 3v6m3-6v6"></path>
+                </svg>
+                Delete service
             </button>
         </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-6 mb-6">
-        <div class="bg-night border border-hairline rounded-xl p-6">
-            <h2 class="text-sm font-semibold text-muted uppercase tracking-wider mb-4">Status</h2>
-            <div class="space-y-3 text-sm">
-                <div class="flex justify-between">
-                    <span class="text-muted">Status</span>
-                    <span class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full {{statusBg .Service.Status}} {{statusText .Service.Status}} border {{statusBorder .Service.Status}}">
-                        <span class="w-1.5 h-1.5 rounded-full {{statusDot .Service.Status}}"></span>
-                        {{.Service.Status}}
-                    </span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-muted">Container ID</span>
-                    <span class="font-mono text-xs text-subtle">{{if .Service.ContainerID}}{{.Service.ContainerID}}{{else}}—{{end}}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-muted">Port</span>
-                    <span class="text-subtle">{{.Service.InternalPort}}</span>
-                </div>
+    {{if eq .Service.Status "error"}}
+    <div class="mb-6 rounded-xl border border-pink-accent/20 bg-pink-accent/10 p-4">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-pink-accent">Service Needs Attention</h2>
+                <p class="mt-1 text-sm text-body">This service is in an error state. Try starting it again, then verify the container runtime and credentials.</p>
             </div>
-        </div>
-
-        <div class="bg-night border border-hairline rounded-xl p-6">
-            <h2 class="text-sm font-semibold text-muted uppercase tracking-wider mb-4">Credentials</h2>
-            <div id="creds-display" class="space-y-3 text-sm">
-                <button onclick="loadCredentials()" id="creds-btn"
-                    class="w-full bg-hairline text-muted px-4 py-2 rounded-md hover:text-body transition text-sm cursor-pointer">
-                    Show Credentials
-                </button>
-            </div>
+            <button onclick="loadCredentials()" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-pink-accent/20 bg-night/40 px-3 py-2 text-sm text-pink-accent transition hover:bg-night/60 cursor-pointer">
+                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M2.25 12S5.25 5.25 12 5.25 21.75 12 21.75 12 18.75 18.75 12 18.75 2.25 12 2.25 12Z"></path>
+                    <circle cx="12" cy="12" r="3" stroke-width="1.75"></circle>
+                </svg>
+                Load details
+            </button>
         </div>
     </div>
+    {{else if eq .Service.Status "provisioning"}}
+    <div class="mb-6 rounded-xl border border-yellow-400/20 bg-yellow-400/10 p-4">
+        <h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-yellow-400">Provisioning In Progress</h2>
+        <p class="mt-1 text-sm text-body">Talos is still preparing this service. Container details and connection info may not be complete yet.</p>
+    </div>
+    {{else if eq .Service.Status "pending"}}
+    <div class="mb-6 rounded-xl border border-yellow-400/20 bg-yellow-400/10 p-4">
+        <h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-yellow-400">Pending Startup</h2>
+        <p class="mt-1 text-sm text-body">This service has been created but is not running yet. Start it to make credentials and connection details usable.</p>
+    </div>
+    {{else if eq .Service.Status "stopped"}}
+    <div class="mb-6 rounded-xl border border-hairline bg-canvas-dark/40 p-4">
+        <h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-body">Service Stopped</h2>
+        <p class="mt-1 text-sm text-muted">The backing container is not running. Start it again before connecting apps or rotating credentials.</p>
+    </div>
+    {{end}}
 
-    <div class="bg-night border border-hairline rounded-xl p-6">
-        <h2 class="text-sm font-semibold text-muted uppercase tracking-wider mb-4">Linked Apps</h2>
-        {{if .LinkedApps}}
-        <div class="space-y-2">
-            {{range .LinkedApps}}
-            <div class="flex items-center justify-between bg-ink rounded-md px-4 py-2">
-                <span class="text-sm">App #{{.AppID}} &rarr; alias: <code class="text-lime-accent">{{.Alias}}</code></span>
+    <div class="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <div class="space-y-6">
+            <div class="bg-night border border-hairline rounded-xl p-6">
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Runtime</h2>
+                    <span class="text-xs text-muted uppercase tracking-[0.16em]">Current state</span>
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                        <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Container ID</span>
+                        <span class="mt-2 block break-all font-mono text-xs leading-relaxed text-subtle">{{if .Service.ContainerID}}{{.Service.ContainerID}}{{else}}Not assigned yet{{end}}</span>
+                    </div>
+                    <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                        <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Port</span>
+                        <span class="mt-2 block text-sm text-body">{{.Service.InternalPort}}</span>
+                    </div>
+                    <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                        <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Image</span>
+                        <span class="mt-2 block break-all text-sm text-subtle">{{.Service.ImageRef}}</span>
+                    </div>
+                    <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                        <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Volume Path</span>
+                        <span class="mt-2 block break-all text-sm text-subtle">{{.Service.VolumePath}}</span>
+                    </div>
+                </div>
             </div>
-            {{end}}
+
+            <div class="bg-night border border-hairline rounded-xl p-6">
+                <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Quick Connect</h2>
+                        <p class="mt-1 text-sm text-faint">Load the generated connection info to copy a ready-to-use endpoint for apps or local tooling.</p>
+                    </div>
+                    <button onclick="loadCredentials()" class="inline-flex min-h-10 items-center gap-2 self-start rounded-lg border border-hairline bg-hairline px-3 py-2 text-sm text-muted transition hover:text-body cursor-pointer">
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M2.25 12S5.25 5.25 12 5.25 21.75 12 21.75 12 18.75 18.75 12 18.75 2.25 12 2.25 12Z"></path>
+                            <circle cx="12" cy="12" r="3" stroke-width="1.75"></circle>
+                        </svg>
+                        Load details
+                    </button>
+                </div>
+                <div id="quick-connect-display" class="space-y-3">
+                    <div class="rounded-lg border border-dashed border-hairline px-4 py-5 text-sm text-muted">
+                        Credentials stay hidden until requested. Load them to see the host, connection string, and direct copy actions.
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-night border border-hairline rounded-xl p-6">
+                <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Linked Apps</h2>
+                        <p class="mt-1 text-sm text-faint">Apps can link this service by alias from their settings page.</p>
+                    </div>
+                    <a href="/dashboard" class="inline-flex min-h-10 items-center gap-2 self-start rounded-lg border border-hairline bg-hairline px-3 py-2 text-sm text-muted transition hover:text-body">
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3.75 6.75h16.5m-16.5 5.25h16.5m-16.5 5.25h10.5"></path>
+                        </svg>
+                        Open Apps
+                    </a>
+                </div>
+                {{if .LinkedApps}}
+                <div class="space-y-3">
+                    {{range .LinkedApps}}
+                    <div class="flex flex-col gap-2 rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <span class="block text-sm text-body">App #{{.AppID}}</span>
+                            <span class="mt-1 block text-xs uppercase tracking-[0.16em] text-muted">Alias</span>
+                        </div>
+                        <code class="inline-flex w-fit items-center rounded-md bg-night/70 px-2.5 py-1 text-sm text-lime-accent">{{.Alias}}</code>
+                    </div>
+                    {{end}}
+                </div>
+                {{else}}
+                <div class="rounded-lg border border-dashed border-hairline px-4 py-5 text-sm text-muted">
+                    No apps are linked yet. Open an app and attach this service from the app settings flow when you are ready to inject credentials.
+                </div>
+                {{end}}
+            </div>
         </div>
-        {{else}}
-        <p class="text-sm text-muted">Not linked to any apps. Link from an app's Settings page.</p>
-        {{end}}
+
+        <div class="space-y-6">
+            <div class="bg-night border border-hairline rounded-xl p-6">
+                <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Credentials</h2>
+                        <p class="mt-1 text-sm text-faint">Only sensitive values stay masked. Use reveal and copy controls as needed.</p>
+                    </div>
+                    <button onclick="loadCredentials()" id="creds-btn"
+                        class="inline-flex min-h-10 items-center gap-2 self-start rounded-lg border border-hairline bg-hairline px-3 py-2 text-sm text-muted transition hover:text-body cursor-pointer">
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M2.25 12S5.25 5.25 12 5.25 21.75 12 21.75 12 18.75 18.75 12 18.75 2.25 12 2.25 12Z"></path>
+                            <circle cx="12" cy="12" r="3" stroke-width="1.75"></circle>
+                        </svg>
+                        Show Credentials
+                    </button>
+                </div>
+                <div id="creds-display" class="space-y-3 text-sm">
+                    <div class="rounded-lg border border-dashed border-hairline px-4 py-5 text-sm text-muted">
+                        Load credentials to reveal the generated values for this service.
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -81,27 +211,175 @@ async function loadCredentials() {
     const res = await fetch('/api/services/{{.Service.ID}}/credentials');
     if (!res.ok) { alert('Failed to load credentials'); return; }
     const creds = await res.json();
+    renderQuickConnect(creds);
+    renderCredentials(creds);
+}
+
+function renderQuickConnect(creds) {
+    const container = document.getElementById('quick-connect-display');
+    const details = buildConnectionDetails(creds);
+    const copyIcon = iconCopy();
+    const checkIcon = iconCheck();
+
+    container.innerHTML = '';
+
+    if (details.summary.length) {
+        const summary = document.createElement('div');
+        summary.className = 'grid gap-3 sm:grid-cols-2';
+        for (const item of details.summary) {
+            const card = document.createElement('div');
+            card.className = 'rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3';
+            card.innerHTML = '<span class="block text-[11px] uppercase tracking-[0.16em] text-muted">' + escapeHTML(item.label) + '</span>' +
+                '<div class="mt-2 flex items-start justify-between gap-3">' +
+                '<span class="min-w-0 break-all pr-2 text-sm leading-relaxed text-body">' + escapeHTML(item.value) + '</span>' +
+                '<button type="button" onclick="copyCred(this)" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Copy ' + escapeHTML(item.label) + '" data-value="' + escapeHTML(item.value) + '" data-copy-icon="' + copyIcon.replace(/"/g, '&quot;') + '" data-check-icon="' + checkIcon.replace(/"/g, '&quot;') + '">' + copyIcon + '</button>' +
+                '</div>';
+            summary.appendChild(card);
+        }
+        container.appendChild(summary);
+    }
+
+    if (details.connectionString) {
+        const block = document.createElement('div');
+        block.className = 'rounded-lg border border-violet/20 bg-violet/10 px-4 py-3';
+        block.innerHTML = '<span class="block text-[11px] uppercase tracking-[0.16em] text-violet">Connection String</span>' +
+            '<div class="mt-2 space-y-3">' +
+            '<code class="block overflow-x-auto rounded-md bg-night/20 px-3 py-2 text-xs leading-relaxed text-body font-mono">' + escapeHTML(details.connectionString) + '</code>' +
+            '<button type="button" onclick="copyCred(this)" class="inline-flex h-9 items-center gap-2 rounded-md border border-violet/20 px-3 text-violet transition hover:bg-night/20 hover:text-body" aria-label="Copy connection string" data-value="' + escapeHTML(details.connectionString) + '" data-copy-icon="' + copyIcon.replace(/"/g, '&quot;') + '" data-check-icon="' + checkIcon.replace(/"/g, '&quot;') + '">' + copyIcon + '<span class="text-xs uppercase tracking-[0.16em]">Copy string</span></button>' +
+            '</div>';
+        container.appendChild(block);
+    }
+}
+
+function renderCredentials(creds) {
     const container = document.getElementById('creds-display');
     container.innerHTML = '';
+    const eyeIcon = iconEye();
+    const eyeOffIcon = iconEyeOff();
+    const copyIcon = iconCopy();
+    const checkIcon = iconCheck();
+
     for (const [key, val] of Object.entries(creds)) {
-        if (!val) continue;
+        if (val === null || val === undefined || val === '') continue;
+
+        const isSensitive = /password|secret|access_key/i.test(key);
+        const displayValue = String(val);
         const row = document.createElement('div');
-        row.className = 'flex justify-between items-center';
-        row.innerHTML = '<span class="text-muted">' + key + '</span>' +
-            '<div class="flex items-center gap-2">' +
-            '<code class="text-xs text-subtle credential-value font-mono" data-value="' + val + '">••••••••</code>' +
-            '<button onclick="toggleCred(this)" class="text-muted hover:text-body text-xs">👁</button>' +
-            '<button onclick="copyCred(\'' + val + '\')" class="text-muted hover:text-body text-xs">📋</button>' +
-            '</div>';
+        row.className = 'rounded-lg border border-hairline/80 bg-canvas-dark/40 px-3 py-3';
+
+        if (isSensitive) {
+            row.innerHTML = '<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">' +
+                '<div class="space-y-1">' +
+                '<span class="block text-muted">' + escapeHTML(key) + '</span>' +
+                '<span class="credential-state inline-flex items-center rounded-full border border-hairline bg-night/60 px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-muted">Hidden</span>' +
+                '</div>' +
+                '<div class="min-w-0 space-y-2 sm:max-w-[16rem]">' +
+                '<code class="credential-value block overflow-x-auto rounded-md bg-night/70 px-2 py-1.5 text-xs text-subtle font-mono" data-value="' + escapeHTML(displayValue) + '">••••••••</code>' +
+                '<div class="flex items-center justify-end gap-2">' +
+                '<button type="button" onclick="toggleCred(this)" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Toggle credential visibility" data-eye="' + eyeIcon.replace(/"/g, '&quot;') + '" data-eye-off="' + eyeOffIcon.replace(/"/g, '&quot;') + '">' + eyeIcon + '</button>' +
+                '<button type="button" onclick="copyCred(this)" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Copy credential" data-value="' + escapeHTML(displayValue) + '" data-copy-icon="' + copyIcon.replace(/"/g, '&quot;') + '" data-check-icon="' + checkIcon.replace(/"/g, '&quot;') + '">' + copyIcon + '</button>' +
+                '</div>' +
+                '</div>';
+        } else {
+            row.innerHTML = '<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">' +
+                '<div class="space-y-1">' +
+                '<span class="block text-muted">' + escapeHTML(key) + '</span>' +
+                '<span class="inline-flex items-center rounded-full border border-lime-accent/20 bg-lime-accent/10 px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-lime-accent">Visible</span>' +
+                '</div>' +
+                '<div class="min-w-0 space-y-2 sm:max-w-[16rem]">' +
+                '<code class="block overflow-x-auto rounded-md bg-night/70 px-2 py-1.5 text-xs text-subtle font-mono">' + escapeHTML(displayValue) + '</code>' +
+                '<div class="flex items-center justify-end gap-2">' +
+                '<button type="button" onclick="copyCred(this)" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Copy credential" data-value="' + escapeHTML(displayValue) + '" data-copy-icon="' + copyIcon.replace(/"/g, '&quot;') + '" data-check-icon="' + checkIcon.replace(/"/g, '&quot;') + '">' + copyIcon + '</button>' +
+                '</div>' +
+                '</div>';
+        }
+
         container.appendChild(row);
     }
 }
 
-function toggleCred(btn) {
-    const code = btn.parentElement.querySelector('.credential-value');
-    code.textContent = code.textContent === '••••••••' ? code.dataset.value : '••••••••';
+function buildConnectionDetails(creds) {
+    const type = '{{.Service.Type}}';
+    const summary = [];
+    let connectionString = '';
+
+    if (type === 'redis') {
+        if (creds.host) summary.push({ label: 'Host', value: creds.host });
+        if (creds.port) summary.push({ label: 'Port', value: String(creds.port) });
+        connectionString = creds.password
+            ? 'redis://:' + creds.password + '@' + creds.host + ':' + creds.port
+            : 'redis://' + creds.host + ':' + creds.port;
+    } else if (type === 'postgres') {
+        if (creds.host) summary.push({ label: 'Host', value: creds.host });
+        if (creds.database) summary.push({ label: 'Database', value: creds.database });
+        if (creds.port) summary.push({ label: 'Port', value: String(creds.port) });
+        if (creds.user) summary.push({ label: 'User', value: creds.user });
+        connectionString = 'postgresql://' + creds.user + ':' + creds.password + '@' + creds.host + ':' + creds.port + '/' + creds.database;
+    } else if (type === 'mysql') {
+        if (creds.host) summary.push({ label: 'Host', value: creds.host });
+        if (creds.database) summary.push({ label: 'Database', value: creds.database });
+        if (creds.port) summary.push({ label: 'Port', value: String(creds.port) });
+        if (creds.user) summary.push({ label: 'User', value: creds.user });
+        connectionString = 'mysql://' + creds.user + ':' + creds.password + '@' + creds.host + ':' + creds.port + '/' + creds.database;
+    } else if (type === 'garage') {
+        if (creds.endpoint) summary.push({ label: 'Endpoint', value: creds.endpoint });
+        if (creds.bucket) summary.push({ label: 'Bucket', value: creds.bucket });
+        if (creds.region) summary.push({ label: 'Region', value: creds.region });
+        connectionString = creds.endpoint;
+    }
+
+    return { summary: summary, connectionString: connectionString };
 }
 
-function copyCred(val) { navigator.clipboard.writeText(val); }
+function toggleCred(btn) {
+    const row = btn.closest('.rounded-lg');
+    const code = row.querySelector('.credential-value');
+    const state = row.querySelector('.credential-state');
+    const revealing = code.textContent === '••••••••';
+    code.textContent = revealing ? code.dataset.value : '••••••••';
+    btn.innerHTML = revealing ? btn.dataset.eyeOff : btn.dataset.eye;
+    state.textContent = revealing ? 'Visible' : 'Hidden';
+    state.className = revealing
+        ? 'credential-state inline-flex items-center rounded-full border border-lime-accent/30 bg-lime-accent/10 px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-lime-accent'
+        : 'credential-state inline-flex items-center rounded-full border border-hairline bg-night/60 px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-muted';
+}
+
+async function copyCred(btn) {
+    try {
+        await navigator.clipboard.writeText(btn.dataset.value);
+        btn.innerHTML = btn.dataset.checkIcon;
+        btn.classList.add('text-lime-accent');
+        window.setTimeout(function() {
+            btn.innerHTML = btn.dataset.copyIcon;
+            btn.classList.remove('text-lime-accent');
+        }, 1200);
+    } catch (err) {
+        console.error('copy failed', err);
+    }
+}
+
+function escapeHTML(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function iconEye() {
+    return '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M2.25 12S5.25 5.25 12 5.25 21.75 12 21.75 12 18.75 18.75 12 18.75 2.25 12 2.25 12Z"></path><circle cx="12" cy="12" r="3" stroke-width="1.75"></circle></svg>';
+}
+
+function iconEyeOff() {
+    return '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="m3 3 18 18m-9-2.25c-6.75 0-9.75-6.75-9.75-6.75a18.81 18.81 0 0 1 4.306-5.774m3.145-1.327A10.46 10.46 0 0 1 12 5.25c6.75 0 9.75 6.75 9.75 6.75a18.84 18.84 0 0 1-2.877 4.177M14.12 14.12A3 3 0 0 1 9.88 9.88"></path></svg>';
+}
+
+function iconCopy() {
+    return '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M15.75 17.25v1.125A2.625 2.625 0 0 1 13.125 21H6.375A2.625 2.625 0 0 1 3.75 18.375V9.375A2.625 2.625 0 0 1 6.375 6.75H7.5m3.375-3.75h6.75A2.625 2.625 0 0 1 20.25 5.625v9a2.625 2.625 0 0 1-2.625 2.625h-6.75A2.625 2.625 0 0 1 8.25 14.625v-9A2.625 2.625 0 0 1 10.875 3Z"></path></svg>';
+}
+
+function iconCheck() {
+    return '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="m4.5 12.75 6 6 9-13.5"></path></svg>';
+}
 </script>
 {{end}}

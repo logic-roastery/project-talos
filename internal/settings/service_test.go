@@ -43,7 +43,7 @@ func TestSavePreservesUnrelatedKeysAndRemovesEmptyValues(t *testing.T) {
 		t.Fatalf("read env file: %v", err)
 	}
 
-	want := "# Talos\nKEEP_ME=1\n\nTALOS_PROXY_MODE=internal\nTALOS_EDGE_NETWORK=traefik-public\nTALOS_EDGE_CERT_RESOLVER=letsencrypt\n"
+	want := "# Talos\nKEEP_ME=1\n\nTALOS_PROXY_MODE=internal\nTALOS_EDGE_NETWORK=traefik-public\nTALOS_EDGE_CERT_RESOLVER=letsencrypt\nTALOS_EDGE_ENTRYPOINT=websecure\nTALOS_EDGE_PROVIDER=traefik\n"
 	if string(got) != want {
 		t.Fatalf("env file mismatch\nwant:\n%s\ngot:\n%s", want, string(got))
 	}
@@ -65,8 +65,10 @@ func TestSaveCreatesEnvFileWithConfiguredValues(t *testing.T) {
 		Domain:           "talos.example.com",
 		ACMEEmail:        "ops@example.com",
 		ProxyMode:        config.ProxyModeExternal,
+		EdgeProvider:     config.EdgeProviderTraefik,
 		EdgeNetwork:      "traefik-public",
 		EdgeCertResolver: "letsencrypt",
+		EdgeEntrypoint:   "websecure",
 	}, "0.0.0.0", 3000)
 	if err != nil {
 		t.Fatalf("save settings: %v", err)
@@ -77,7 +79,7 @@ func TestSaveCreatesEnvFileWithConfiguredValues(t *testing.T) {
 		t.Fatalf("read env file: %v", err)
 	}
 
-	want := "TALOS_DOMAIN=talos.example.com\nTALOS_ACME_EMAIL=ops@example.com\nTALOS_PROXY_MODE=external\nTALOS_EDGE_NETWORK=traefik-public\nTALOS_EDGE_CERT_RESOLVER=letsencrypt\n"
+	want := "TALOS_DOMAIN=talos.example.com\nTALOS_ACME_EMAIL=ops@example.com\nTALOS_PROXY_MODE=external\nTALOS_EDGE_NETWORK=traefik-public\nTALOS_EDGE_CERT_RESOLVER=letsencrypt\nTALOS_EDGE_ENTRYPOINT=websecure\nTALOS_EDGE_PROVIDER=traefik\n"
 	if string(got) != want {
 		t.Fatalf("env file mismatch\nwant:\n%s\ngot:\n%s", want, string(got))
 	}

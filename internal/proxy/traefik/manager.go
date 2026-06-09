@@ -19,26 +19,32 @@ const traefikContainerName = "talos-traefik"
 var ErrExternalProxyAppDomainsUnsupported = errors.New("custom app domains require internal proxy mode")
 
 type Manager struct {
-	configDir  string
-	dataDir    string
-	network    string
-	domain     string
-	acmeEmail  string
-	proxyMode  config.ProxyMode
-	serverPort int
-	logger     *slog.Logger
+	configDir        string
+	dataDir          string
+	network          string
+	edgeNetwork      string
+	domain           string
+	acmeEmail        string
+	edgeCertResolver string
+	edgeEntrypoint   string
+	proxyMode        config.ProxyMode
+	serverPort       int
+	logger           *slog.Logger
 }
 
-func NewManager(configDir, dataDir, network, domain, acmeEmail string, proxyMode config.ProxyMode, serverPort int, logger *slog.Logger) *Manager {
+func NewManager(configDir, dataDir, network, edgeNetwork, domain, acmeEmail, edgeCertResolver, edgeEntrypoint string, proxyMode config.ProxyMode, serverPort int, logger *slog.Logger) *Manager {
 	return &Manager{
-		configDir:  configDir,
-		dataDir:    dataDir,
-		network:    network,
-		domain:     domain,
-		acmeEmail:  acmeEmail,
-		proxyMode:  proxyMode,
-		serverPort: serverPort,
-		logger:     logger,
+		configDir:        configDir,
+		dataDir:          dataDir,
+		network:          network,
+		edgeNetwork:      edgeNetwork,
+		domain:           domain,
+		acmeEmail:        acmeEmail,
+		edgeCertResolver: edgeCertResolver,
+		edgeEntrypoint:   edgeEntrypoint,
+		proxyMode:        proxyMode,
+		serverPort:       serverPort,
+		logger:           logger,
 	}
 }
 
@@ -104,7 +110,26 @@ func (m *Manager) UpdateRoute(ctx context.Context, app *domain.App, containerNam
 		return nil
 	}
 	if m.proxyMode == config.ProxyModeExternal {
-		return ErrExternalProxyAppDomainsUnsupported
+		return nil
+	}
+	if app.AppType == domain.AppTypeExternalService && app.ExternalTarget != "" {
+		path := filepath.Join(m.configDir, app.Name+".yml")
+		f, err := os.Create(path)
+		if err != nil {
+			return fmt.Errorf("create route file: %w", err)
+		}
+		defer f.Close()
+
+		data := staticRouteData{
+			Name:      app.Name,
+			Rule:      fmt.Sprintf("Host(`%s`)", app.Domain),
+			TargetURL: app.ExternalTarget,
+		}
+		if err := staticRouteTemplate.Execute(f, data); err != nil {
+			return fmt.Errorf("write static route: %w", err)
+		}
+		m.logger.Info("external service route updated", "app", app.Name, "target", app.ExternalTarget)
+		return nil
 	}
 
 	data := routeData{
@@ -181,7 +206,59 @@ func (m *Manager) DomainMode() bool {
 }
 
 func (m *Manager) SupportsAppDomains() bool {
-	return m.proxyMode == config.ProxyModeInternal
+	return true
+}
+
+func (m *Manager) RequiresExclusiveSwitch(app *domain.App) bool {
+	return m.proxyMode == config.ProxyModeExternal && app.AccessMode == domain.AccessModeDomain
+}
+
+func (m *Manager) ExternalNetworks(app *domain.App) []string {
+	if m.proxyMode != config.ProxyModeExternal || app.AccessMode != domain.AccessModeDomain || m.edgeNetwork == "" {
+		return nil
+	}
+	if m.edgeNetwork == m.network {
+		return nil
+	}
+	return []string{m.edgeNetwork}
+}
+
+func (m *Manager) ExternalLabels(app *domain.App) map[string]string {
+	if m.proxyMode != config.ProxyModeExternal || app.AccessMode != domain.AccessModeDomain || app.Domain == "" {
+		return nil
+	}
+
+	serviceName := app.Name
+	return map[string]string{
+		"traefik.enable":         "true",
+		"traefik.docker.network": m.edgeNetworkOrDefault(),
+		fmt.Sprintf("traefik.http.routers.%s.rule", serviceName):                      fmt.Sprintf("Host(`%s`)", app.Domain),
+		fmt.Sprintf("traefik.http.routers.%s.entrypoints", serviceName):               m.edgeEntrypointOrDefault(),
+		fmt.Sprintf("traefik.http.routers.%s.tls", serviceName):                       "true",
+		fmt.Sprintf("traefik.http.routers.%s.tls.certresolver", serviceName):          m.edgeCertResolverOrDefault(),
+		fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", serviceName): fmt.Sprintf("%d", app.InternalPort),
+	}
+}
+
+func (m *Manager) edgeNetworkOrDefault() string {
+	if m.edgeNetwork == "" {
+		return "traefik-public"
+	}
+	return m.edgeNetwork
+}
+
+func (m *Manager) edgeCertResolverOrDefault() string {
+	if m.edgeCertResolver == "" {
+		return "letsencrypt"
+	}
+	return m.edgeCertResolver
+}
+
+func (m *Manager) edgeEntrypointOrDefault() string {
+	if m.edgeEntrypoint == "" {
+		return "websecure"
+	}
+	return m.edgeEntrypoint
 }
 
 // EnsureTraefik starts the Traefik container if it's not already running.

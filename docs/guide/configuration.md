@@ -73,7 +73,16 @@ Never commit your `.env` file to version control. The `TALOS_ENCRYPTION_KEY` is 
 ## Proxy Modes
 
 - `internal`: Talos starts `talos-traefik`, owns `80/443`, and supports Talos-managed app custom domains.
-- `external`: another reverse proxy owns `80/443`. Talos only publishes its UI hostname through container labels in Docker mode. App custom domains remain unsupported in this mode in v1.
+- `external`: another Traefik reverse proxy owns `80/443`. Talos publishes the Talos UI hostname and app custom domains through container labels on the shared proxy network.
+
+## External Traefik Settings
+
+- `TALOS_EDGE_PROVIDER=traefik`
+- `TALOS_EDGE_NETWORK=traefik-public`
+- `TALOS_EDGE_CERT_RESOLVER=letsencrypt`
+- `TALOS_EDGE_ENTRYPOINT=websecure`
+
+Talos treats external proxy mode as shared Traefik integration. Managed apps publish domains automatically through Docker labels. Adopted containers and external services expose routing guidance in the UI when Talos cannot mutate the upstream target directly.
 
 ## Debug Endpoints
 

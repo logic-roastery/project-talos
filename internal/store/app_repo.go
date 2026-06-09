@@ -9,24 +9,24 @@ import (
 	"github.com/logic-roastery/project-talos/internal/domain"
 )
 
-const appColumns = `id, name, source, repo_url, branch, internal_port, image_ref, domain, fallback_port, access_mode, access_url, status, current_deploy_id, live_container_name, github_installation_id, github_repo_id, registry_url, created_at, updated_at`
+const appColumns = `id, name, app_type, runtime_owner, edge_provider, source, repo_url, branch, internal_port, image_ref, domain, fallback_port, access_mode, access_url, status, current_deploy_id, live_container_name, container_name, external_target, docker_network, github_installation_id, github_repo_id, registry_url, created_at, updated_at`
 
 func appScanFields(app *domain.App) []interface{} {
 	return []interface{}{
-		&app.ID, &app.Name, &app.Source, &app.RepoURL, &app.Branch, &app.InternalPort,
+		&app.ID, &app.Name, &app.AppType, &app.RuntimeOwner, &app.EdgeProvider, &app.Source, &app.RepoURL, &app.Branch, &app.InternalPort,
 		&app.ImageRef, &app.Domain, &app.FallbackPort, &app.AccessMode, &app.AccessURL,
-		&app.Status, &app.CurrentDeployID, &app.LiveContainerName, &app.GitHubInstallationID, &app.GitHubRepoID,
+		&app.Status, &app.CurrentDeployID, &app.LiveContainerName, &app.ContainerName, &app.ExternalTarget, &app.DockerNetwork, &app.GitHubInstallationID, &app.GitHubRepoID,
 		&app.RegistryURL, &app.CreatedAt, &app.UpdatedAt,
 	}
 }
 
 func (s *SQLiteStore) CreateApp(ctx context.Context, app *domain.App) error {
 	res, err := s.db.ExecContext(ctx,
-		`INSERT INTO apps (name, source, repo_url, branch, internal_port, image_ref, domain, fallback_port, access_mode, access_url, status, live_container_name, github_installation_id, github_repo_id, registry_url)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		app.Name, app.Source, app.RepoURL, app.Branch, app.InternalPort,
+		`INSERT INTO apps (name, app_type, runtime_owner, edge_provider, source, repo_url, branch, internal_port, image_ref, domain, fallback_port, access_mode, access_url, status, live_container_name, container_name, external_target, docker_network, github_installation_id, github_repo_id, registry_url)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		app.Name, app.AppType, app.RuntimeOwner, app.EdgeProvider, app.Source, app.RepoURL, app.Branch, app.InternalPort,
 		app.ImageRef, app.Domain, app.FallbackPort, app.AccessMode, app.AccessURL, app.Status,
-		app.LiveContainerName, app.GitHubInstallationID, app.GitHubRepoID, app.RegistryURL,
+		app.LiveContainerName, app.ContainerName, app.ExternalTarget, app.DockerNetwork, app.GitHubInstallationID, app.GitHubRepoID, app.RegistryURL,
 	)
 	if err != nil {
 		return fmt.Errorf("insert app: %w", err)
@@ -117,11 +117,11 @@ func (s *SQLiteStore) ListApps(ctx context.Context) ([]*domain.App, error) {
 
 func (s *SQLiteStore) UpdateApp(ctx context.Context, app *domain.App) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE apps SET name=?, source=?, repo_url=?, branch=?, internal_port=?, image_ref=?, domain=?, fallback_port=?, access_mode=?, access_url=?, status=?, current_deploy_id=?, live_container_name=?, github_installation_id=?, github_repo_id=?, registry_url=?, updated_at=CURRENT_TIMESTAMP
+		`UPDATE apps SET name=?, app_type=?, runtime_owner=?, edge_provider=?, source=?, repo_url=?, branch=?, internal_port=?, image_ref=?, domain=?, fallback_port=?, access_mode=?, access_url=?, status=?, current_deploy_id=?, live_container_name=?, container_name=?, external_target=?, docker_network=?, github_installation_id=?, github_repo_id=?, registry_url=?, updated_at=CURRENT_TIMESTAMP
 		 WHERE id=?`,
-		app.Name, app.Source, app.RepoURL, app.Branch, app.InternalPort,
+		app.Name, app.AppType, app.RuntimeOwner, app.EdgeProvider, app.Source, app.RepoURL, app.Branch, app.InternalPort,
 		app.ImageRef, app.Domain, app.FallbackPort, app.AccessMode, app.AccessURL,
-		app.Status, app.CurrentDeployID, app.LiveContainerName, app.GitHubInstallationID, app.GitHubRepoID,
+		app.Status, app.CurrentDeployID, app.LiveContainerName, app.ContainerName, app.ExternalTarget, app.DockerNetwork, app.GitHubInstallationID, app.GitHubRepoID,
 		app.RegistryURL, app.ID)
 	if err != nil {
 		return fmt.Errorf("update app: %w", err)
