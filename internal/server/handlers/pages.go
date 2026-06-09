@@ -203,8 +203,10 @@ func (h *PageHandler) AppCreatePage(w http.ResponseWriter, r *http.Request) {
 		GitHubConfigured bool
 		Repos            []RepoInfo
 		RepoError        string
+		ProxyMode        config.ProxyMode
 	}{
 		GitHubConfigured: h.ghClient != nil && h.ghClient.IsConfigured(),
+		ProxyMode:        h.proxyMode,
 	}
 
 	if data.GitHubConfigured {
@@ -247,11 +249,6 @@ func (h *PageHandler) AppCreateSubmit(w http.ResponseWriter, r *http.Request) {
 	var fallbackPort int
 
 	if domainName != "" {
-		if h.proxyMode == config.ProxyModeExternal {
-			h.renderer.RenderStatus(w, http.StatusUnprocessableEntity, "flash.html",
-				map[string]string{"Color": "red", "Message": "Custom app domains require internal proxy mode."})
-			return
-		}
 		accessMode = domain.AccessModeDomain
 		accessURL = "https://" + domainName
 	} else {

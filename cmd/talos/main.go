@@ -87,7 +87,18 @@ func main() {
 	}
 	defer dockerClient.Close()
 
-	proxy := traefik.NewManager(cfg.Traefik.ConfigDir, cfg.Traefik.DataDir, cfg.Docker.Network, cfg.Server.Domain, cfg.Server.ACMEEmail, cfg.Server.ProxyMode, cfg.Server.Port, logger)
+	proxy := traefik.NewManager(
+		cfg.Traefik.ConfigDir,
+		cfg.Traefik.DataDir,
+		cfg.Docker.Network,
+		cfg.Server.EdgeNetwork,
+		cfg.Server.Domain,
+		cfg.Server.ACMEEmail,
+		cfg.Server.EdgeCertResolver,
+		cfg.Server.ProxyMode,
+		cfg.Server.Port,
+		logger,
+	)
 	if err := proxy.Init(context.Background()); err != nil {
 		logger.Error("failed to init traefik", "error", err)
 		os.Exit(1)

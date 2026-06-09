@@ -111,7 +111,7 @@ func (s *Service) Load(ctx context.Context, fallbackHost string, port int) (Snap
 		ApplyCommand:       applyCommand(mode, proxyMode, dockerImage, envPath, port, edgeNetwork, edgeCertResolver, domain),
 		ApplyTitle:         applyTitle(mode, proxyMode),
 		ApplyDescription:   applyDescription(mode, proxyMode),
-		SupportsAppDomains: proxyMode == config.ProxyModeInternal,
+		SupportsAppDomains: true,
 	}, nil
 }
 
@@ -143,7 +143,7 @@ func (s *Service) Save(ctx context.Context, input UpdateInput, fallbackHost stri
 		ApplyCommand:       applyCommand(mode, parseProxyMode(updates["TALOS_PROXY_MODE"]), dockerImage, envPath, port, updates["TALOS_EDGE_NETWORK"], updates["TALOS_EDGE_CERT_RESOLVER"], updates["TALOS_DOMAIN"]),
 		ApplyTitle:         applyTitle(mode, parseProxyMode(updates["TALOS_PROXY_MODE"])),
 		ApplyDescription:   applyDescription(mode, parseProxyMode(updates["TALOS_PROXY_MODE"])),
-		SupportsAppDomains: parseProxyMode(updates["TALOS_PROXY_MODE"]) == config.ProxyModeInternal,
+		SupportsAppDomains: true,
 	}, nil
 }
 
@@ -331,12 +331,12 @@ func applyDescription(mode InstallMode, proxyMode config.ProxyMode) string {
 	switch mode {
 	case InstallModeDocker:
 		if proxyMode == config.ProxyModeExternal {
-			return "Saving updates /opt/talos/.env, but the running Talos container keeps its old environment and external-proxy labels until you recreate it and reconnect it to the shared edge network."
+			return "Saving updates /opt/talos/.env, but the running Talos container and any new external-proxy label behavior keep using the old values until you recreate Talos and reconnect it to the shared edge network."
 		}
 		return "Saving updates /opt/talos/.env, but the running Talos container keeps using the old values until you recreate it."
 	case InstallModeBare:
 		if proxyMode == config.ProxyModeExternal {
-			return "Saving updates the env file, but the running Talos process and your external proxy keep using the old values until Talos restarts and the proxy route is refreshed."
+			return "Saving updates the env file, but the running Talos process and your external proxy keep using the old values until Talos restarts and new app deployments publish updated labels."
 		}
 		return "Saving updates the env file, but the running Talos process keeps using the old values until the systemd service restarts."
 	default:

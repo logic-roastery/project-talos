@@ -148,13 +148,22 @@ func (e *Engine) execute(ctx context.Context, app *domain.App, d *domain.Deploy)
 			"talos-app":  app.Name,
 		},
 	}
+	for k, v := range e.proxy.ExternalLabels(app) {
+		cfg.Labels[k] = v
+	}
+	cfg.Networks = e.proxy.ExternalNetworks(app)
 	if app.AccessMode == domain.AccessModePort && app.FallbackPort > 0 {
 		cfg.Ports = []string{fmt.Sprintf("%d:%d", app.FallbackPort, app.InternalPort)}
 	}
 
-	// Port-mode apps need the host port exclusively, so we trade blue/green for a brief restart.
-	if app.AccessMode == domain.AccessModePort && liveName != "" {
-		e.emitEvent(ctx, d.ID, "info", "stop_old", "stopping old container "+liveName+" before binding fallback port")
+	// Port-mode apps and external domain-mode apps need exclusive access during the cutover.
+	requiresExclusiveCutover := app.AccessMode == domain.AccessModePort || e.proxy.RequiresExclusiveSwitch(app)
+	if requiresExclusiveCutover && liveName != "" {
+		reason := "before binding fallback port"
+		if app.AccessMode == domain.AccessModeDomain {
+			reason = "before switching external proxy labels"
+		}
+		e.emitEvent(ctx, d.ID, "info", "stop_old", "stopping old container "+liveName+" "+reason)
 		if err := e.docker.StopAndRemove(ctx, liveName); err != nil {
 			e.emitEvent(ctx, d.ID, "warn", "stop_old", fmt.Sprintf("stop old container: %v", err))
 			e.logger.Warn("stop old container", "error", err)
@@ -195,24 +204,28 @@ func (e *Engine) execute(ctx context.Context, app *domain.App, d *domain.Deploy)
 	e.emitEvent(ctx, d.ID, "info", "health_check", "health check passed")
 
 	if app.AccessMode == domain.AccessModeDomain {
-		// Update route to point to staging container
-		e.emitEvent(ctx, d.ID, "info", "route_update", "updating traefik route to "+stagingName)
-		if err := e.proxy.UpdateRoute(ctx, app, stagingName); err != nil {
-			e.emitEvent(ctx, d.ID, "error", "route_update", fmt.Sprintf("route update failed: %v", err))
-			// Clean up staging, leave live
-			if cleanErr := e.docker.StopAndRemove(ctx, stagingName); cleanErr != nil {
-				e.logger.Warn("cleanup staging container", "error", cleanErr)
+		if e.proxy.RequiresExclusiveSwitch(app) {
+			e.emitEvent(ctx, d.ID, "info", "route_update", "external proxy mode uses container labels; new container is now serving the custom domain")
+		} else {
+			// Update route to point to staging container
+			e.emitEvent(ctx, d.ID, "info", "route_update", "updating traefik route to "+stagingName)
+			if err := e.proxy.UpdateRoute(ctx, app, stagingName); err != nil {
+				e.emitEvent(ctx, d.ID, "error", "route_update", fmt.Sprintf("route update failed: %v", err))
+				// Clean up staging, leave live
+				if cleanErr := e.docker.StopAndRemove(ctx, stagingName); cleanErr != nil {
+					e.logger.Warn("cleanup staging container", "error", cleanErr)
+				}
+				e.failDeploy(ctx, d, fmt.Sprintf("update route: %v", err))
+				return
 			}
-			e.failDeploy(ctx, d, fmt.Sprintf("update route: %v", err))
-			return
+			e.emitEvent(ctx, d.ID, "info", "route_update", "route updated successfully")
 		}
-		e.emitEvent(ctx, d.ID, "info", "route_update", "route updated successfully")
 	} else {
 		e.emitEvent(ctx, d.ID, "info", "route_update", "fallback port mode uses direct host port binding; no proxy route update required")
 	}
 
 	// Stop old live container (only after new one is healthy and routed)
-	if liveName != stagingName && app.AccessMode != domain.AccessModePort {
+	if liveName != stagingName && !requiresExclusiveCutover {
 		e.emitEvent(ctx, d.ID, "info", "stop_old", "stopping old container "+liveName)
 		if err := e.docker.StopAndRemove(ctx, liveName); err != nil {
 			e.emitEvent(ctx, d.ID, "warn", "stop_old", fmt.Sprintf("stop old container: %v", err))

@@ -92,10 +92,6 @@ func (h *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var fallbackPort int
 
 	if req.Domain != "" {
-		if h.proxyMode == config.ProxyModeExternal {
-			writeError(w, http.StatusBadRequest, "custom app domains require internal proxy mode")
-			return
-		}
 		accessMode = domain.AccessModeDomain
 		accessURL = "https://" + req.Domain
 	} else {
@@ -163,10 +159,6 @@ func (h *AppHandler) Update(w http.ResponseWriter, r *http.Request) {
 		app.InternalPort = *req.InternalPort
 	}
 	if req.Domain != nil {
-		if *req.Domain != "" && h.proxyMode == config.ProxyModeExternal {
-			writeError(w, http.StatusBadRequest, "custom app domains require internal proxy mode")
-			return
-		}
 		app.Domain = *req.Domain
 		if *req.Domain != "" {
 			app.AccessMode = domain.AccessModeDomain

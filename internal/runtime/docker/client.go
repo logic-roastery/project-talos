@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/docker/go-connections/nat"
@@ -117,6 +118,7 @@ type ContainerConfig struct {
 	Env          []string // KEY=VALUE pairs
 	Volumes      []string // hostPath:containerPath
 	Ports        []string // host:container bindings, e.g. "80:80", "443:443"
+	Networks     []string // additional Docker networks to connect after start
 	ExtraHosts   []string // host mappings, e.g. "host.docker.internal:host-gateway"
 	HealthCheck  *container.HealthConfig
 	Labels       map[string]string
@@ -213,8 +215,50 @@ func (c *Client) StartContainerWithConfig(ctx context.Context, cfg ContainerConf
 		return "", fmt.Errorf("start container: %w", err)
 	}
 
+	for _, networkName := range cfg.Networks {
+		if networkName == "" || networkName == c.network {
+			continue
+		}
+		if err := c.ConnectContainerToNetwork(ctx, resp.ID, networkName); err != nil {
+			return "", fmt.Errorf("connect container to network %s: %w", networkName, err)
+		}
+	}
+
 	c.logger.Info("container started", "id", resp.ID, "name", cfg.Name)
 	return resp.ID, nil
+}
+
+func (c *Client) ConnectContainerToNetwork(ctx context.Context, containerID, networkName string) error {
+	networks, err := c.cli.NetworkList(ctx, client.NetworkListOptions{})
+	if err != nil {
+		return fmt.Errorf("list networks: %w", err)
+	}
+
+	exists := false
+	for _, n := range networks.Items {
+		if n.Name == networkName {
+			exists = true
+			break
+		}
+	}
+	if !exists {
+		_, err := c.cli.NetworkCreate(ctx, networkName, client.NetworkCreateOptions{
+			Driver: "bridge",
+		})
+		if err != nil {
+			return fmt.Errorf("create network %s: %w", networkName, err)
+		}
+	}
+
+	_, err = c.cli.NetworkConnect(ctx, networkName, client.NetworkConnectOptions{
+		Container: containerID,
+	})
+	if err != nil {
+		if !strings.Contains(err.Error(), "already exists") {
+			return fmt.Errorf("network connect %s: %w", networkName, err)
+		}
+	}
+	return nil
 }
 
 func (c *Client) WaitForHealth(ctx context.Context, containerID string, timeout time.Duration) error {

@@ -16,7 +16,7 @@ func TestEnsureTalosRouteDockerMode(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	mgr := NewManager(dir, dir, "talos", "talos.example.com", "ops@example.com", config.ProxyModeInternal, 3000, slog.Default())
+	mgr := NewManager(dir, dir, "talos", "traefik-public", "talos.example.com", "ops@example.com", "letsencrypt", config.ProxyModeInternal, 3000, slog.Default())
 
 	if err := mgr.EnsureTalosRoute(context.Background(), "docker"); err != nil {
 		t.Fatalf("ensure talos route: %v", err)
@@ -40,7 +40,7 @@ func TestEnsureTalosRouteBareMode(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	mgr := NewManager(dir, dir, "talos", "talos.example.com", "ops@example.com", config.ProxyModeInternal, 3000, slog.Default())
+	mgr := NewManager(dir, dir, "talos", "traefik-public", "talos.example.com", "ops@example.com", "letsencrypt", config.ProxyModeInternal, 3000, slog.Default())
 
 	if err := mgr.EnsureTalosRoute(context.Background(), "bare"); err != nil {
 		t.Fatalf("ensure talos route: %v", err)
@@ -57,11 +57,11 @@ func TestEnsureTalosRouteBareMode(t *testing.T) {
 	}
 }
 
-func TestUpdateRouteRejectsDomainAppsInExternalMode(t *testing.T) {
+func TestUpdateRouteNoopsForDomainAppsInExternalMode(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	mgr := NewManager(dir, dir, "talos", "talos.example.com", "ops@example.com", config.ProxyModeExternal, 3000, slog.Default())
+	mgr := NewManager(dir, dir, "talos", "traefik-public", "talos.example.com", "ops@example.com", "letsencrypt", config.ProxyModeExternal, 3000, slog.Default())
 
 	err := mgr.UpdateRoute(context.Background(), &domain.App{
 		Name:         "demo",
@@ -69,7 +69,51 @@ func TestUpdateRouteRejectsDomainAppsInExternalMode(t *testing.T) {
 		AccessMode:   domain.AccessModeDomain,
 		InternalPort: 3000,
 	}, "talos-demo")
-	if err != ErrExternalProxyAppDomainsUnsupported {
+	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, "demo.yml")); !os.IsNotExist(err) {
+		t.Fatalf("expected no route file in external mode, got err=%v", err)
+	}
+}
+
+func TestExternalLabelsForDomainApps(t *testing.T) {
+	t.Parallel()
+
+	mgr := NewManager("", "", "talos", "traefik-public", "talos.example.com", "ops@example.com", "letsencrypt", config.ProxyModeExternal, 3000, slog.Default())
+
+	labels := mgr.ExternalLabels(&domain.App{
+		Name:         "demo",
+		Domain:       "app.example.com",
+		AccessMode:   domain.AccessModeDomain,
+		InternalPort: 8080,
+	})
+
+	if labels["traefik.enable"] != "true" {
+		t.Fatalf("expected traefik enable label, got %#v", labels)
+	}
+	if labels["traefik.docker.network"] != "traefik-public" {
+		t.Fatalf("unexpected docker network label: %#v", labels)
+	}
+	if labels["traefik.http.routers.demo.rule"] != "Host(`app.example.com`)" {
+		t.Fatalf("unexpected router rule: %#v", labels)
+	}
+	if labels["traefik.http.services.demo.loadbalancer.server.port"] != "8080" {
+		t.Fatalf("unexpected service port label: %#v", labels)
+	}
+}
+
+func TestExternalNetworksForDomainApps(t *testing.T) {
+	t.Parallel()
+
+	mgr := NewManager("", "", "talos", "traefik-public", "talos.example.com", "ops@example.com", "letsencrypt", config.ProxyModeExternal, 3000, slog.Default())
+	networks := mgr.ExternalNetworks(&domain.App{
+		AccessMode: domain.AccessModeDomain,
+		Domain:     "app.example.com",
+	})
+
+	if len(networks) != 1 || networks[0] != "traefik-public" {
+		t.Fatalf("unexpected external networks: %#v", networks)
 	}
 }

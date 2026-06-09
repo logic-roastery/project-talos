@@ -208,6 +208,11 @@
                 <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Domain <span class="text-gray-600">(optional)</span></label>
                 <input type="text" name="domain" placeholder="app.example.com"
                     class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                {{if eq .ProxyMode "external"}}
+                <p class="mt-2 text-xs text-muted">External mode publishes app domains through your shared Traefik edge proxy. Make sure the edge proxy watches the configured shared network and Docker labels.</p>
+                {{else}}
+                <p class="mt-2 text-xs text-muted">Internal mode publishes app domains through Talos-managed Traefik on this host.</p>
+                {{end}}
             </div>
             <button type="submit"
                 class="w-full bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition cursor-pointer uppercase tracking-wider text-sm">
