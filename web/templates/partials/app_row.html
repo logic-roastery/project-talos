@@ -2,8 +2,9 @@
 <tr id="app-row-{{.ID}}" class="border-b border-hairline/50 hover:bg-ink/50 transition">
     <td class="px-4 py-3">
         <a href="/apps/{{.ID}}" class="text-violet hover:text-lime-accent font-medium transition">{{.Name}}</a>
-        <div class="mt-1">
-            <span class="inline-flex items-center rounded-full border border-hairline px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-muted">{{.AppType}}</span>
+        <div class="mt-1 flex flex-wrap items-center gap-2">
+            <span class="inline-flex items-center rounded-full border border-hairline px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-muted">{{.TypeLabel}}</span>
+            <span class="text-xs text-muted">{{.OwnershipLabel}}</span>
         </div>
     </td>
     <td class="px-4 py-3">
@@ -12,15 +13,19 @@
             {{.Status}}
         </span>
     </td>
-    <td class="px-4 py-3 text-muted">{{if .Branch}}{{.Branch}}{{else}}—{{end}}</td>
     <td class="px-4 py-3">
-        {{if .AccessURL}}
-        <a href="{{.AccessURL}}" target="_blank" class="text-muted hover:text-lime-accent transition text-xs">
-            {{.AccessURL}}
+        <div class="text-body text-sm">{{.SummaryValue}}</div>
+        <div class="mt-1 text-xs text-muted">{{.SummaryLabel}}</div>
+    </td>
+    <td class="px-4 py-3">
+        {{if .RouteLink}}
+        <a href="{{.RouteLink}}" target="_blank" class="text-body hover:text-lime-accent transition text-sm break-all">
+            {{.RouteValue}}
         </a>
         {{else}}
-        <span class="text-gray-600">—</span>
+        <span class="text-body text-sm">{{.RouteValue}}</span>
         {{end}}
+        <div class="mt-1 text-xs text-muted">{{.RouteHint}}</div>
     </td>
     <td class="px-4 py-3 text-muted text-xs">{{timeAgo .UpdatedAt}}</td>
 </tr>

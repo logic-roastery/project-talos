@@ -1,38 +1,48 @@
 {{define "app_create.html"}}
-<div class="max-w-3xl mx-auto">
+<div class="max-w-4xl mx-auto">
     <div class="mb-6">
         <a href="/dashboard" class="text-muted hover:text-body text-sm transition">&larr; Back to dashboard</a>
     </div>
-    <div class="mb-6">
+    <div class="mb-8">
         <h1 class="text-xl font-semibold text-heading">Create Application</h1>
-        <p class="mt-2 text-sm text-muted">Deploy a Talos-managed app, adopt an existing container, or register an external service target.</p>
+        <p class="mt-2 max-w-2xl text-sm text-muted">Start with what Talos should own. Shared app basics stay visible, while runtime and routing details only open when they matter.</p>
     </div>
 
     <form hx-post="/apps/new" hx-target="#form-errors" hx-swap="innerHTML"
           hx-on::after-request="if(event.detail.successful) { const loc=event.detail.xhr.getResponseHeader('HX-Redirect'); if(loc) window.location.href=loc; }">
         <div class="space-y-6">
-            <div class="rounded-xl border border-hairline bg-night p-5">
-                <label class="block text-xs text-muted mb-3 uppercase tracking-wider font-medium">Application Type</label>
-                <div class="grid gap-3 md:grid-cols-3">
-                    <label class="rounded-xl border border-hairline bg-canvas-dark/40 px-4 py-4 transition hover:border-violet/40 cursor-pointer">
-                        <input type="radio" name="app_type" value="managed" checked onchange="switchAppType(this.value)" class="sr-only">
-                        <span class="block text-sm font-medium text-body">Managed</span>
-                        <span class="mt-1 block text-xs text-muted">Talos deploys and updates this app from GitHub or image releases.</span>
-                    </label>
-                    <label class="rounded-xl border border-hairline bg-canvas-dark/40 px-4 py-4 transition hover:border-violet/40 cursor-pointer">
-                        <input type="radio" name="app_type" value="adopted_container" onchange="switchAppType(this.value)" class="sr-only">
-                        <span class="block text-sm font-medium text-body">Adopted Container</span>
-                        <span class="mt-1 block text-xs text-muted">Track an existing Docker container for routing, logs, and restart actions.</span>
-                    </label>
-                    <label class="rounded-xl border border-hairline bg-canvas-dark/40 px-4 py-4 transition hover:border-violet/40 cursor-pointer">
-                        <input type="radio" name="app_type" value="external_service" onchange="switchAppType(this.value)" class="sr-only">
-                        <span class="block text-sm font-medium text-body">External Service</span>
-                        <span class="mt-1 block text-xs text-muted">Register a host, port, or URL that lives outside Talos-managed containers.</span>
-                    </label>
+            <section class="rounded-xl border border-hairline bg-night p-5">
+                <div class="mb-4">
+                    <p class="text-xs text-muted uppercase tracking-[0.2em] font-medium">1. Choose App Type</p>
+                    <h2 class="mt-2 text-lg font-semibold text-heading">What should Talos manage?</h2>
                 </div>
-            </div>
+                <div class="grid gap-3 md:grid-cols-3">
+                    {{range $index, $option := .TypeOptions}}
+                    <label id="type-card-{{$option.Value}}" class="type-card rounded-xl border border-hairline bg-canvas-dark/40 px-4 py-4 transition hover:border-violet/40 cursor-pointer">
+                        <input type="radio" name="app_type" value="{{$option.Value}}" {{if eq $index 0}}checked{{end}} onchange="switchAppType(this.value)" class="sr-only">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-sm font-medium text-body">{{$option.Label}}</span>
+                            <span class="rounded-full border border-hairline px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-muted">{{$option.OwnershipLabel}}</span>
+                        </div>
+                        <p class="mt-3 text-xs text-muted">{{$option.Summary}}</p>
+                        <p class="mt-3 text-xs text-subtle">{{$option.OperationalCopy}}</p>
+                        <div class="mt-4 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.16em] text-muted">
+                            <span class="rounded-full border border-hairline px-2 py-1">{{if $option.SupportsDeploys}}Deploys{{else}}No deploys{{end}}</span>
+                            <span class="rounded-full border border-hairline px-2 py-1">{{if $option.SupportsLogs}}Logs{{else}}No logs{{end}}</span>
+                            <span class="rounded-full border border-hairline px-2 py-1">{{if $option.SupportsRestart}}Restart{{else}}No restart{{end}}</span>
+                            <span class="rounded-full border border-hairline px-2 py-1">{{if $option.SupportsDomains}}Domains{{else}}No domains{{end}}</span>
+                        </div>
+                    </label>
+                    {{end}}
+                </div>
+            </section>
 
-            <div class="rounded-xl border border-hairline bg-night p-5">
+            <section class="rounded-xl border border-hairline bg-night p-5">
+                <div class="mb-4">
+                    <p class="text-xs text-muted uppercase tracking-[0.2em] font-medium">2. Shared Basics</p>
+                    <h2 class="mt-2 text-lg font-semibold text-heading">Name and access</h2>
+                    <p class="mt-2 text-sm text-muted">Give the app a stable name now. Domain routing stays optional.</p>
+                </div>
                 <div class="grid gap-4 md:grid-cols-2">
                     <div>
                         <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">App Name</label>
@@ -41,33 +51,39 @@
                     </div>
                     <div>
                         <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Domain <span class="text-gray-600">(optional)</span></label>
-                        <input type="text" name="domain" placeholder="app.example.com"
+                        <input type="text" id="domain-input" name="domain" placeholder="app.example.com"
                             class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
-                        {{if eq .ProxyMode "external"}}
-                        <p class="mt-2 text-xs text-muted">External mode publishes managed app domains automatically through shared Traefik labels. Adopted containers and external services show manual routing guidance when Talos cannot mutate the upstream target.</p>
-                        {{else}}
-                        <p class="mt-2 text-xs text-muted">Internal mode publishes app domains through Talos-managed Traefik on this host.</p>
-                        {{end}}
+                        <p id="domain-help" class="mt-2 text-xs text-muted">
+                            {{if eq .ProxyMode "external"}}
+                            Managed apps publish automatically. Externally owned targets may still need a manual Traefik file-provider route.
+                            {{else}}
+                            Talos can publish domains through its internal Traefik on this host.
+                            {{end}}
+                        </p>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div id="managed-fields" class="space-y-6">
+            <section id="managed-fields" class="space-y-6">
                 <div class="rounded-xl border border-hairline bg-night p-5">
+                    <div class="mb-4">
+                        <p class="text-xs text-muted uppercase tracking-[0.2em] font-medium">3. Managed App</p>
+                        <h2 class="mt-2 text-lg font-semibold text-heading">Release source</h2>
+                        <p class="mt-2 text-sm text-muted">Talos will track a repository and deploy future image releases from it.</p>
+                    </div>
                     {{if .GitHubConfigured}}
                     <div id="repo-picker" class="space-y-3">
                         <div class="flex items-center justify-between gap-3">
                             <div>
                                 <label class="block text-xs text-muted uppercase tracking-[0.2em] font-medium">Repository</label>
-                                <p class="mt-1 text-xs text-muted">Search and pick a GitHub repo, or switch to manual URL mode.</p>
+                                <p class="mt-1 text-xs text-muted">Choose a GitHub repository or switch to manual URL entry.</p>
                             </div>
                             <p id="repo-search-status" class="text-xs text-muted">{{len .Repos}} repositories</p>
                         </div>
                         {{if .Repos}}
                         <div id="repo-picker-search-wrap" class="space-y-3">
                             <div class="relative">
-                                <input type="search" id="repo-search" placeholder="Search by owner or repository name"
-                                    autocomplete="off"
+                                <input type="search" id="repo-search" placeholder="Search by owner or repository name" autocomplete="off"
                                     class="w-full rounded-lg border border-hairline bg-canvas-dark px-3 py-2.5 pr-10 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
                                 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-muted">
                                     <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -150,7 +166,8 @@
                 </div>
 
                 <div class="rounded-xl border border-hairline bg-night p-5">
-                    <div class="grid gap-4 md:grid-cols-3">
+                    <h3 class="text-sm font-semibold text-heading">Runtime defaults</h3>
+                    <div class="mt-4 grid gap-4 md:grid-cols-3">
                         <div>
                             <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Branch</label>
                             <input type="text" name="branch" value="main"
@@ -168,47 +185,80 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div id="adopted-fields" class="hidden space-y-6">
+            <section id="adopted-fields" class="hidden space-y-6">
                 <div class="rounded-xl border border-hairline bg-night p-5">
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <div>
-                            <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Container Name</label>
-                            <input list="adoptable-containers" name="container_name" placeholder="existing-container"
-                                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
-                            <datalist id="adoptable-containers">
-                                {{range .Containers}}
-                                <option value="{{.Name}}">{{.Image}} · {{.Status}}</option>
-                                {{end}}
-                            </datalist>
-                            <p class="mt-2 text-xs text-muted">Talos reads logs and runtime metadata from this existing Docker container.</p>
-                        </div>
+                    <div class="mb-4">
+                        <p class="text-xs text-muted uppercase tracking-[0.2em] font-medium">3. Adopted Container</p>
+                        <h2 class="mt-2 text-lg font-semibold text-heading">Connect the existing runtime</h2>
+                        <p class="mt-2 text-sm text-muted">Talos can restart, route, and inspect the container, but ownership stays outside Talos.</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Container Name</label>
+                        <input list="adoptable-containers" name="container_name" placeholder="existing-container"
+                            class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                        <datalist id="adoptable-containers">
+                            {{range .Containers}}
+                            <option value="{{.Name}}">{{.Image}} · {{.Status}}</option>
+                            {{end}}
+                        </datalist>
+                        <p class="mt-2 text-xs text-muted">Talos reads runtime metadata from this Docker container and uses the name for restart and log actions.</p>
+                    </div>
+                </div>
+
+                <details class="rounded-xl border border-hairline bg-night p-5" id="adopted-advanced">
+                    <summary class="cursor-pointer list-none text-sm font-semibold text-heading">
+                        <span class="inline-flex items-center gap-2">
+                            <span>Advanced runtime options</span>
+                            <span class="text-xs font-normal text-muted">Optional</span>
+                        </span>
+                    </summary>
+                    <div class="mt-4 grid gap-4 md:grid-cols-2">
                         <div>
                             <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Internal Port</label>
                             <input type="number" name="internal_port" value="3000"
                                 class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
-                            <p class="mt-2 text-xs text-muted">Use the port exposed inside the container for internal routing assumptions.</p>
+                            <p class="mt-2 text-xs text-muted">Used for routing assumptions when the container is published through Talos.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Shared Docker Network <span class="text-gray-600">(optional)</span></label>
+                            <input type="text" name="docker_network" placeholder="traefik-public"
+                                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                            <p class="mt-2 text-xs text-muted">Set this when routing depends on a shared reverse-proxy network.</p>
                         </div>
                     </div>
-                    <div class="mt-4">
-                        <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Shared Docker Network <span class="text-gray-600">(optional)</span></label>
-                        <input type="text" name="docker_network" placeholder="traefik-public"
-                            class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
-                    </div>
-                </div>
-            </div>
+                </details>
+            </section>
 
-            <div id="external-fields" class="hidden space-y-6">
+            <section id="external-fields" class="hidden space-y-6">
                 <div class="rounded-xl border border-hairline bg-night p-5">
+                    <div class="mb-4">
+                        <p class="text-xs text-muted uppercase tracking-[0.2em] font-medium">3. External Service</p>
+                        <h2 class="mt-2 text-lg font-semibold text-heading">Register the upstream target</h2>
+                        <p class="mt-2 text-sm text-muted">Use this for services Talos does not run. Talos will describe routing and access, not runtime controls.</p>
+                    </div>
                     <div>
                         <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">External Target</label>
                         <input type="text" name="external_target" placeholder="http://10.0.0.20:8080"
                             class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
-                        <p class="mt-2 text-xs text-muted">Use a full URL such as <code>http://host:port</code> when Talos should route to a target it does not run itself.</p>
+                        <p class="mt-2 text-xs text-muted">Use a full URL when Talos should link traffic to a service outside the managed container runtime.</p>
                     </div>
                 </div>
-            </div>
+
+                <details id="external-routing-help" class="hidden rounded-xl border border-hairline bg-night p-5">
+                    <summary class="cursor-pointer list-none text-sm font-semibold text-heading">
+                        <span class="inline-flex items-center gap-2">
+                            <span>Show routing notes</span>
+                            <span class="text-xs font-normal text-muted">Optional</span>
+                        </span>
+                    </summary>
+                    <div class="mt-4 space-y-3 text-sm text-muted">
+                        <p>A custom domain is optional. Without one, Talos records the upstream target as-is.</p>
+                        <p>{{if eq .ProxyMode "external"}}With external Traefik mode, a domain on an externally owned target may still require manual file-provider config.{{else}}With internal Traefik mode, Talos can publish the configured domain on this host.{{end}}</p>
+                    </div>
+                </details>
+            </section>
 
             <button type="submit"
                 class="w-full bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition cursor-pointer uppercase tracking-wider text-sm">
@@ -244,7 +294,7 @@ function clearRepoSelection() {
     }
 
     repoOptionButtons().forEach(function(button) {
-        button.classList.remove('bg-violet/10');
+        button.classList.remove('bg-violet/10', 'border-violet/40');
     });
 }
 
@@ -264,7 +314,7 @@ function selectRepo(button) {
     var branchInput = document.querySelector('#managed-fields input[name="branch"]');
     if (branchInput && branch) branchInput.value = branch;
 
-    button.classList.add('bg-violet/10');
+    button.classList.add('bg-violet/10', 'border-violet/40');
 
     var selected = document.getElementById('repo-selected');
     selected.textContent = 'Selected: ' + fullName + ' (' + branch + ')';
@@ -288,8 +338,10 @@ function filterRepoButtons(query) {
 function syncManualRepoURL(value) {
     var repoURL = document.getElementById('repo-url-hidden');
     if (repoURL) repoURL.value = value;
-    document.getElementById('github-installation-id').value = '';
-    document.getElementById('github-repo-id').value = '';
+    var install = document.getElementById('github-installation-id');
+    var repoID = document.getElementById('github-repo-id');
+    if (install) install.value = '';
+    if (repoID) repoID.value = '';
 }
 
 function showManualRepoInput() {
@@ -307,6 +359,29 @@ function showRepoPickerSearch() {
     document.getElementById('repo-search').focus();
 }
 
+function setFieldRequirement(selector, required) {
+    document.querySelectorAll(selector).forEach(function(input) {
+        if (required) input.setAttribute('required', 'required');
+        else input.removeAttribute('required');
+    });
+}
+
+function setTypeCardState(type) {
+    document.querySelectorAll('.type-card').forEach(function(card) {
+        card.classList.remove('border-violet/40', 'bg-violet/10');
+    });
+    var active = document.getElementById('type-card-' + type);
+    if (active) active.classList.add('border-violet/40', 'bg-violet/10');
+}
+
+function updateExternalRoutingDisclosure(type) {
+    var domain = (document.getElementById('domain-input')?.value || '').trim();
+    var routingHelp = document.getElementById('external-routing-help');
+    if (!routingHelp) return;
+    var show = type === 'external_service' && domain !== '';
+    routingHelp.classList.toggle('hidden', !show);
+}
+
 function switchAppType(type) {
     var managed = document.getElementById('managed-fields');
     var adopted = document.getElementById('adopted-fields');
@@ -319,17 +394,17 @@ function switchAppType(type) {
     setFieldRequirement('#managed-fields [name="repo_url"]', type === 'managed');
     setFieldRequirement('#adopted-fields [name="container_name"]', type === 'adopted_container');
     setFieldRequirement('#external-fields [name="external_target"]', type === 'external_service');
-}
-
-function setFieldRequirement(selector, required) {
-    document.querySelectorAll(selector).forEach(function(input) {
-        if (required) input.setAttribute('required', 'required');
-        else input.removeAttribute('required');
-    });
+    setTypeCardState(type);
+    updateExternalRoutingDisclosure(type);
 }
 
 document.getElementById('repo-search')?.addEventListener('input', function(event) {
     filterRepoButtons(event.target.value);
+});
+
+document.getElementById('domain-input')?.addEventListener('input', function() {
+    var checked = document.querySelector('input[name="app_type"]:checked');
+    updateExternalRoutingDisclosure(checked ? checked.value : 'managed');
 });
 
 switchAppType('managed');

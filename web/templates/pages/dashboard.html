@@ -1,6 +1,9 @@
 {{define "dashboard.html"}}
 <div class="flex items-center justify-between mb-8">
-    <h1 class="text-xl font-semibold text-heading">Applications</h1>
+    <div>
+        <h1 class="text-xl font-semibold text-heading">Applications</h1>
+        <p class="mt-2 text-sm text-muted">See what each app is before you inspect its latest activity.</p>
+    </div>
     <a href="/apps/new" class="bg-lime-accent text-midnight font-bold px-4 py-3 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
         + New App
     </a>
@@ -13,8 +16,8 @@
             <tr class="border-b border-hairline text-left text-xs text-muted uppercase tracking-wider">
                 <th class="px-4 py-3">Name</th>
                 <th class="px-4 py-3">Status</th>
-                <th class="px-4 py-3">Branch</th>
-                <th class="px-4 py-3">Access</th>
+                <th class="px-4 py-3">Summary</th>
+                <th class="px-4 py-3">Route</th>
                 <th class="px-4 py-3">Last Deploy</th>
             </tr>
         </thead>

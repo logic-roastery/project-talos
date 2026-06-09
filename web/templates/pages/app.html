@@ -4,7 +4,7 @@
 </div>
 
 <div class="bg-night border border-hairline rounded-xl p-6 mb-6">
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-3">
                 <h1 class="text-xl font-semibold text-heading">{{.App.Name}}</h1>
@@ -12,20 +12,13 @@
                     <span class="w-1.5 h-1.5 rounded-full {{statusDot .App.Status}}"></span>
                     {{.App.Status}}
                 </span>
-                <span class="inline-flex items-center rounded-full border border-hairline px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-muted">{{.App.AppType}}</span>
+                <span class="inline-flex items-center rounded-full border border-hairline px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-muted">{{.TypeLabel}}</span>
+                <span class="inline-flex items-center rounded-full border border-hairline px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-muted">{{.OwnershipLabel}}</span>
             </div>
-            <p class="mt-2 text-sm text-muted">
-                {{if eq .App.AppType "managed"}}
-                {{.App.RepoURL}}
-                {{else if eq .App.AppType "adopted_container"}}
-                Existing container: <span class="text-body">{{.App.ContainerName}}</span>
-                {{else}}
-                External target: <span class="text-body">{{.App.ExternalTarget}}</span>
-                {{end}}
-            </p>
+            <p class="mt-3 max-w-3xl text-sm text-muted">{{.IdentitySummary}}</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-            {{if eq .App.AppType "adopted_container"}}
+            {{if .ShowRestart}}
             <button onclick="restartAdoptedApp()"
                 class="inline-flex items-center gap-2 rounded-xl border border-hairline bg-hairline px-4 py-2.5 text-sm text-muted transition hover:text-body cursor-pointer">
                 <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -34,90 +27,138 @@
                 Restart Container
             </button>
             {{end}}
-            {{if eq .App.AppType "managed"}}
+            {{if .ShowSettings}}
             <a href="/apps/{{.App.ID}}/settings"
                 class="inline-flex items-center gap-2 rounded-xl bg-violet-mid px-4 py-2.5 text-sm text-white transition hover:bg-violet">
-                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M10.5 6h9m-9 6h9m-9 6h9M4.5 6h.008v.008H4.5V6Zm0 6h.008v.008H4.5V12Zm0 6h.008v.008H4.5V18Z"></path>
-                </svg>
                 Settings
             </a>
             {{end}}
             <button hx-delete="/apps/{{.App.ID}}" hx-confirm="Delete {{.App.Name}}? This cannot be undone."
                 hx-on::after-request="if(event.detail.successful) window.location.href='/dashboard'"
                 class="inline-flex items-center gap-2 px-1 py-2 text-sm text-muted transition hover:text-pink-accent cursor-pointer">
-                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6 7.5h12m-9.75 0V6A2.25 2.25 0 0 1 10.5 3.75h3A2.25 2.25 0 0 1 15.75 6v1.5m-8.25 0v10.125A2.625 2.625 0 0 0 10.125 20.25h3.75A2.625 2.625 0 0 0 16.5 17.625V7.5m-6 3v6m3-6v6"></path>
-                </svg>
                 Delete App
             </button>
         </div>
     </div>
 
-    <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4 text-sm">
-        <div>
-            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Edge</span>
-            <span class="text-body">{{.App.EdgeProvider}}</span>
-        </div>
-        <div>
-            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Access Mode</span>
-            <span class="text-body">{{.App.AccessMode}}</span>
-        </div>
-        <div>
-            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Public URL</span>
-            {{if .App.AccessURL}}
-            <a href="{{.App.AccessURL}}" target="_blank" class="text-violet hover:text-lime-accent transition break-all">{{.App.AccessURL}}</a>
+    <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {{range .HeaderItems}}
+        <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+            <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">{{.Label}}</span>
+            {{if .Link}}
+            <a href="{{.Link}}" target="_blank" class="mt-2 block break-all text-sm text-body hover:text-lime-accent transition">{{.Value}}</a>
             {{else}}
-            <span class="text-gray-600">Not published</span>
+            <span class="mt-2 block break-all text-sm text-body">{{.Value}}</span>
+            {{end}}
+            {{if .Hint}}
+            <span class="mt-1 block text-xs text-muted">{{.Hint}}</span>
             {{end}}
         </div>
-        <div>
-            <span class="text-muted text-xs uppercase tracking-wider block mb-1">Runtime Owner</span>
-            <span class="text-body">{{.App.RuntimeOwner}}</span>
-        </div>
+        {{end}}
     </div>
 </div>
 
 <div class="grid gap-6 xl:grid-cols-[1.15fr_0.85fr] mb-6">
     <div class="space-y-6">
         <div class="bg-night border border-hairline rounded-xl p-6">
+            <div class="mb-4 flex items-start justify-between gap-3">
+                <div>
+                    <h2 class="text-lg font-semibold text-heading">Capabilities</h2>
+                    <p class="mt-1 text-sm text-muted">{{.OwnershipCopy}}</p>
+                </div>
+            </div>
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {{range .Capabilities}}
+                <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                    <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">{{.Label}}</span>
+                    <span class="mt-2 block text-sm {{if .Enabled}}text-body{{else}}text-muted{{end}}">{{.State}}</span>
+                </div>
+                {{end}}
+            </div>
+        </div>
+
+        {{if .ShowTargetMetadata}}
+        <div class="bg-night border border-hairline rounded-xl p-6">
+            <h2 class="text-lg font-semibold text-heading">{{.TargetTitle}}</h2>
+            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                {{range .TargetItems}}
+                <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                    <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">{{.Label}}</span>
+                    {{if .Link}}
+                    <a href="{{.Link}}" target="_blank" class="mt-2 block break-all text-sm text-body hover:text-lime-accent transition">{{.Value}}</a>
+                    {{else}}
+                    <span class="mt-2 block break-all text-sm text-body">{{.Value}}</span>
+                    {{end}}
+                </div>
+                {{end}}
+            </div>
+        </div>
+        {{end}}
+
+        {{if .ShowRuntime}}
+        <div class="bg-night border border-hairline rounded-xl p-6">
             <div class="mb-4 flex items-center justify-between gap-3">
-                <h2 class="text-lg font-semibold text-heading">Runtime</h2>
+                <div>
+                    <h2 class="text-lg font-semibold text-heading">Runtime</h2>
+                    <p class="mt-1 text-sm text-muted">Only runtime controls relevant to this app type are exposed here.</p>
+                </div>
                 {{if .RuntimeInfo}}
                 <span class="inline-flex items-center rounded-full border border-hairline px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-muted">{{.RuntimeInfo.State}}</span>
                 {{end}}
             </div>
             <div class="grid gap-3 sm:grid-cols-2">
+                {{range .RuntimeItems}}
                 <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
-                    <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Container</span>
-                    <span class="mt-2 block break-all text-sm text-body">{{if .App.ContainerName}}{{.App.ContainerName}}{{else if .App.LiveContainerName}}{{.App.LiveContainerName}}{{else}}—{{end}}</span>
+                    <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">{{.Label}}</span>
+                    <span class="mt-2 block break-all text-sm text-body">{{.Value}}</span>
+                    {{if .Hint}}
+                    <span class="mt-1 block text-xs text-muted">{{.Hint}}</span>
+                    {{end}}
                 </div>
-                <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
-                    <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Internal Port</span>
-                    <span class="mt-2 block text-sm text-body">{{if gt .App.InternalPort 0}}{{.App.InternalPort}}{{else}}—{{end}}</span>
-                </div>
-                <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
-                    <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Image</span>
-                    <span class="mt-2 block break-all text-sm text-subtle">{{if .RuntimeInfo}}{{.RuntimeInfo.Image}}{{else if .App.ImageRef}}{{.App.ImageRef}}{{else}}—{{end}}</span>
-                </div>
-                <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
-                    <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Networks</span>
-                    <span class="mt-2 block break-all text-sm text-subtle">{{if .RuntimeInfo}}{{range $index, $network := .RuntimeInfo.Networks}}{{if $index}}, {{end}}{{$network}}{{end}}{{else if .App.DockerNetwork}}{{.App.DockerNetwork}}{{else}}—{{end}}</span>
-                </div>
+                {{end}}
             </div>
-        </div>
-
-        {{if .ManualRouteSnippet}}
-        <div class="bg-night border border-hairline rounded-xl p-6">
-            <div class="mb-4">
-                <h2 class="text-lg font-semibold text-heading">External Traefik Route</h2>
-                <p class="mt-1 text-sm text-muted">Talos cannot mutate this upstream target directly. Apply this route to your shared Traefik file provider.</p>
-            </div>
-            <pre class="overflow-x-auto rounded-lg border border-hairline bg-canvas-dark/50 p-4 text-xs text-subtle"><code>{{.ManualRouteSnippet}}</code></pre>
         </div>
         {{end}}
 
-        {{if eq .App.AppType "managed"}}
+        <div class="bg-night border border-hairline rounded-xl p-6">
+            <h2 class="text-lg font-semibold text-heading">Routing</h2>
+            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                {{range .RoutingItems}}
+                <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                    <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">{{.Label}}</span>
+                    {{if .Link}}
+                    <a href="{{.Link}}" target="_blank" class="mt-2 block break-all text-sm text-body hover:text-lime-accent transition">{{.Value}}</a>
+                    {{else}}
+                    <span class="mt-2 block break-all text-sm text-body">{{.Value}}</span>
+                    {{end}}
+                    {{if .Hint}}
+                    <span class="mt-1 block text-xs text-muted">{{.Hint}}</span>
+                    {{end}}
+                </div>
+                {{end}}
+            </div>
+            {{if .ManualRouteSnippet}}
+            <details class="mt-4 rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                <summary class="cursor-pointer list-none text-sm font-medium text-body">Show route config</summary>
+                <p class="mt-3 text-sm text-muted">Talos cannot mutate this upstream target directly in external Traefik mode.</p>
+                <pre class="mt-3 overflow-x-auto rounded-lg border border-hairline bg-canvas-dark/70 p-4 text-xs text-subtle"><code>{{.ManualRouteSnippet}}</code></pre>
+            </details>
+            {{end}}
+        </div>
+
+        <details class="bg-night border border-hairline rounded-xl p-6">
+            <summary class="cursor-pointer list-none text-lg font-semibold text-heading">Technical details</summary>
+            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                {{range .TechnicalItems}}
+                <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                    <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">{{.Label}}</span>
+                    <span class="mt-2 block break-all text-sm text-body">{{.Value}}</span>
+                </div>
+                {{end}}
+            </div>
+        </details>
+
+        {{if .ShowGitHub}}
         <div class="bg-night border border-hairline rounded-xl p-6">
             <h2 class="text-lg font-semibold text-heading mb-4">GitHub Integration</h2>
             {{if .App.GitHubInstallationID}}
@@ -127,7 +168,7 @@
                         <span class="h-1.5 w-1.5 rounded-full bg-lime-accent"></span>
                         Connected
                     </div>
-                    <p class="text-faint text-sm max-w-2xl">Auto-deploy is enabled. Pushes to <strong class="text-body">{{.App.Branch}}</strong> will trigger automatic deployments for this app.</p>
+                    <p class="text-faint text-sm max-w-2xl">Auto-deploy is enabled. Pushes to <strong class="text-body">{{.App.Branch}}</strong> will trigger deployments.</p>
                 </div>
                 <button hx-post="/api/github/disconnect?app_id={{.App.ID}}" hx-confirm="Disconnect GitHub? Auto-deploy will be disabled."
                     hx-on::after-request="if(event.detail.successful) window.location.reload()"
@@ -142,12 +183,14 @@
             </div>
             {{else}}
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <p class="text-faint text-sm max-w-2xl">GitHub App is not configured yet. Set it up first to enable auto-deployments and repository-triggered releases.</p>
+                <p class="text-faint text-sm max-w-2xl">GitHub App is not configured yet. Set it up first to enable auto-deployments.</p>
                 <a href="/settings/github/setup" class="inline-flex items-center gap-2 rounded-xl bg-hairline text-body px-4 py-2.5 hover:bg-violet-mid transition text-sm">Set up GitHub App</a>
             </div>
             {{end}}
         </div>
+        {{end}}
 
+        {{if .ShowDeployControls}}
         <div class="mb-2 space-y-4">
             <form hx-post="/apps/{{.App.ID}}/deploy" hx-target="#deploy-history" hx-swap="afterbegin"
                   class="flex flex-1 flex-col gap-3 rounded-xl border border-hairline bg-night p-4 sm:flex-row sm:items-end">
@@ -175,7 +218,7 @@
     </div>
 
     <div class="space-y-6">
-        {{if ne .App.AppType "external_service"}}
+        {{if .ShowLogs}}
         <div class="bg-night border border-hairline rounded-xl p-6">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-lg font-semibold text-heading">Live Logs</h2>
@@ -193,12 +236,12 @@
                     </button>
                 </div>
             </div>
-            <p class="mb-4 text-sm text-muted">Stream the current container output directly from Docker.</p>
+            <p class="mb-4 text-sm text-muted">Stream current container output directly from Docker when this app type supports it.</p>
             <div id="log-output" class="bg-canvas-dark border border-hairline rounded-md p-4 h-64 overflow-y-auto font-mono text-xs text-muted hidden"></div>
         </div>
         {{end}}
 
-        {{if eq .App.AppType "managed"}}
+        {{if .ShowDeployHistory}}
         <div>
             <h2 class="text-lg font-semibold text-heading mb-4">Deploy History</h2>
             <div class="bg-night border border-hairline rounded-xl overflow-hidden">
@@ -258,68 +301,62 @@
     }
 
     function appendLine(type, data) {
-        var div = document.createElement('div');
-        div.className = 'py-0.5';
-        if (type === 'stderr') div.className += ' text-pink-accent';
-        div.textContent = (type === 'stderr' ? '[err] ' : '') + data;
-        logOutput.appendChild(div);
+        logOutput.classList.remove('hidden');
+        var line = document.createElement('div');
+        line.className = type === 'stderr' ? 'text-pink-accent' : 'text-body';
+        line.textContent = data;
+        logOutput.appendChild(line);
         logOutput.scrollTop = logOutput.scrollHeight;
+    }
+
+    function disconnectLogs() {
+        if (logSource) {
+            logSource.close();
+            logSource = null;
+        }
+        logToggle.dataset.connected = 'false';
+        logToggle.innerHTML = '<svg id="log-toggle-icon" class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">' + connectIcon + '</svg>Connect';
+        setStatus('Disconnected', 'border-hairline bg-canvas-dark/50 text-muted');
     }
 
     window.toggleLogs = function() {
         if (logSource) {
-            logSource.close();
-            logSource = null;
-            setStatus('Disconnected', 'text-muted');
-            logToggle.textContent = 'Connect';
-            logToggle.prepend(logToggleIcon);
-            logToggleIcon.innerHTML = connectIcon;
-            logOutput.classList.add('hidden');
+            disconnectLogs();
             return;
         }
 
-        logOutput.classList.remove('hidden');
         logOutput.innerHTML = '';
-        setStatus('Connecting...', 'text-yellow-400');
-        logToggle.textContent = 'Disconnect';
-        logToggle.prepend(logToggleIcon);
-        logToggleIcon.innerHTML = disconnectIcon;
+        logOutput.classList.remove('hidden');
+        setStatus('Connecting', 'border-yellow-400/20 bg-yellow-400/10 text-yellow-400');
 
-        logSource = new EventSource('/api/apps/' + appId + '/logs/stream');
-        logSource.addEventListener('status', function(e) {
-            if (e.data === 'connected') {
-                setStatus('Connected', 'text-lime-accent');
-            } else if (e.data === 'stopped') {
-                setStatus('Container stopped', 'text-yellow-400');
-                logSource.close();
-                logSource = null;
-                logToggle.textContent = 'Connect';
-                logToggle.prepend(logToggleIcon);
-                logToggleIcon.innerHTML = connectIcon;
-            }
+        logSource = new EventSource('/apps/' + appId + '/logs');
+        logToggle.innerHTML = '<svg id="log-toggle-icon" class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">' + disconnectIcon + '</svg>Disconnect';
+
+        logSource.addEventListener('stdout', function(event) {
+            setStatus('Connected', 'border-lime-accent/20 bg-lime-accent/10 text-lime-accent');
+            appendLine('stdout', event.data);
         });
-        logSource.addEventListener('stdout', function(e) { appendLine('stdout', e.data); });
-        logSource.addEventListener('stderr', function(e) { appendLine('stderr', e.data); });
+
+        logSource.addEventListener('stderr', function(event) {
+            setStatus('Connected', 'border-lime-accent/20 bg-lime-accent/10 text-lime-accent');
+            appendLine('stderr', event.data);
+        });
+
         logSource.onerror = function() {
-            if (logSource) {
-                logSource.close();
-                logSource = null;
-            }
-            setStatus('Disconnected', 'text-muted');
-            logToggle.textContent = 'Connect';
-            logToggle.prepend(logToggleIcon);
-            logToggleIcon.innerHTML = connectIcon;
+            setStatus('Disconnected', 'border-hairline bg-canvas-dark/50 text-muted');
+            disconnectLogs();
         };
     };
 })();
 
 async function restartAdoptedApp() {
-    const res = await fetch('/api/apps/{{.App.ID}}/restart', { method: 'POST' });
-    if (res.ok) {
-        window.location.reload();
+    if (!confirm('Restart this adopted container?')) return;
+    const res = await fetch('/apps/{{.App.ID}}/restart', { method: 'POST' });
+    if (!res.ok) {
+        alert('Failed to restart container');
         return;
     }
-    alert('Failed to restart container');
+    window.location.reload();
 }
 </script>
 {{end}}

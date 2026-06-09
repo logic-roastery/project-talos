@@ -193,12 +193,17 @@ func (h *PageHandler) DashboardPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	rows := make([]dashboardAppView, 0, len(apps))
+	for _, app := range apps {
+		rows = append(rows, buildDashboardAppView(app, h.proxyMode))
+	}
+
 	data := struct {
 		User *web.UserData
-		Apps []*domain.App
+		Apps []dashboardAppView
 	}{
 		User: h.userData(r),
-		Apps: apps,
+		Apps: rows,
 	}
 	h.renderer.Render(w, "dashboard.html", "Dashboard", h.userData(r), data)
 }
@@ -206,15 +211,10 @@ func (h *PageHandler) DashboardPage(w http.ResponseWriter, r *http.Request) {
 // --- App CRUD ---
 
 func (h *PageHandler) AppCreatePage(w http.ResponseWriter, r *http.Request) {
-	data := struct {
-		GitHubConfigured bool
-		Repos            []RepoInfo
-		RepoError        string
-		ProxyMode        config.ProxyMode
-		Containers       []docker.ContainerInfo
-	}{
+	data := appCreatePageData{
 		GitHubConfigured: h.ghClient != nil && h.ghClient.IsConfigured(),
 		ProxyMode:        h.proxyMode,
+		TypeOptions:      appTypeOptions(),
 	}
 
 	if data.GitHubConfigured {
@@ -381,21 +381,15 @@ func (h *PageHandler) AppDetailPage(w http.ResponseWriter, r *http.Request) {
 		manualRouteSnippet = renderExternalTraefikSnippet(app.Name, app.Domain, target)
 	}
 
-	data := struct {
-		User               *web.UserData
-		App                *domain.App
-		Deploys            []*domain.Deploy
-		GitHubConfigured   bool
-		RuntimeInfo        *docker.ContainerInfo
-		ManualRouteSnippet string
-	}{
-		User:               h.userData(r),
-		App:                app,
-		Deploys:            deploys,
-		GitHubConfigured:   h.ghClient != nil && h.ghClient.IsConfigured(),
-		RuntimeInfo:        runtimeInfo,
-		ManualRouteSnippet: manualRouteSnippet,
-	}
+	data := buildAppDetailPageData(
+		h.userData(r),
+		app,
+		deploys,
+		h.ghClient != nil && h.ghClient.IsConfigured(),
+		runtimeInfo,
+		h.proxyMode,
+		manualRouteSnippet,
+	)
 	h.renderer.Render(w, "app.html", app.Name, h.userData(r), data)
 }
 
@@ -594,19 +588,16 @@ func (h *PageHandler) AppSettingsPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	data := struct {
-		User        *web.UserData
-		App         *domain.App
-		EnvVars     []*domain.AppEnvVar
-		Links       []*domain.AppService
-		AllServices []*domain.Service
-	}{
-		User:        h.userData(r),
-		App:         app,
-		EnvVars:     envVars,
-		Links:       links,
-		AllServices: allServices,
+	manualRouteSnippet := ""
+	if h.proxyMode == config.ProxyModeExternal && app.AppType != domain.AppTypeManaged && app.Domain != "" {
+		target := app.ExternalTarget
+		if target == "" {
+			target = fmt.Sprintf("http://%s:%d", app.EffectiveContainerName(), app.InternalPort)
+		}
+		manualRouteSnippet = renderExternalTraefikSnippet(app.Name, app.Domain, target)
 	}
+
+	data := buildAppSettingsPageData(h.userData(r), app, envVars, links, allServices, h.proxyMode, manualRouteSnippet)
 	h.renderer.Render(w, "app_settings.html", app.Name+" Settings", h.userData(r), data)
 }
 
@@ -623,7 +614,7 @@ func (h *PageHandler) AppRowPartial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.renderer.RenderPartial(w, "app_row.html", app)
+	h.renderer.RenderPartial(w, "app_row.html", buildDashboardAppView(app, h.proxyMode))
 }
 
 func (h *PageHandler) BackupPage(w http.ResponseWriter, r *http.Request) {
