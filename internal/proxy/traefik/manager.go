@@ -297,6 +297,16 @@ func (m *Manager) EnsureTraefik(ctx context.Context, dc *docker.Client, image st
 		return fmt.Errorf("write static config: %w", err)
 	}
 
+	// Ensure the config file exists and is a file (not a directory).
+	// Docker creates directories for non-existent mount sources.
+	cfgPath := filepath.Join(m.dataDir, "traefik.yml")
+	if info, err := os.Stat(cfgPath); err == nil && info.IsDir() {
+		os.RemoveAll(cfgPath)
+		if err := m.writeStaticConfig(); err != nil {
+			return fmt.Errorf("rewrite static config: %w", err)
+		}
+	}
+
 	// Pull the Traefik image.
 	if err := dc.PullImage(ctx, image); err != nil {
 		return fmt.Errorf("pull traefik image: %w", err)
