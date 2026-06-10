@@ -297,13 +297,10 @@ func (s *Service) updateEnvFile(path string, updates map[string]string) error {
 		return err
 	}
 
-	tmpPath := path + ".tmp"
-	if err := s.writeFile(tmpPath, []byte(output), 0600); err != nil {
+	// Write directly to the file instead of using temp + rename.
+	// Docker bind-mounted files cannot be renamed (Resource busy).
+	if err := s.writeFile(path, []byte(output), 0600); err != nil {
 		return err
-	}
-	if err := s.renameFile(tmpPath, path); err != nil {
-		_ = s.removeFile(tmpPath)
-		return fmt.Errorf("replace env file: %w", err)
 	}
 	return nil
 }
