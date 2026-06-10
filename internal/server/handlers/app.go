@@ -32,16 +32,17 @@ func NewAppHandler(apps store.AppStore, deploys store.DeployStore, dockerClient 
 }
 
 type createAppRequest struct {
-	Name           string         `json:"name"`
-	AppType        domain.AppType `json:"app_type"`
-	RepoURL        string         `json:"repo_url"`
-	Branch         string         `json:"branch"`
-	InternalPort   int            `json:"internal_port"`
-	Domain         string         `json:"domain,omitempty"`
-	ImageRef       string         `json:"image_ref,omitempty"`
-	ContainerName  string         `json:"container_name,omitempty"`
-	ExternalTarget string         `json:"external_target,omitempty"`
-	DockerNetwork  string         `json:"docker_network,omitempty"`
+	Name           string           `json:"name"`
+	AppType        domain.AppType   `json:"app_type"`
+	BuildMode      domain.BuildMode `json:"build_mode,omitempty"`
+	RepoURL        string           `json:"repo_url"`
+	Branch         string           `json:"branch"`
+	InternalPort   int              `json:"internal_port"`
+	Domain         string           `json:"domain,omitempty"`
+	ImageRef       string           `json:"image_ref,omitempty"`
+	ContainerName  string           `json:"container_name,omitempty"`
+	ExternalTarget string           `json:"external_target,omitempty"`
+	DockerNetwork  string           `json:"docker_network,omitempty"`
 }
 
 type updateAppRequest struct {
@@ -112,6 +113,7 @@ func (h *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
 	app := &domain.App{
 		Name:           req.Name,
 		AppType:        req.AppType,
+		BuildMode:      normalizeBuildMode(req.BuildMode),
 		RuntimeOwner:   runtimeOwnerForType(req.AppType),
 		EdgeProvider:   edgeProviderForMode(h.proxyMode),
 		Source:         sourceForType(req.AppType),
@@ -280,6 +282,15 @@ func normalizeAppType(v domain.AppType) domain.AppType {
 		return v
 	default:
 		return domain.AppTypeManaged
+	}
+}
+
+func normalizeBuildMode(v domain.BuildMode) domain.BuildMode {
+	switch v {
+	case domain.BuildModeTalosBuild:
+		return v
+	default:
+		return domain.BuildModeExternalCI
 	}
 }
 

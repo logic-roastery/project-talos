@@ -3,6 +3,7 @@ package server
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/logic-roastery/project-talos/internal/auth"
@@ -158,19 +159,45 @@ func New(
 			}
 
 			if payload.Workflow.Status == "completed" && payload.Workflow.Conclusion == "success" {
-				// Try to find app by installation ID + repo ID first, fall back to name
+				// Find app using proper fallback chain
 				var app *domain.App
-				if payload.Repository.ID > 0 {
-					// Look up by repo ID (requires GitHub App installation)
-					// For now, fall back to name-based lookup
-					app, err = apps.GetAppByName(r.Context(), payload.Repository.FullName)
-				} else {
+				if payload.Installation.ID > 0 && payload.Repository.ID > 0 {
+					// Try installation+repo lookup first
+					app, err = apps.GetAppByInstallationAndRepo(r.Context(), payload.Installation.ID, payload.Repository.ID)
+					if err != nil {
+						// Fallback to repo ID only
+						app, err = apps.GetAppByGitHubRepoID(r.Context(), payload.Repository.ID)
+					}
+				} else if payload.Repository.ID > 0 {
+					// Try repo ID only
+					app, err = apps.GetAppByGitHubRepoID(r.Context(), payload.Repository.ID)
+				}
+				if app == nil {
+					// Last resort: name-based lookup
 					app, err = apps.GetAppByName(r.Context(), payload.Repository.FullName)
 				}
 
 				if err != nil {
 					logger.Warn("webhook: app not found", "repo", payload.Repository.FullName)
 					http.Error(w, "app not found", http.StatusNotFound)
+					return
+				}
+
+				// Branch guard: only deploy if branch matches app config
+				if payload.Workflow.HeadBranch != app.Branch {
+					logger.Info("webhook: branch mismatch, skipping deploy",
+						"repo", payload.Repository.FullName,
+						"expected", app.Branch,
+						"got", payload.Workflow.HeadBranch)
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+
+				// App type validation: only deploy managed apps
+				if app.AppType != domain.AppTypeManaged {
+					logger.Warn("webhook: app is not managed, skipping deploy",
+						"app", app.Name, "type", app.AppType)
+					w.WriteHeader(http.StatusOK)
 					return
 				}
 
@@ -210,6 +237,72 @@ func New(
 				logger.Info("github app uninstalled", "installation_id", payload.Installation.ID)
 				// TODO: Clear GitHubInstallationID on affected apps
 			}
+
+		case github.EventPush:
+			payload, err := github.ParsePush(result.Payload)
+			if err != nil {
+				logger.Warn("webhook: parse push failed", "error", err)
+				http.Error(w, "invalid payload", http.StatusBadRequest)
+				return
+			}
+
+			// Extract branch from ref (refs/heads/main -> main)
+			branch := strings.TrimPrefix(payload.Ref, "refs/heads/")
+
+			// Find app using proper fallback chain
+			var app *domain.App
+			if payload.Installation.ID > 0 && payload.Repository.ID > 0 {
+				app, err = apps.GetAppByInstallationAndRepo(r.Context(), payload.Installation.ID, payload.Repository.ID)
+				if err != nil {
+					app, err = apps.GetAppByGitHubRepoID(r.Context(), payload.Repository.ID)
+				}
+			} else if payload.Repository.ID > 0 {
+				app, err = apps.GetAppByGitHubRepoID(r.Context(), payload.Repository.ID)
+			}
+			if app == nil {
+				app, err = apps.GetAppByName(r.Context(), payload.Repository.FullName)
+			}
+
+			if err != nil {
+				logger.Warn("webhook: app not found for push", "repo", payload.Repository.FullName)
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			// Branch guard
+			if branch != app.Branch {
+				logger.Info("webhook: push branch mismatch, skipping",
+					"repo", payload.Repository.FullName,
+					"expected", app.Branch,
+					"got", branch)
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			// App type validation
+			if app.AppType != domain.AppTypeManaged {
+				logger.Warn("webhook: app is not managed, skipping push deploy",
+					"app", app.Name, "type", app.AppType)
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			// Only trigger deploy for talos_build mode on push events
+			if app.BuildMode != domain.BuildModeTalosBuild {
+				logger.Info("webhook: push event for external_ci app, skipping (wait for workflow_run)",
+					"app", app.Name)
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			// Trigger deploy with empty imageRef to trigger talos_build
+			_, err = engine.Deploy(r.Context(), app.ID, "", payload.After, branch, "push")
+			if err != nil {
+				logger.Error("webhook push deploy failed", "error", err)
+				http.Error(w, "deploy failed", http.StatusInternalServerError)
+				return
+			}
+			logger.Info("webhook: push deploy triggered", "app", app.Name, "commit", payload.After[:7])
 
 		default:
 			logger.Debug("webhook: unhandled event", "event", result.Event)

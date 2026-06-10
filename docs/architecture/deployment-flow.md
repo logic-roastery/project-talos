@@ -28,13 +28,26 @@ After failed deploy:
              [Green Container] (destroyed)
 ```
 
+## Deployment Modes
+
+Talos supports two automatic deployment modes for managed apps:
+
+| Mode | Trigger | Build Location | Best For |
+|------|---------|----------------|----------|
+| **External CI** | workflow_run webhook | GitHub Actions | Complex pipelines, existing CI |
+| **Talos Build** | push webhook | Talos server | Simple projects, no external CI |
+| **Manual** | User action | N/A (user provides image) | Fallback, testing |
+
 ## Deployment Steps
 
 A deployment progresses through the following steps. Each step emits a structured event stored in the `deploy_events` table.
 
 ### 1. Initialization
 
-- A deploy is triggered (manual, webhook, or rollback).
+- A deploy is triggered (manual, webhook, push event, or rollback).
+- Talos identifies the app using stable GitHub repo identity.
+- Branch is validated against app configuration.
+- App type is validated (only managed apps support auto-deploy).
 - Talos checks that no other deploy is currently running for this app.
 - A deploy record is created with status `pending`.
 

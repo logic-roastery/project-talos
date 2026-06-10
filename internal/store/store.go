@@ -12,6 +12,7 @@ type AppStore interface {
 	GetAppByName(ctx context.Context, name string) (*domain.App, error)
 	GetAppByDomain(ctx context.Context, domain string) (*domain.App, error)
 	GetAppByInstallationAndRepo(ctx context.Context, installationID, repoID int64) (*domain.App, error)
+	GetAppByGitHubRepoID(ctx context.Context, repoID int64) (*domain.App, error)
 	ListApps(ctx context.Context) ([]*domain.App, error)
 	UpdateApp(ctx context.Context, app *domain.App) error
 	DeleteApp(ctx context.Context, id int64) error
@@ -63,4 +64,3 @@ type ServiceStore interface {
 	GetAppEnvVarHistory(ctx context.Context, appID int64, key string) ([]*domain.AppEnvVarHistory, error)
 	GetAppEnvVarsSnapshot(ctx context.Context, appID int64) (map[string]string, error)
 }
-

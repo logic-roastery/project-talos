@@ -9,6 +9,8 @@ Each application in Talos has the following properties:
 | Field | Description | Example |
 |-------|-------------|---------|
 | **Name** | Unique identifier, used in container names and URLs | `my-app` |
+| **App Type** | `managed`, `adopted_container`, or `external_service` | `managed` |
+| **Build Mode** | `external_ci` or `talos_build` | `external_ci` |
 | **Source** | Where the app comes from | `github` |
 | **Repository URL** | Git repository URL | `https://github.com/org/my-app` |
 | **Branch** | Default deployment branch | `main` |
@@ -18,6 +20,13 @@ Each application in Talos has the following properties:
 | **Fallback Port** | External port for IP-mode access | `8080` |
 | **Access Mode** | `domain` or `port` | `port` |
 | **Status** | `active`, `inactive`, or `error` | `active` |
+
+### Build Modes
+
+| Mode | Description |
+|------|-------------|
+| `external_ci` | GitHub Actions builds and pushes the image. Talos deploys on webhook notification. |
+| `talos_build` | Talos clones the repo and builds the image locally on push events. |
 
 ## CRUD Operations
 
@@ -33,6 +42,26 @@ curl -X POST http://localhost:3000/api/apps \
   -H "Cookie: session=<your-session-cookie>" \
   -d '{
     "name": "my-app",
+    "app_type": "managed",
+    "build_mode": "external_ci",
+    "repo_url": "https://github.com/org/my-app",
+    "branch": "main",
+    "internal_port": 3000,
+    "access_mode": "port",
+    "fallback_port": 8080
+  }'
+```
+
+**With Talos Build mode:**
+
+```bash
+curl -X POST http://localhost:3000/api/apps \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=<your-session-cookie>" \
+  -d '{
+    "name": "my-app",
+    "app_type": "managed",
+    "build_mode": "talos_build",
     "repo_url": "https://github.com/org/my-app",
     "branch": "main",
     "internal_port": 3000,

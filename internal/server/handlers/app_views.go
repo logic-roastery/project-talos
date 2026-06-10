@@ -224,6 +224,13 @@ func buildAppDetailPageData(user any, app *domain.App, deploys []*domain.Deploy,
 		{Label: "Edge", Value: string(app.EdgeProvider)},
 		{Label: "Status", Value: string(app.Status)},
 	}
+	if app.AppType == domain.AppTypeManaged {
+		buildModeLabel := "External CI"
+		if app.BuildMode == domain.BuildModeTalosBuild {
+			buildModeLabel = "Talos Build"
+		}
+		headerItems = append(headerItems, appInfoItemView{Label: "Build Mode", Value: buildModeLabel})
+	}
 
 	routingItems := []appInfoItemView{
 		{Label: "Access mode", Value: string(app.AccessMode)},
@@ -254,9 +261,14 @@ func buildAppDetailPageData(user any, app *domain.App, deploys []*domain.Deploy,
 	switch app.AppType {
 	case domain.AppTypeManaged:
 		targetTitle = "Release Source"
+		buildModeValue := "External CI (GitHub Actions)"
+		if app.BuildMode == domain.BuildModeTalosBuild {
+			buildModeValue = "Talos Build (Clone & Build)"
+		}
 		targetItems = []appInfoItemView{
 			{Label: "Repository", Value: valueOrDash(app.RepoURL), Link: safeLink(app.RepoURL)},
 			{Label: "Branch", Value: valueOrDash(app.Branch)},
+			{Label: "Build mode", Value: buildModeValue},
 			{Label: "Image ref", Value: valueOrDash(app.ImageRef)},
 		}
 	case domain.AppTypeAdoptedContainer:
