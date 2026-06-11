@@ -696,6 +696,11 @@ TALOS_SESSION_MAX_AGE=604800
 TALOS_DOCKER_HOST=unix:///var/run/docker.sock
 TALOS_DOCKER_NETWORK=${DOCKER_NETWORK}
 
+
+# Host data root for Docker volume mount translation
+# When running in Docker, the binary needs host paths for sibling container mounts
+TALOS_HOST_DATA_ROOT=${TALOS_DATA}
+
 # Traefik
 TALOS_TRAEFIK_IMAGE=${TRAEFIK_IMAGE}
 TALOS_TRAEFIK_CONFIG_DIR=/data/traefik/config

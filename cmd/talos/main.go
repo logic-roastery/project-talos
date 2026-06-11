@@ -91,6 +91,7 @@ func main() {
 	proxy := traefik.NewManager(
 		cfg.Traefik.ConfigDir,
 		cfg.Traefik.DataDir,
+		cfg.Traefik.HostDataRoot,
 		cfg.Docker.Network,
 		cfg.Server.EdgeNetwork,
 		cfg.Server.Domain,
