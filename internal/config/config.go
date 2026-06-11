@@ -57,10 +57,11 @@ type DockerConfig struct {
 }
 
 type TraefikConfig struct {
-	Image       string
-	DashboardOn bool
-	ConfigDir   string
-	DataDir     string
+	Image        string
+	DashboardOn  bool
+	ConfigDir    string
+	DataDir      string
+	HostDataRoot string // host-path equivalent of DataDir's root (for Docker volume mounts when running in container)
 }
 
 type GitHubConfig struct {
@@ -103,10 +104,11 @@ func Load() (*Config, error) {
 			Network: envOrDefault("TALOS_DOCKER_NETWORK", "talos"),
 		},
 		Traefik: TraefikConfig{
-			Image:       envOrDefault("TALOS_TRAEFIK_IMAGE", "traefik:v3.0"),
-			DashboardOn: boolDefault("TALOS_TRAEFIK_DASHBOARD", false),
-			ConfigDir:   envOrDefault("TALOS_TRAEFIK_CONFIG_DIR", "data/traefik/config"),
-			DataDir:     envOrDefault("TALOS_TRAEFIK_DATA_DIR", "data/traefik/data"),
+			Image:        envOrDefault("TALOS_TRAEFIK_IMAGE", "traefik:v3.0"),
+			DashboardOn:  boolDefault("TALOS_TRAEFIK_DASHBOARD", false),
+			ConfigDir:    envOrDefault("TALOS_TRAEFIK_CONFIG_DIR", "data/traefik/config"),
+			DataDir:      envOrDefault("TALOS_TRAEFIK_DATA_DIR", "data/traefik/data"),
+			HostDataRoot: envOrDefault("TALOS_HOST_DATA_ROOT", ""),
 		},
 		GitHub: GitHubConfig{
 			WebhookSecret: envOrDefault("TALOS_GITHUB_WEBHOOK_SECRET", ""),

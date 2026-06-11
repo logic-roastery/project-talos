@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/logic-roastery/project-talos/internal/config"
@@ -21,6 +22,7 @@ var ErrExternalProxyAppDomainsUnsupported = errors.New("custom app domains requi
 type Manager struct {
 	configDir        string
 	dataDir          string
+	hostDataRoot     string // host-path equivalent of the data root (e.g. /opt/talos/data for /data when running in Docker)
 	network          string
 	edgeNetwork      string
 	domain           string
@@ -32,10 +34,11 @@ type Manager struct {
 	logger           *slog.Logger
 }
 
-func NewManager(configDir, dataDir, network, edgeNetwork, domain, acmeEmail, edgeCertResolver, edgeEntrypoint string, proxyMode config.ProxyMode, serverPort int, logger *slog.Logger) *Manager {
+func NewManager(configDir, dataDir, hostDataRoot, network, edgeNetwork, domain, acmeEmail, edgeCertResolver, edgeEntrypoint string, proxyMode config.ProxyMode, serverPort int, logger *slog.Logger) *Manager {
 	return &Manager{
 		configDir:        configDir,
 		dataDir:          dataDir,
+		hostDataRoot:     hostDataRoot,
 		network:          network,
 		edgeNetwork:      edgeNetwork,
 		domain:           domain,
@@ -312,15 +315,22 @@ func (m *Manager) EnsureTraefik(ctx context.Context, dc *docker.Client, image st
 		return fmt.Errorf("pull traefik image: %w", err)
 	}
 
+	// Build volume mount specs using host paths when available.
+	// When Talos runs inside a Docker container, the Docker daemon resolves
+	// volume source paths on the host filesystem — container-relative paths
+	// like /data/… would be auto-created as empty directories, breaking Traefik.
+	staticConfigHost := m.hostPath(filepath.Join(m.dataDir, "traefik.yml"))
+	configDirHost := m.hostPath(m.configDir)
+	dataDirHost := m.hostPath(m.dataDir)
+
 	// Start the Traefik container.
-	staticConfigPath := filepath.Join(m.dataDir, "traefik.yml")
 	_, err = dc.StartContainerWithConfig(ctx, docker.ContainerConfig{
 		Name:     traefikContainerName,
 		ImageRef: image,
 		Volumes: []string{
-			staticConfigPath + ":/etc/traefik/traefik.yml:ro",
-			m.configDir + ":/etc/traefik/config:ro",
-			m.dataDir + ":/data",
+			staticConfigHost + ":/etc/traefik/traefik.yml:ro",
+			configDirHost + ":/etc/traefik/config:ro",
+			dataDirHost + ":/data",
 			"/var/run/docker.sock:/var/run/docker.sock:ro",
 		},
 		Labels: map[string]string{"managed-by": "talos"},
@@ -335,6 +345,22 @@ func (m *Manager) EnsureTraefik(ctx context.Context, dc *docker.Client, image st
 
 	m.logger.Info("traefik started", "domain", m.domain)
 	return nil
+}
+
+// hostPath translates a container-relative path to its host-equivalent.
+// When hostDataRoot is empty (bare-metal mode), returns the path unchanged.
+// When set, replaces the /data prefix with the host data root directory.
+func (m *Manager) hostPath(containerPath string) string {
+	if m.hostDataRoot == "" {
+		return containerPath
+	}
+	if strings.HasPrefix(containerPath, "/data/") {
+		return strings.Replace(containerPath, "/data", m.hostDataRoot, 1)
+	}
+	if containerPath == "/data" {
+		return m.hostDataRoot
+	}
+	return containerPath
 }
 
 func (m *Manager) writeStaticConfig() error {
