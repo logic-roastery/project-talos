@@ -1,4 +1,7 @@
 {{define "app_settings.html"}}
+<!-- Toast Container -->
+<div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+
 <div class="max-w-4xl mx-auto">
     <div class="flex items-center justify-between mb-8">
         <div>
@@ -53,6 +56,38 @@
                 {{end}}
             </div>
         </div>
+    </div>
+
+    <!-- Edit App Settings -->
+    <div class="bg-night border border-hairline rounded-xl p-6 mb-6">
+        <h2 class="text-sm font-semibold text-muted uppercase tracking-wider mb-4">Edit Settings</h2>
+        <form id="settings-form" class="space-y-4">
+            <div class="grid gap-4 md:grid-cols-2">
+                <div>
+                    <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Internal Port</label>
+                    <input type="number" name="internal_port" value="{{.App.InternalPort}}" min="1" max="65535"
+                        class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Domain</label>
+                    <input type="text" name="domain" value="{{.App.Domain}}" placeholder="app.example.com"
+                        class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Branch</label>
+                    <input type="text" name="branch" value="{{.App.Branch}}" placeholder="main"
+                        class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-xs text-muted mb-1 uppercase tracking-wider font-medium">Image Ref</label>
+                    <input type="text" name="image_ref" value="{{.App.ImageRef}}" placeholder="ghcr.io/user/app:tag"
+                        class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-body focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                </div>
+            </div>
+            <button type="submit" class="bg-lime-accent text-midnight font-bold px-4 py-2 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
+                Save Changes
+            </button>
+        </form>
     </div>
 
     {{if .ShowLinkedServices}}
@@ -176,5 +211,66 @@ document.getElementById('env-form')?.addEventListener('submit', async function(e
     if (res.ok) location.reload();
     else alert('Failed to set env var');
 });
+
+document.getElementById('settings-form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const originalText = btn.textContent;
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
+
+    const data = {
+        internal_port: parseInt(form.internal_port.value),
+        domain: form.domain.value.trim(),
+        branch: form.branch.value.trim(),
+        image_ref: form.image_ref.value.trim()
+    };
+
+    try {
+        const res = await fetch('/api/apps/{{.App.ID}}', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(data)
+        });
+        if (res.ok) {
+            showToast('Settings saved successfully!', 'success');
+        } else {
+            const err = await res.json();
+            showToast('Failed to save: ' + (err.error || 'Unknown error'), 'error');
+        }
+    } catch (err) {
+        showToast('Network error: ' + err.message, 'error');
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+});
+
+function showToast(message, type) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-lime-accent' : 'bg-pink-accent';
+    const textColor = type === 'success' ? 'text-midnight' : 'text-white';
+    const icon = type === 'success'
+        ? '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>'
+        : '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>';
+
+    toast.className = 'flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg ' + bgColor + ' ' + textColor + ' text-sm font-medium transform translate-x-full transition-transform duration-300';
+    toast.innerHTML = icon + '<span>' + message + '</span>';
+    container.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        toast.classList.remove('translate-x-full');
+        toast.classList.add('translate-x-0');
+    });
+
+    setTimeout(() => {
+        toast.classList.remove('translate-x-0');
+        toast.classList.add('translate-x-full');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
 </script>
 {{end}}

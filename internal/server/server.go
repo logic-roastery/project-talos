@@ -68,6 +68,7 @@ func New(
 		r.Get("/api/github/debug", ghH.Debug)
 
 		appH := handlers.NewAppHandler(apps, deploys, dockerClient, proxy, serverHost, serverDomain, serverProxyMode)
+		svcH := handlers.NewServiceHandler(svcStore, provisioner)
 		r.Route("/api/apps", func(r chi.Router) {
 			r.Get("/", appH.List)
 			r.Post("/", appH.Create)
@@ -75,6 +76,14 @@ func New(
 			r.Put("/{appID}", appH.Update)
 			r.Delete("/{appID}", appH.Delete)
 			r.Post("/{appID}/restart", appH.Restart)
+			r.Post("/{appID}/services", svcH.LinkAppService)
+			r.Delete("/{appID}/services/{serviceID}", svcH.UnlinkAppService)
+			r.Get("/{appID}/services", svcH.ListAppServices)
+			r.Get("/{appID}/env", svcH.ListEnvVars)
+			r.Post("/{appID}/env", svcH.SetEnvVar)
+			r.Delete("/{appID}/env/{key}", svcH.DeleteEnvVar)
+			r.Get("/{appID}/env/{key}/history", svcH.ListEnvVarHistory)
+			r.Get("/{appID}/env/{key}/reveal", svcH.RevealEnvVar)
 		})
 
 		deployH := handlers.NewDeployHandler(apps, deploys, engine)
@@ -91,7 +100,6 @@ func New(
 		r.Get("/api/apps/{appID}/logs/stream", logH.StreamLogs)
 
 		// Service management
-		svcH := handlers.NewServiceHandler(svcStore, provisioner)
 		r.Route("/api/services", func(r chi.Router) {
 			r.Get("/", svcH.List)
 			r.Post("/", svcH.Create)
@@ -100,18 +108,6 @@ func New(
 			r.Post("/{serviceID}/stop", svcH.Stop)
 			r.Post("/{serviceID}/start", svcH.Start)
 			r.Get("/{serviceID}/credentials", svcH.GetCredentials)
-		})
-
-		// App-Service linking & env vars
-		r.Route("/api/apps/{appID}", func(r chi.Router) {
-			r.Post("/services", svcH.LinkAppService)
-			r.Delete("/services/{serviceID}", svcH.UnlinkAppService)
-			r.Get("/services", svcH.ListAppServices)
-			r.Get("/env", svcH.ListEnvVars)
-			r.Post("/env", svcH.SetEnvVar)
-			r.Delete("/env/{key}", svcH.DeleteEnvVar)
-			r.Get("/env/{key}/history", svcH.ListEnvVarHistory)
-			r.Get("/env/{key}/reveal", svcH.RevealEnvVar)
 		})
 
 		// Backup management

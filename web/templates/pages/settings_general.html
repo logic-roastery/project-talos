@@ -132,7 +132,17 @@
                 <h2 class="text-sm font-semibold text-muted uppercase tracking-wider mb-3">Apply Saved Changes</h2>
                 <p class="text-sm text-muted mb-4">{{.Current.ApplyDescription}}</p>
                 <p class="text-sm font-medium text-heading mb-3">{{.Current.ApplyTitle}}</p>
-                <pre class="bg-canvas-dark border border-hairline rounded-lg p-4 text-xs text-body whitespace-pre-wrap overflow-x-auto"><code>{{.Current.ApplyCommand}}</code></pre>
+                <div class="relative">
+                    <pre id="apply-command" class="bg-canvas-dark border border-hairline rounded-lg p-4 pr-12 text-xs text-body whitespace-pre-wrap overflow-x-auto"><code>{{.Current.ApplyCommand}}</code></pre>
+                    <button onclick="copyApplyCommand()" class="absolute top-2 right-2 p-2 rounded-md bg-canvas-dark/80 hover:bg-canvas-dark text-muted hover:text-body transition cursor-pointer" title="Copy to clipboard">
+                        <svg id="copy-icon" class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <svg id="check-icon" class="h-4 w-4 hidden text-lime-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <div class="bg-night border border-hairline rounded-xl p-6">
@@ -163,4 +173,44 @@
         </div>
     </div>
 </div>
+
+<script>
+async function copyApplyCommand() {
+    const pre = document.getElementById('apply-command');
+    const text = pre.textContent || pre.innerText;
+
+    try {
+        await navigator.clipboard.writeText(text);
+        const copyIcon = document.getElementById('copy-icon');
+        const checkIcon = document.getElementById('check-icon');
+        copyIcon.classList.add('hidden');
+        checkIcon.classList.remove('hidden');
+
+        setTimeout(() => {
+            copyIcon.classList.remove('hidden');
+            checkIcon.classList.add('hidden');
+        }, 2000);
+    } catch (err) {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+
+        const copyIcon = document.getElementById('copy-icon');
+        const checkIcon = document.getElementById('check-icon');
+        copyIcon.classList.add('hidden');
+        checkIcon.classList.remove('hidden');
+
+        setTimeout(() => {
+            copyIcon.classList.remove('hidden');
+            checkIcon.classList.add('hidden');
+        }, 2000);
+    }
+}
+</script>
 {{end}}

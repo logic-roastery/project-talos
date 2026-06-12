@@ -20,9 +20,12 @@
                     {{range $index, $option := .TypeOptions}}
                     <label id="type-card-{{$option.Value}}" class="type-card rounded-xl border border-hairline bg-canvas-dark/40 px-4 py-4 transition hover:border-violet/40 cursor-pointer">
                         <input type="radio" name="app_type" value="{{$option.Value}}" {{if eq $index 0}}checked{{end}} onchange="switchAppType(this.value)" class="sr-only">
-                        <div class="flex items-center justify-between gap-3">
+                        <div class="flex flex-col gap-2">
                             <span class="text-sm font-medium text-body">{{$option.Label}}</span>
-                            <span class="rounded-full border border-hairline px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-muted">{{$option.OwnershipLabel}}</span>
+                            <span class="inline-flex items-center self-start rounded-full border {{ownershipBorder $option.Value}} {{ownershipBg $option.Value}} px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] {{ownershipText $option.Value}}">
+                                <span class="h-1.5 w-1.5 rounded-full {{ownershipDot $option.Value}} mr-1.5"></span>
+                                {{$option.OwnershipLabel}}
+                            </span>
                         </div>
                         <p class="mt-3 text-xs text-muted">{{$option.Summary}}</p>
                         <p class="mt-3 text-xs text-subtle">{{$option.OperationalCopy}}</p>
