@@ -20,6 +20,7 @@ This guide walks you through deploying your first application with Talos.
 | **Repository URL** | Git repository URL | `https://github.com/org/my-app` |
 | **Branch** | Default branch to deploy | `main` |
 | **Internal Port** | Port your app listens on inside the container | `3000` |
+| **Project Type** | Build detection override (auto, static, node, go, java) | `auto` |
 | **Access Mode** | How to access the app: `domain` or `port` | `port` |
 | **Domain** | Custom domain (if access mode is `domain`) | `app.example.com` |
 | **Fallback Port** | External port for IP-based access | `8080` |
@@ -29,6 +30,10 @@ This guide walks you through deploying your first application with Talos.
 ::: tip
 If you choose **domain mode**, make sure your DNS A record points to your server IP. Talos will automatically configure Traefik with HTTPS via Let's Encrypt.
 :::
+
+:::: tip
+**Project Type** defaults to **Auto-detect**, which inspects your repo for `package.json`, `go.mod`, `pom.xml`, or `index.html` and generates a Dockerfile automatically. If Talos picks the wrong type (common in monorepos), select the correct type from the dropdown to override detection. This only matters for **Talos Build** mode — if you use **External CI**, your GitHub Actions workflow handles the build.
+::::
 
 ## Step 2: Connect GitHub App
 

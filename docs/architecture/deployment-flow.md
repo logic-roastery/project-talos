@@ -38,6 +38,64 @@ Talos supports two automatic deployment modes for managed apps:
 | **Talos Build** | push webhook | Talos server | Simple projects, no external CI |
 | **Manual** | User action | N/A (user provides image) | Fallback, testing |
 
+## Talos Build: Project Type Detection
+
+When using **Talos Build** mode, Talos clones the repository and needs to generate a `Dockerfile` if one does not exist. The **Project Type** field on the app controls how this works.
+
+### Auto-Detection (default)
+
+When `project_type` is empty (the default), Talos scans the repo root for sentinel files in this order:
+
+| Priority | Provider | Sentinel Files | Generated Runtime | Default Port |
+|----------|----------|---------------|-------------------|--------------|
+| 1 | Static | `index.html` | nginx | 80 |
+| 2 | Node.js | `package.json` | Node.js or Bun | 3000 |
+| 3 | Go | `go.mod` | Go (scratch) | 8080 |
+| 4 | Java | `pom.xml` or `build.gradle` | JDK (Maven or Gradle) | 8080 |
+
+The first matching provider wins. If no sentinel file is found, the build fails with an error.
+
+### Forced Project Type
+
+When `project_type` is set to `static`, `node`, `go`, or `java`, Talos skips auto-detection entirely and uses the specified provider directly. This is useful when:
+
+- **Monorepos** have multiple sentinel files (e.g. a Go backend with a root `package.json` for frontend tooling) and detection picks the wrong one.
+- **Unusual layouts** where sentinel files are not at the repo root.
+- **Consistency** — you want to guarantee a specific Dockerfile template regardless of repo changes.
+
+### Detection Flow
+
+```
+Push event received
+  │
+  ├─ Does Dockerfile exist in repo?
+  │   ├─ Yes → Use it directly (project_type ignored)
+  │   └─ No  → Check project_type field
+  │             ├─ Empty ("") → Run auto-detection
+  │             │   └─ Scan for sentinel files → Generate Dockerfile
+  │             └─ Set (e.g. "go") → Use that provider directly
+  │                 └─ Call provider.Plan() → Generate Dockerfile
+  │
+  ├─ Build Docker image
+  └─ Continue with blue/green deploy
+```
+
+### Build Events
+
+When a forced project type is used, the deploy log shows a different message:
+
+```
+# Auto-detected:
+Event: level=info, step=build, message="auto-detected project provider=node runtime=node port=3000"
+
+# Forced:
+Event: level=info, step=build, message="using configured project type provider=go runtime=go port=8080"
+```
+
+::: warning
+If you force a project type that does not match the repo contents (e.g. `go` but no `go.mod`), the error surfaces at **deploy time**, not at app creation. This is by design — the repo may not be cloned yet when the app is created.
+:::
+
 ## Deployment Steps
 
 A deployment progresses through the following steps. Each step emits a structured event stored in the `deploy_events` table.

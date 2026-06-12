@@ -90,6 +90,62 @@ All containers join the `talos` Docker network (configurable via `TALOS_DOCKER_N
 - Application containers to reach service containers by name
 - Isolation from other Docker workloads on the host
 
+
+## Builder (Talos Build Mode)
+
+The builder (`internal/builder`) handles repository cloning and Docker image construction for **Talos Build** mode apps.
+
+### Responsibilities
+
+- Clone the app's GitHub repository using an installation token
+- Check out the specific commit SHA
+- Detect the project type (or use the configured override)
+- Generate a `Dockerfile` if one does not exist
+- Run `docker build` to produce the image
+
+### Project Type Detection
+
+The builder delegates project type detection to `internal/builder/detect`. Two modes are available:
+
+- **Auto-detect** (`project_type = ""`): Scans the repo root for sentinel files (`index.html`, `package.json`, `go.mod`, `pom.xml`, `build.gradle`) in priority order. The first match wins.
+- **Forced** (`project_type = "go"` etc.): Calls the named provider directly, skipping detection. Useful for monorepos or repos where detection picks the wrong type.
+
+Each provider produces a `BuildPlan` containing:
+
+| Field | Description |
+|-------|-------------|
+| `Provider` | Name of the matched provider (`static`, `node`, `go`, `java`) |
+| `Runtime` | Docker base image (e.g. `node:20-slim`, `golang:1.25`) |
+| `Port` | Default port the app listens on |
+| `Dockerfile` | Generated Dockerfile template |
+
+### Dockerfile Generation
+
+If the repo root contains a `Dockerfile`, the builder uses it as-is. Otherwise, the detected or forced provider generates one:
+
+- **Static**: nginx-based, serves files from the repo
+- **Node.js**: Detects npm/yarn/pnpm/bun, runs install + build + start
+- **Go**: Multi-stage build, compiles binary, runs in scratch
+- **Java**: Detects Maven or Gradle, builds JAR, runs with JDK
+
+### Build Flow
+
+```
+CloneAndBuild(app, commitSHA)
+  │
+  ├─ Get GitHub installation token
+  ├─ Clone repo to temp directory (depth 1)
+  ├─ Checkout commit SHA
+  ├─ buildImage(cloneDir, imageRef, projectType)
+  │   ├─ Dockerfile exists? → Use it
+  │   └─ No Dockerfile → DetectAs(cloneDir, projectType)
+  │       ├─ projectType == "" → Auto-detect
+  │       └─ projectType != "" → Use forced provider
+  │   └─ Generate Dockerfile → Write to cloneDir
+  ├─ docker build -t imageRef .
+  └─ Return result (imageRef, port, provider)
+```
+
 ## Traefik Proxy
 
 Traefik serves as the public ingress, handling routing and TLS termination.

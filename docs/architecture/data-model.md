@@ -41,6 +41,7 @@ Stores application definitions and current state.
 | `source` | TEXT | NOT NULL DEFAULT 'github' | Source type |
 | `repo_url` | TEXT | NOT NULL | Git repository URL |
 | `branch` | TEXT | NOT NULL DEFAULT 'main' | Default branch |
+| `project_type` | TEXT | NOT NULL DEFAULT '' | Build detection override: `static`, `node`, `go`, `java`, or `''` for auto-detect |
 | `internal_port` | INTEGER | NOT NULL DEFAULT 3000 | Port the app listens on inside the container |
 | `image_ref` | TEXT | NOT NULL DEFAULT '' | Current container image reference |
 | `domain` | TEXT | DEFAULT '' | Custom domain (unique index, empty allowed) |
@@ -60,6 +61,13 @@ Stores application definitions and current state.
 
 - `idx_apps_domain` -- UNIQUE on `domain` WHERE `domain != ''`
 - `idx_apps_fallback_port` -- UNIQUE on `fallback_port` WHERE `fallback_port > 0`
+
+**`project_type` behavior:**
+
+- Empty string `''` (default) means Talos auto-detects the project type from sentinel files when no `Dockerfile` is present.
+- A non-empty value (`static`, `node`, `go`, `java`) forces that provider, skipping auto-detection entirely.
+- Only applies to **Talos Build** mode (`build_mode = 'talos_build'`). In **External CI** mode, this column is ignored.
+- Existing rows default to `''` (auto-detect) — no migration needed for the new column.
 
 ### deploys
 
