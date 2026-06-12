@@ -62,11 +62,19 @@ func (e *Engine) Deploy(ctx context.Context, appID int64, imageRef, commitSHA, b
 		if e.builder == nil {
 			return nil, fmt.Errorf("builder not configured for talos_build mode")
 		}
-		builtImageRef, err := e.builder.CloneAndBuild(ctx, app, commitSHA)
+		result, err := e.builder.CloneAndBuild(ctx, app, commitSHA)
 		if err != nil {
 			return nil, fmt.Errorf("clone and build: %w", err)
 		}
-		imageRef = builtImageRef
+		imageRef = result.ImageRef
+
+		// Auto-fill internal port if detected and app still has the default port
+		if result.Port > 0 && app.InternalPort == 3000 {
+			app.InternalPort = result.Port
+			if err := e.apps.UpdateApp(ctx, app); err != nil {
+				e.logger.Warn("could not update app port from detection", "error", err)
+			}
+		}
 	}
 
 	d := &domain.Deploy{

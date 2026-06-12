@@ -118,6 +118,7 @@ var allMigrations = map[int]string{
 	25: `ALTER TABLE apps ADD COLUMN external_target TEXT NOT NULL DEFAULT ''`,
 	26: `ALTER TABLE apps ADD COLUMN docker_network TEXT NOT NULL DEFAULT ''`,
 	27: `ALTER TABLE apps ADD COLUMN build_mode TEXT NOT NULL DEFAULT 'external_ci'`,
+	28: `ALTER TABLE apps ADD COLUMN project_type TEXT NOT NULL DEFAULT ''`,
 }
 
 func (s *SQLiteStore) migrate() error {

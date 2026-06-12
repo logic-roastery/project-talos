@@ -16,20 +16,24 @@ type Renderer struct {
 
 func NewRenderer() (*Renderer, error) {
 	funcMap := template.FuncMap{
-		"statusBg":     statusBg,
-		"statusText":   statusText,
-		"statusBorder": statusBorder,
-		"statusDot":    statusDot,
-		"deployBg":     deployBg,
-		"deployText":   deployText,
-		"deployBorder": deployBorder,
-		"deployDot":    deployDot,
-		"flashBg":      flashBg,
-		"flashText":    flashText,
-		"flashBorder":  flashBorder,
-		"timeAgo":      timeAgo,
-		"truncateSHA":  truncateSHA,
-		"dict":         dict,
+		"statusBg":        statusBg,
+		"statusText":      statusText,
+		"statusBorder":    statusBorder,
+		"statusDot":       statusDot,
+		"deployBg":        deployBg,
+		"deployText":      deployText,
+		"deployBorder":    deployBorder,
+		"deployDot":       deployDot,
+		"ownershipBg":     ownershipBg,
+		"ownershipText":   ownershipText,
+		"ownershipBorder": ownershipBorder,
+		"ownershipDot":    ownershipDot,
+		"flashBg":         flashBg,
+		"flashText":       flashText,
+		"flashBorder":     flashBorder,
+		"timeAgo":         timeAgo,
+		"truncateSHA":     truncateSHA,
+		"dict":            dict,
 		"formatSize": func(bytes int64) string {
 			const unit = 1024
 			if bytes < unit {
@@ -143,15 +147,23 @@ func (r *Renderer) RenderStatus(w http.ResponseWriter, status int, pageName stri
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 
-	t, ok := r.pages[pageName]
-	if !ok {
-		http.Error(w, "page not found: "+pageName, http.StatusInternalServerError)
+	// Try page lookup first
+	if t, ok := r.pages[pageName]; ok {
+		if err := t.ExecuteTemplate(w, pageName, data); err != nil {
+			http.Error(w, "template error", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	if err := t.ExecuteTemplate(w, pageName, data); err != nil {
-		http.Error(w, "template error", http.StatusInternalServerError)
+	// Fall back to partials
+	if r.partials != nil {
+		if err := r.partials.ExecuteTemplate(w, pageName, data); err != nil {
+			http.Error(w, "template error: "+err.Error(), http.StatusInternalServerError)
+		}
+		return
 	}
+
+	http.Error(w, "template not found: "+pageName, http.StatusInternalServerError)
 }
 
 // Status helpers for app status (active/inactive/error)
@@ -279,6 +291,63 @@ func deployDot(status any) string {
 		return "bg-yellow-400"
 	case "rollback":
 		return "bg-violet-mid"
+	default:
+		return "bg-muted"
+	}
+}
+
+// Ownership type helpers (managed/adopted_container/external_service)
+func ownershipBg(appType any) string {
+	s := fmt.Sprintf("%s", appType)
+	switch s {
+	case "managed":
+		return "bg-lime-accent/10"
+	case "adopted_container":
+		return "bg-yellow-400/10"
+	case "external_service":
+		return "bg-blue-400/10"
+	default:
+		return "bg-gray-400/10"
+	}
+}
+
+func ownershipText(appType any) string {
+	s := fmt.Sprintf("%s", appType)
+	switch s {
+	case "managed":
+		return "text-lime-accent"
+	case "adopted_container":
+		return "text-yellow-400"
+	case "external_service":
+		return "text-blue-400"
+	default:
+		return "text-muted"
+	}
+}
+
+func ownershipBorder(appType any) string {
+	s := fmt.Sprintf("%s", appType)
+	switch s {
+	case "managed":
+		return "border-lime-accent/20"
+	case "adopted_container":
+		return "border-yellow-400/20"
+	case "external_service":
+		return "border-blue-400/20"
+	default:
+		return "border-hairline"
+	}
+}
+
+func ownershipDot(appType any) string {
+	s := fmt.Sprintf("%s", appType)
+	switch s {
+	case "managed":
+		return "bg-lime-accent"
+	case "adopted_container":
+		return "bg-yellow-400"
+	case "external_service":
+		return "bg-blue-400"
 	default:
 		return "bg-muted"
 	}

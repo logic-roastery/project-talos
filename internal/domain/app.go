@@ -32,6 +32,16 @@ const (
 	BuildModeTalosBuild BuildMode = "talos_build" // Talos clones and builds, then deploys
 )
 
+type ProjectType string
+
+const (
+	ProjectTypeAuto   ProjectType = "" // auto-detect (default)
+	ProjectTypeStatic ProjectType = "static"
+	ProjectTypeNode   ProjectType = "node"
+	ProjectTypeGo     ProjectType = "go"
+	ProjectTypeJava   ProjectType = "java"
+)
+
 type RuntimeOwner string
 
 const (
@@ -51,6 +61,7 @@ type App struct {
 	Name                 string       `json:"name"`
 	AppType              AppType      `json:"app_type"`
 	BuildMode            BuildMode    `json:"build_mode"`
+	ProjectType          ProjectType  `json:"project_type"`
 	RuntimeOwner         RuntimeOwner `json:"runtime_owner"`
 	EdgeProvider         EdgeProvider `json:"edge_provider"`
 	Source               string       `json:"source"`
