@@ -287,10 +287,10 @@ func normalizeAppType(v domain.AppType) domain.AppType {
 
 func normalizeBuildMode(v domain.BuildMode) domain.BuildMode {
 	switch v {
-	case domain.BuildModeTalosBuild:
+	case domain.BuildModeExternalCI:
 		return v
 	default:
-		return domain.BuildModeExternalCI
+		return domain.BuildModeTalosBuild
 	}
 }
 
