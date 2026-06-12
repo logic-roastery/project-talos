@@ -175,6 +175,76 @@ func TestDetect(t *testing.T) {
 	}
 }
 
+func TestDetectAs(t *testing.T) {
+	tests := []struct {
+		name          string
+		setup         func(t *testing.T, root string)
+		forceProvider string
+		wantProv      string
+		wantErr       bool
+		wantErrStr    string
+	}{
+		{
+			name: "force node ignores go.mod",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, "go.mod", "module github.com/user/myapp\n\ngo 1.25\n")
+				writeFile(t, root, "package.json", `{"scripts":{"start":"node index.js"}}`)
+			},
+			forceProvider: "node",
+			wantProv:      "node",
+		},
+		{
+			name: "force go ignores package.json",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, "package.json", `{"scripts":{"start":"node index.js"}}`)
+				writeFile(t, root, "go.mod", "module github.com/user/myapp\n\ngo 1.25\n")
+				writeFile(t, root, "main.go", "package main\n\nfunc main() {}\n")
+			},
+			forceProvider: "go",
+			wantProv:      "go",
+		},
+		{
+			name: "empty force runs auto-detect",
+			setup: func(t *testing.T, root string) {
+				writeFile(t, root, "package.json", `{"scripts":{"start":"node index.js"}}`)
+			},
+			forceProvider: "",
+			wantProv:      "node",
+		},
+		{
+			name:          "unknown type returns error",
+			setup:         func(t *testing.T, root string) {},
+			forceProvider: "python",
+			wantErr:       true,
+			wantErrStr:    "unknown project type",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			tt.setup(t, root)
+
+			plan, err := DetectAs(root, tt.forceProvider)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if tt.wantErrStr != "" && !containsStr(err.Error(), tt.wantErrStr) {
+					t.Errorf("error %q does not contain %q", err.Error(), tt.wantErrStr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if plan.Provider != tt.wantProv {
+				t.Errorf("provider = %q, want %q", plan.Provider, tt.wantProv)
+			}
+		})
+	}
+}
+
 func TestGoMainDetection(t *testing.T) {
 	t.Run("cmd matches module name", func(t *testing.T) {
 		root := t.TempDir()

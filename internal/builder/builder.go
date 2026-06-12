@@ -68,7 +68,7 @@ func (b *Builder) CloneAndBuild(ctx context.Context, app *domain.App, commitSHA 
 
 	// Build Docker image (auto-detects if no Dockerfile)
 	imageRef := b.buildImageRef(app, commitSHA)
-	result, err := b.buildImage(ctx, cloneDir, imageRef)
+	result, err := b.buildImage(ctx, cloneDir, imageRef, string(app.ProjectType))
 	if err != nil {
 		return nil, fmt.Errorf("build image: %w", err)
 	}
@@ -136,21 +136,29 @@ func (b *Builder) cloneRepo(ctx context.Context, repoURL, branch, commitSHA, des
 
 // buildImage builds a Docker image from the specified directory.
 // If no Dockerfile exists, auto-detects the project type and generates one.
-func (b *Builder) buildImage(ctx context.Context, buildDir, imageRef string) (*CloneAndBuildResult, error) {
+func (b *Builder) buildImage(ctx context.Context, buildDir, imageRef, projectType string) (*CloneAndBuildResult, error) {
 	dockerfilePath := filepath.Join(buildDir, "Dockerfile")
 	result := &CloneAndBuildResult{ImageRef: imageRef}
 
 	// If no Dockerfile, auto-detect and generate one
 	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
-		plan, err := detect.Detect(buildDir)
+		plan, err := detect.DetectAs(buildDir, projectType)
 		if err != nil {
 			return nil, fmt.Errorf("no Dockerfile and auto-detection failed: %w", err)
 		}
-		b.logger.Info("auto-detected project",
-			"provider", plan.Provider,
-			"runtime", plan.Runtime,
-			"port", plan.Port,
-		)
+		if projectType != "" {
+			b.logger.Info("using configured project type",
+				"provider", plan.Provider,
+				"runtime", plan.Runtime,
+				"port", plan.Port,
+			)
+		} else {
+			b.logger.Info("auto-detected project",
+				"provider", plan.Provider,
+				"runtime", plan.Runtime,
+				"port", plan.Port,
+			)
+		}
 		dockerfile := detect.GenerateDockerfile(plan)
 		if err := os.WriteFile(dockerfilePath, dockerfile, 0644); err != nil {
 			return nil, fmt.Errorf("write generated Dockerfile: %w", err)

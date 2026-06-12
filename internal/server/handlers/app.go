@@ -32,17 +32,18 @@ func NewAppHandler(apps store.AppStore, deploys store.DeployStore, dockerClient 
 }
 
 type createAppRequest struct {
-	Name           string           `json:"name"`
-	AppType        domain.AppType   `json:"app_type"`
-	BuildMode      domain.BuildMode `json:"build_mode,omitempty"`
-	RepoURL        string           `json:"repo_url"`
-	Branch         string           `json:"branch"`
-	InternalPort   int              `json:"internal_port"`
-	Domain         string           `json:"domain,omitempty"`
-	ImageRef       string           `json:"image_ref,omitempty"`
-	ContainerName  string           `json:"container_name,omitempty"`
-	ExternalTarget string           `json:"external_target,omitempty"`
-	DockerNetwork  string           `json:"docker_network,omitempty"`
+	Name           string             `json:"name"`
+	AppType        domain.AppType     `json:"app_type"`
+	BuildMode      domain.BuildMode   `json:"build_mode,omitempty"`
+	ProjectType    domain.ProjectType `json:"project_type,omitempty"`
+	RepoURL        string             `json:"repo_url"`
+	Branch         string             `json:"branch"`
+	InternalPort   int                `json:"internal_port"`
+	Domain         string             `json:"domain,omitempty"`
+	ImageRef       string             `json:"image_ref,omitempty"`
+	ContainerName  string             `json:"container_name,omitempty"`
+	ExternalTarget string             `json:"external_target,omitempty"`
+	DockerNetwork  string             `json:"docker_network,omitempty"`
 }
 
 type updateAppRequest struct {
@@ -114,6 +115,7 @@ func (h *AppHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Name:           req.Name,
 		AppType:        req.AppType,
 		BuildMode:      normalizeBuildMode(req.BuildMode),
+		ProjectType:    req.ProjectType,
 		RuntimeOwner:   runtimeOwnerForType(req.AppType),
 		EdgeProvider:   edgeProviderForMode(h.proxyMode),
 		Source:         sourceForType(req.AppType),

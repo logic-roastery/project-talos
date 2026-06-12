@@ -200,3 +200,57 @@ func TestNextFallbackPort(t *testing.T) {
 		t.Errorf("port = %d, want 40006", port)
 	}
 }
+
+func TestProjectTypeRoundTrip(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	app := &domain.App{
+		Name:         "project-type-app",
+		Source:       "github",
+		RepoURL:      "https://github.com/test/repo",
+		Branch:       "main",
+		InternalPort: 3000,
+		AccessMode:   domain.AccessModePort,
+		Status:       domain.AppStatusInactive,
+		ProjectType:  domain.ProjectTypeGo,
+	}
+	if err := s.CreateApp(ctx, app); err != nil {
+		t.Fatalf("CreateApp: %v", err)
+	}
+
+	got, err := s.GetApp(ctx, app.ID)
+	if err != nil {
+		t.Fatalf("GetApp: %v", err)
+	}
+	if got.ProjectType != domain.ProjectTypeGo {
+		t.Errorf("project_type = %q, want %q", got.ProjectType, domain.ProjectTypeGo)
+	}
+
+	// Update to a different type
+	app.ProjectType = domain.ProjectTypeNode
+	if err := s.UpdateApp(ctx, app); err != nil {
+		t.Fatalf("UpdateApp: %v", err)
+	}
+
+	got, err = s.GetApp(ctx, app.ID)
+	if err != nil {
+		t.Fatalf("GetApp after update: %v", err)
+	}
+	if got.ProjectType != domain.ProjectTypeNode {
+		t.Errorf("project_type after update = %q, want %q", got.ProjectType, domain.ProjectTypeNode)
+	}
+
+	// Empty (auto-detect) should also round-trip
+	app.ProjectType = domain.ProjectTypeAuto
+	if err := s.UpdateApp(ctx, app); err != nil {
+		t.Fatalf("UpdateApp to auto: %v", err)
+	}
+	got, err = s.GetApp(ctx, app.ID)
+	if err != nil {
+		t.Fatalf("GetApp after auto update: %v", err)
+	}
+	if got.ProjectType != domain.ProjectTypeAuto {
+		t.Errorf("project_type after auto update = %q, want %q", got.ProjectType, domain.ProjectTypeAuto)
+	}
+}

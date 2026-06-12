@@ -27,6 +27,28 @@ func Detect(root string) (*BuildPlan, error) {
 	return nil, fmt.Errorf("unsupported project type: no package.json, go.mod, pom.xml, build.gradle, or index.html found")
 }
 
+// providerMap enables name-based lookup for forced project type selection.
+var providerMap = map[string]Provider{
+	"static": &StaticProvider{},
+	"node":   &NodeProvider{},
+	"go":     &GoProvider{},
+	"java":   &JavaProvider{},
+}
+
+// DetectAs runs detection with an optional provider override.
+// If forceProvider is non-empty, that provider's Plan() is called directly (skip detection).
+// If forceProvider is "", the existing Detect() auto-detection runs.
+func DetectAs(root string, forceProvider string) (*BuildPlan, error) {
+	if forceProvider == "" {
+		return Detect(root)
+	}
+	p, ok := providerMap[forceProvider]
+	if !ok {
+		return nil, fmt.Errorf("unknown project type %q", forceProvider)
+	}
+	return p.Plan(root)
+}
+
 // fileExists checks if a file exists in the given directory.
 func fileExists(root, name string) bool {
 	_, err := os.Stat(root + "/" + name)
