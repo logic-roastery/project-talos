@@ -67,7 +67,13 @@ func (p *Provisioner) ProvisionService(ctx context.Context, svc *domain.Service,
 		os.MkdirAll(filepath.Join(volHost, "data"), 0755)
 		gc := creds.(*domain.GarageCredentials)
 		configContent := generateGarageConfig(svc.Name, gc)
-		if err := os.WriteFile(filepath.Join(volHost, "garage.toml"), []byte(configContent), 0644); err != nil {
+		configPath := filepath.Join(volHost, "garage.toml")
+		// Docker creates missing bind-mount sources as directories.
+		// If a previous failed attempt left a directory here, remove it.
+		if fi, err := os.Stat(configPath); err == nil && fi.IsDir() {
+			os.RemoveAll(configPath)
+		}
+		if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
 			return fmt.Errorf("write garage config: %w", err)
 		}
 	}
@@ -175,7 +181,11 @@ func (p *Provisioner) StartService(ctx context.Context, svc *domain.Service) err
 		var gc domain.GarageCredentials
 		json.Unmarshal([]byte(credJSON), &gc)
 		configContent := generateGarageConfig(svc.Name, &gc)
-		os.WriteFile(filepath.Join(volHost, "garage.toml"), []byte(configContent), 0644)
+		configPath := filepath.Join(volHost, "garage.toml")
+		if fi, err := os.Stat(configPath); err == nil && fi.IsDir() {
+			os.RemoveAll(configPath)
+		}
+		os.WriteFile(configPath, []byte(configContent), 0644)
 	}
 
 	containerCfg, err := p.buildContainerConfigFromJSON(svc, credJSON, volHost)
