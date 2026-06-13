@@ -286,16 +286,6 @@ func (p *Provisioner) buildContainerConfigFromJSON(svc *domain.Service, credJSON
 		}
 
 	case domain.ServiceRedis:
-		var rc domain.RedisCredentials
-		json.Unmarshal([]byte(credJSON), &rc)
-		cfg.Volumes = []string{volHost + ":" + def.VolumePath}
-		cfg.HealthCheck = &container.HealthConfig{
-			Test:     []string{"CMD", "redis-cli", "-a", rc.Password, "ping"},
-			Interval: 10 * time.Second,
-			Timeout:  5 * time.Second,
-			Retries:  5,
-		}
-
 	case domain.ServiceGarage:
 		var gc domain.GarageCredentials
 		json.Unmarshal([]byte(credJSON), &gc)
@@ -304,10 +294,9 @@ func (p *Provisioner) buildContainerConfigFromJSON(svc *domain.Service, credJSON
 		}
 		cfg.Volumes = []string{
 			volHost + "/garage.toml:/etc/garage.toml:ro",
-			volHost + "/meta:/var/lib/garage/meta",
-			volHost + "/data:/var/lib/garage/data",
+			containerName + "-meta:/var/lib/garage/meta",
+			containerName + "-data:/var/lib/garage/data",
 		}
-		cfg.InternalPort = 3900 // S3 API
 		cfg.HealthCheck = &container.HealthConfig{
 			Test:     []string{"CMD-SHELL", "wget -qO- http://localhost:3900/health || exit 1"},
 			Interval: 10 * time.Second,
