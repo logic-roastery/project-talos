@@ -286,6 +286,15 @@ func (p *Provisioner) buildContainerConfigFromJSON(svc *domain.Service, credJSON
 		}
 
 	case domain.ServiceRedis:
+		var rc domain.RedisCredentials
+		json.Unmarshal([]byte(credJSON), &rc)
+		cfg.Volumes = []string{volHost + ":" + def.VolumePath}
+		cfg.HealthCheck = &container.HealthConfig{
+			Test:     []string{"CMD", "redis-cli", "-a", rc.Password, "ping"},
+			Interval: 10 * time.Second,
+			Timeout:  5 * time.Second,
+			Retries:  5,
+		}
 	case domain.ServiceGarage:
 		var gc domain.GarageCredentials
 		json.Unmarshal([]byte(credJSON), &gc)
