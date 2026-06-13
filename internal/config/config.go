@@ -52,8 +52,9 @@ type AuthConfig struct {
 }
 
 type DockerConfig struct {
-	Host    string
-	Network string
+	Host         string
+	Network      string
+	HostDataRoot string // host-path equivalent of data dir (for bind mounts when running in container)
 }
 
 type TraefikConfig struct {
@@ -100,8 +101,9 @@ func Load() (*Config, error) {
 			SessionMaxAge: intDefault("TALOS_SESSION_MAX_AGE", 86400*7), // 7 days
 		},
 		Docker: DockerConfig{
-			Host:    envOrDefault("TALOS_DOCKER_HOST", "unix:///var/run/docker.sock"),
-			Network: envOrDefault("TALOS_DOCKER_NETWORK", "talos"),
+			Host:         envOrDefault("TALOS_DOCKER_HOST", "unix:///var/run/docker.sock"),
+			Network:      envOrDefault("TALOS_DOCKER_NETWORK", "talos"),
+			HostDataRoot: envOrDefault("TALOS_HOST_DATA_ROOT", ""),
 		},
 		Traefik: TraefikConfig{
 			Image:        envOrDefault("TALOS_TRAEFIK_IMAGE", "traefik:v3.0"),
