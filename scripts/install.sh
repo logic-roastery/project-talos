@@ -187,7 +187,7 @@ if [[ "${UPGRADE_MODE}" == "true" ]]; then
     if [[ -z "${TARGET_VERSION}" ]]; then
         info "Checking latest release..."
         # Try /releases/latest first (works when stable releases exist)
-        TARGET_VERSION=$(curl -fsSL "https://api.github.com/repos/logic-roastery/project-talos/releases/latest" \
+        TARGET_VERSION=$(curl -fsSL "https://api.github.com/repos/logic-roastery/project-talos/releases/latest" 2>/dev/null \
             | grep '"tag_name"' | sed 's/.*"tag_name": *"\(.*\)".*/\1/' || true)
         # Fallback: /releases/latest returns 404 when all releases are prereleases.
         # List all releases and pick the newest one.
@@ -325,8 +325,8 @@ if [[ "${UPGRADE_MODE}" == "true" ]]; then
         CURRENT_IMAGE_TAG=$(docker inspect --format='{{.Config.Image}}' talos 2>/dev/null || echo "unknown")
         info "Current image: ${CURRENT_IMAGE_TAG}"
 
-        # Resolve image tag
-        IMAGE_TAG="${TARGET_VERSION}"
+        # Resolve image tag (strip leading 'v' — GitHub tags use v0.4.2, Docker images use 0.4.2)
+        IMAGE_TAG="${TARGET_VERSION#v}"
 
         # Ensure .env exists (never overwrite it)
         [[ -f "${TALOS_ENV}" ]] || die "No .env found at ${TALOS_ENV}. Run install.sh first."
