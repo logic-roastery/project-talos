@@ -356,7 +356,7 @@
         logOutput.classList.remove('hidden');
         setStatus('Connecting', 'border-yellow-400/20 bg-yellow-400/10 text-yellow-400');
 
-        logSource = new EventSource('/apps/' + appId + '/logs');
+        logSource = new EventSource('/api/apps/' + appId + '/logs/stream');
         logToggle.innerHTML = '<svg id="log-toggle-icon" class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">' + disconnectIcon + '</svg>Disconnect';
 
         logSource.addEventListener('stdout', function(event) {
@@ -378,7 +378,7 @@
 
 async function restartAdoptedApp() {
     if (!confirm('Restart this adopted container?')) return;
-    const res = await fetch('/apps/{{.App.ID}}/restart', { method: 'POST' });
+    const res = await fetch('/api/apps/{{.App.ID}}/restart', { method: 'POST' });
     if (!res.ok) {
         alert('Failed to restart container');
         return;

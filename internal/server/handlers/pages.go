@@ -243,6 +243,11 @@ func (h *PageHandler) AppCreateSubmit(w http.ResponseWriter, r *http.Request) {
 	repoURL := r.FormValue("repo_url")
 	branch := r.FormValue("branch")
 	portStr := r.FormValue("internal_port")
+	if appType == domain.AppTypeAdoptedContainer {
+		if v := r.FormValue("adopted_internal_port"); v != "" {
+			portStr = v
+		}
+	}
 	domainName := r.FormValue("domain")
 	imageRef := r.FormValue("image_ref")
 	containerName := r.FormValue("container_name")
@@ -330,6 +335,17 @@ func (h *PageHandler) AppCreateSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// For adopted containers, inspect Docker to set correct status
+	if app.AppType == domain.AppTypeAdoptedContainer && app.ContainerName != "" && h.docker != nil {
+		inspected, err := h.docker.Inspect(r.Context(), app.ContainerName)
+		if err == nil && inspected.State.Running {
+			app.Status = domain.AppStatusActive
+			if updateErr := h.apps.UpdateApp(r.Context(), app); updateErr != nil {
+				h.logger.Warn("could not set adopted container status to active", "error", updateErr)
+			}
+		}
+	}
+
 	w.Header().Set("HX-Redirect", fmt.Sprintf("/apps/%d", app.ID))
 }
 
@@ -373,6 +389,17 @@ func (h *PageHandler) AppDetailPage(w http.ResponseWriter, r *http.Request) {
 				Status:   string(inspected.State.Status),
 				Networks: networks,
 			}
+		}
+	}
+
+	// Sync adopted container status with actual Docker state
+	if app.AppType == domain.AppTypeAdoptedContainer && containerName != "" && h.docker != nil {
+		if runtimeInfo != nil && runtimeInfo.State == "running" && app.Status != domain.AppStatusActive {
+			app.Status = domain.AppStatusActive
+			h.apps.UpdateApp(r.Context(), app)
+		} else if (runtimeInfo == nil || runtimeInfo.State != "running") && app.Status == domain.AppStatusActive {
+			app.Status = domain.AppStatusInactive
+			h.apps.UpdateApp(r.Context(), app)
 		}
 	}
 
