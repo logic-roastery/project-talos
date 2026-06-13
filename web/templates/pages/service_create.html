@@ -140,12 +140,19 @@
 
         <div class="flex justify-end gap-3">
             <a href="/services" class="px-4 py-2 text-sm text-muted hover:text-body transition">Cancel</a>
-            <button type="submit" class="bg-lime-accent text-midnight font-bold px-6 py-3 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider">
-                Create Service
+            <button type="submit" id="create-service-btn"
+                class="bg-lime-accent text-midnight font-bold px-6 py-3 rounded-md hover:bg-lime-accent/90 transition text-sm uppercase tracking-wider inline-flex items-center gap-2">
+                <svg id="create-spinner" class="hidden animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <span id="create-btn-text">Create Service</span>
             </button>
         </div>
     </form>
 </div>
+
+<div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
 <script>
 const TYPE_DEFAULTS = {
@@ -155,9 +162,29 @@ const TYPE_DEFAULTS = {
     garage:   { region: 'garage' }
 };
 
+function showToast(message, type) {
+    type = type || 'error';
+    var container = document.getElementById('toast-container');
+    var toast = document.createElement('div');
+    var colors = type === 'success'
+        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+        : 'border-red-500/40 bg-red-500/10 text-red-300';
+    var icon = type === 'success'
+        ? '<svg class="h-4 w-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'
+        : '<svg class="h-4 w-4 shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
+    toast.className = 'pointer-events-auto flex items-start gap-3 rounded-lg border ' + colors + ' px-4 py-3 text-sm shadow-lg backdrop-blur-sm transition-all duration-300 translate-y-2 opacity-0 max-w-sm';
+    toast.innerHTML = icon + '<span class="flex-1">' + message + '</span><button onclick="this.parentElement.remove()" class="shrink-0 ml-2 text-current opacity-60 hover:opacity-100 cursor-pointer">&times;</button>';
+    container.appendChild(toast);
+    requestAnimationFrame(function() { toast.classList.remove('translate-y-2', 'opacity-0'); });
+    setTimeout(function() {
+        toast.classList.add('translate-y-2', 'opacity-0');
+        setTimeout(function() { toast.remove(); }, 300);
+    }, 5000);
+}
+
 function selectType(type) {
     document.getElementById('service-type').value = type;
-    document.querySelectorAll('.type-btn').forEach(btn => {
+    document.querySelectorAll('.type-btn').forEach(function(btn) {
         btn.classList.toggle('border-violet', btn.dataset.type === type);
         btn.classList.toggle('border-hairline', btn.dataset.type !== type);
     });
@@ -166,7 +193,7 @@ function selectType(type) {
     document.getElementById('creds-redis').classList.toggle('hidden', type !== 'redis');
     document.getElementById('creds-garage').classList.toggle('hidden', type !== 'garage');
 
-    const defs = TYPE_DEFAULTS[type] || {};
+    var defs = TYPE_DEFAULTS[type] || {};
     if (defs.user) document.getElementById('cred-user').value = defs.user;
     if (defs.database) document.getElementById('cred-database').value = defs.database;
     if (defs.region) document.getElementById('cred-region').value = defs.region;
@@ -182,31 +209,37 @@ function selectType(type) {
 }
 
 function randomizeName() {
-    const type = document.getElementById('service-type').value || 'svc';
-    const prefix = type.substring(0, 4);
-    const suffix = Array.from(crypto.getRandomValues(new Uint8Array(4)))
-        .map(b => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
+    var type = document.getElementById('service-type').value || 'svc';
+    var prefix = type.substring(0, 4);
+    var suffix = Array.from(crypto.getRandomValues(new Uint8Array(4)))
+        .map(function(b) { return 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]; }).join('');
     document.getElementById('service-name').value = prefix + '-' + suffix;
 }
 
 function randomizeField(id, length) {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
-    const arr = new Uint8Array(length);
+    var chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    var arr = new Uint8Array(length);
     crypto.getRandomValues(arr);
-    document.getElementById(id).value = Array.from(arr).map(b => chars[b % chars.length]).join('');
+    document.getElementById(id).value = Array.from(arr).map(function(b) { return chars[b % chars.length]; }).join('');
 }
 
 function togglePassword(id) {
-    const el = document.getElementById(id);
+    var el = document.getElementById(id);
     el.type = el.type === 'password' ? 'text' : 'password';
 }
 
 document.getElementById('create-service-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    const type = document.getElementById('service-type').value;
-    if (!type) { alert('Select a service type'); return; }
+    var btn = document.getElementById('create-service-btn');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    document.getElementById('create-spinner').classList.remove('hidden');
+    document.getElementById('create-btn-text').textContent = 'Creating...';
 
-    const body = { name: document.getElementById('service-name').value, type: type, credentials: {} };
+    var type = document.getElementById('service-type').value;
+    if (!type) { showToast('Select a service type first.'); resetBtn(); return; }
+
+    var body = { name: document.getElementById('service-name').value, type: type, credentials: {} };
 
     if (type === 'postgres' || type === 'mysql') {
         body.credentials = {
@@ -224,19 +257,36 @@ document.getElementById('create-service-form').addEventListener('submit', async 
         };
     }
 
-    const res = await fetch('/api/services', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    });
+    try {
+        var res = await fetch('/api/services', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
 
-    if (res.ok) {
-        const svc = await res.json();
-        window.location.href = '/services/' + svc.id;
-    } else {
-        const err = await res.json();
-        alert('Failed: ' + (err.error || 'unknown error'));
+        if (res.ok) {
+            var svc = await res.json();
+            window.location.href = '/services/' + svc.id;
+        } else {
+            var err = await res.json();
+            var msg = err.error || 'Something went wrong. Please try again.';
+            if (msg.includes('UNIQUE constraint failed') || msg.includes('already exists')) {
+                msg = 'A service with this name already exists. Choose a different name.';
+            }
+            showToast(msg, 'error');
+            resetBtn();
+        }
+    } catch (ex) {
+        showToast('Network error. Check your connection and try again.', 'error');
+        resetBtn();
     }
 });
+
+function resetBtn() {
+    var btn = document.getElementById('create-service-btn');
+    btn.disabled = false;
+    document.getElementById('create-spinner').classList.add('hidden');
+    document.getElementById('create-btn-text').textContent = 'Create Service';
+}
 </script>
 {{end}}
