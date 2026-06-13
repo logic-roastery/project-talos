@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/logic-roastery/project-talos/internal/config"
 	"github.com/logic-roastery/project-talos/internal/domain"
@@ -28,9 +29,9 @@ type GitHubHandler struct {
 	domain   string
 	logger   *slog.Logger
 
-	mu        sync.Mutex
-	ghClient  *github.AppClient
-	initTried bool
+	mu              sync.Mutex
+	ghClient        *github.AppClient
+	lastInitAttempt time.Time
 }
 
 func NewGitHubHandler(apps store.AppStore, ghClient *github.AppClient, cfg config.GitHubConfig, renderer *web.Renderer, host, domain string, logger *slog.Logger) *GitHubHandler {
@@ -46,8 +47,8 @@ func NewGitHubHandler(apps store.AppStore, ghClient *github.AppClient, cfg confi
 }
 
 // getClient returns the GitHub App client, lazily initializing it if needed.
-// This handles the race condition where the private key file isn't available at
-// startup but appears later (e.g. after a volume mount completes during upgrade).
+// Retries every 30s if the private key file isn't available yet (e.g. volume
+// mount not complete during upgrade).
 func (h *GitHubHandler) getClient() *github.AppClient {
 	if h.ghClient != nil {
 		return h.ghClient
@@ -59,22 +60,21 @@ func (h *GitHubHandler) getClient() *github.AppClient {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	// Double-check after acquiring lock
 	if h.ghClient != nil {
 		return h.ghClient
 	}
-	if h.initTried {
+	if !h.lastInitAttempt.IsZero() && time.Since(h.lastInitAttempt) < 30*time.Second {
 		return nil
 	}
 
+	h.lastInitAttempt = time.Now()
 	client, err := github.NewAppClient(h.cfg)
 	if err != nil {
-		h.initTried = true
-		h.logger.Warn("github app client lazy init failed", "error", err)
+		h.logger.Warn("github app client init failed (will retry)", "error", err)
 		return nil
 	}
 	h.ghClient = client
-	h.logger.Info("github app client initialized (lazy)", "app_id", h.cfg.AppID)
+	h.logger.Info("github app client initialized", "app_id", h.cfg.AppID)
 	return h.ghClient
 }
 
