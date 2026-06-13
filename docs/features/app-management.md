@@ -11,6 +11,7 @@ Each application in Talos has the following properties:
 | **Name** | Unique identifier, used in container names and URLs | `my-app` |
 | **App Type** | `managed`, `adopted_container`, or `external_service` | `managed` |
 | **Build Mode** | `external_ci` or `talos_build` | `external_ci` |
+| **Project Type** | Build detection override: `auto`, `static`, `node`, `go`, or `java` | `auto` |
 | **Source** | Where the app comes from | `github` |
 | **Repository URL** | Git repository URL | `https://github.com/org/my-app` |
 | **Branch** | Default deployment branch | `main` |
@@ -27,6 +28,35 @@ Each application in Talos has the following properties:
 |------|-------------|
 | `external_ci` | GitHub Actions builds and pushes the image. Talos deploys on webhook notification. |
 | `talos_build` | Talos clones the repo and builds the image locally on push events. |
+
+### Project Types
+
+When using **Talos Build** mode and no `Dockerfile` exists in the repository, Talos auto-detects the project type by inspecting sentinel files (e.g. `package.json`, `go.mod`, `pom.xml`). The **Project Type** field lets you override this detection.
+
+| Value | Detection Sentinel | Generated Dockerfile | Default Port |
+|-------|-------------------|---------------------|--------------|
+| `auto` (default) | Auto-detected from repo files | Depends on detected type | Depends on detected type |
+| `static` | `index.html` | nginx serving static files | 80 |
+| `node` | `package.json` | Node.js or Bun runtime | 3000 |
+| `go` | `go.mod` | Go build + scratch runtime | 8080 |
+| `java` | `pom.xml` or `build.gradle` | Maven/Gradle build + JDK runtime | 8080 |
+
+**When to use a specific type:**
+
+- **Monorepos** where detection picks the wrong provider (e.g. a Go repo with a root `package.json` for tooling)
+- **Unusual layouts** where sentinel files are in non-standard locations
+- **Overriding default port** behavior (the port is set by the provider, not the form field)
+
+**How it works:**
+
+1. If a `Dockerfile` exists in the repo root, Talos uses it directly — Project Type is ignored.
+2. If no `Dockerfile` exists and Project Type is `auto`, Talos runs auto-detection.
+3. If no `Dockerfile` exists and Project Type is set to a specific value, Talos skips detection and uses that provider directly.
+4. If the chosen provider cannot generate a plan (e.g. `go` selected but no `go.mod` found), the deploy fails at build time with a descriptive error.
+
+::: tip
+Project Type only affects **Talos Build** mode. In **External CI** mode, the build happens in GitHub Actions and Talos only deploys the resulting image.
+:::
 
 ## CRUD Operations
 
@@ -52,7 +82,7 @@ curl -X POST http://localhost:3000/api/apps \
   }'
 ```
 
-**With Talos Build mode:**
+**With Talos Build mode (auto-detect project type):**
 
 ```bash
 curl -X POST http://localhost:3000/api/apps \
@@ -69,6 +99,27 @@ curl -X POST http://localhost:3000/api/apps \
     "fallback_port": 8080
   }'
 ```
+
+**With Talos Build mode and explicit project type:**
+
+```bash
+curl -X POST http://localhost:3000/api/apps \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=<your-session-cookie>" \
+  -d '{
+    "name": "my-go-app",
+    "app_type": "managed",
+    "build_mode": "talos_build",
+    "project_type": "go",
+    "repo_url": "https://github.com/org/my-go-app",
+    "branch": "main",
+    "internal_port": 8080,
+    "access_mode": "port",
+    "fallback_port": 8081
+  }'
+```
+
+When `project_type` is omitted or set to `""`, Talos auto-detects from repo files. Set it to `static`, `node`, `go`, or `java` to skip detection.
 
 ### List Apps
 
