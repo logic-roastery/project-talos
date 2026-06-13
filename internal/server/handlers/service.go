@@ -105,6 +105,29 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto-provision Garage Web UI sidecar
+	if req.Type == domain.ServiceGarage {
+		garageCreds := creds.(domain.GarageCredentials)
+		webUICreds := domain.GarageWebUICredentials{
+			AdminAPIURL: fmt.Sprintf("http://talos-svc-%s:3903", req.Name),
+			S3Endpoint:  fmt.Sprintf("http://talos-svc-%s:3900", req.Name),
+			AdminKey:    garageCreds.AdminToken,
+			Username:    "admin",
+			Password:    services.GeneratePassword(16),
+		}
+		webUIDef := domain.ServiceDefinitions[domain.ServiceGarageWebUI]
+		webUISvc := &domain.Service{
+			Name:         req.Name + "-webui",
+			Type:         domain.ServiceGarageWebUI,
+			ImageRef:     webUIDef.DefaultImage,
+			Status:       domain.ServiceStatusPending,
+			InternalPort: webUIDef.Port,
+		}
+		if err := h.services.CreateService(r.Context(), webUISvc); err == nil {
+			h.provisioner.ProvisionService(r.Context(), webUISvc, webUICreds)
+		}
+	}
+
 	svc.Credentials = ""
 	writeJSON(w, http.StatusCreated, svc)
 }
@@ -202,6 +225,13 @@ func (h *ServiceHandler) GetCredentials(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		creds = gc
+	case domain.ServiceGarageWebUI:
+		var wc domain.GarageWebUICredentials
+		if err := h.provisioner.DecryptCredentials(svc, &wc); err != nil {
+			writeError(w, http.StatusInternalServerError, "decrypt failed")
+			return
+		}
+		creds = wc
 	default:
 		writeError(w, http.StatusBadRequest, "unknown service type")
 		return
@@ -426,8 +456,12 @@ func buildCredsFromMap(svcType domain.ServiceType, m map[string]interface{}, con
 		return c
 	case domain.ServiceGarage:
 		c := domain.GarageCredentials{
-			Endpoint: fmt.Sprintf("http://%s:3900", containerName), Region: "garage",
-			AccessKey: services.GenerateAccessKey(20), SecretKey: services.GeneratePassword(40),
+			Endpoint:   fmt.Sprintf("http://%s:3900", containerName),
+			Region:     "garage",
+			AccessKey:  services.GenerateAccessKey(20),
+			SecretKey:  services.GeneratePassword(40),
+			AdminToken: services.GeneratePassword(32),
+			RPCSecret:  services.GeneratePassword(32),
 		}
 		if v, ok := m["region"].(string); ok && v != "" {
 			c.Region = v
@@ -440,6 +474,20 @@ func buildCredsFromMap(svcType domain.ServiceType, m map[string]interface{}, con
 		}
 		if v, ok := m["bucket"].(string); ok {
 			c.Bucket = v
+		}
+		return c
+	case domain.ServiceGarageWebUI:
+		c := domain.GarageWebUICredentials{
+			AdminAPIURL: fmt.Sprintf("http://%s:3903", containerName),
+			S3Endpoint:  fmt.Sprintf("http://%s:3900", containerName),
+			Username:    "admin",
+			Password:    services.GeneratePassword(16),
+		}
+		if v, ok := m["username"].(string); ok && v != "" {
+			c.Username = v
+		}
+		if v, ok := m["password"].(string); ok && v != "" {
+			c.Password = v
 		}
 		return c
 	}

@@ -402,6 +402,7 @@ function buildConnectionDetails(creds) {
         if (creds.endpoint) summary.push({ label: 'Endpoint', value: creds.endpoint });
         if (creds.bucket) summary.push({ label: 'Bucket', value: creds.bucket });
         if (creds.region) summary.push({ label: 'Region', value: creds.region });
+        if (creds.admin_token) summary.push({ label: 'Admin Token', value: creds.admin_token });
         connectionString = creds.endpoint;
     }
 
