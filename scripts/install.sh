@@ -186,8 +186,15 @@ if [[ "${UPGRADE_MODE}" == "true" ]]; then
     # --- Resolve target version string ---
     if [[ -z "${TARGET_VERSION}" ]]; then
         info "Checking latest release..."
+        # Try /releases/latest first (works when stable releases exist)
         TARGET_VERSION=$(curl -fsSL "https://api.github.com/repos/logic-roastery/project-talos/releases/latest" \
             | grep '"tag_name"' | sed 's/.*"tag_name": *"\(.*\)".*/\1/' || true)
+        # Fallback: /releases/latest returns 404 when all releases are prereleases.
+        # List all releases and pick the newest one.
+        if [[ -z "${TARGET_VERSION}" ]]; then
+            TARGET_VERSION=$(curl -fsSL "https://api.github.com/repos/logic-roastery/project-talos/releases" \
+                | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\(.*\)".*/\1/' || true)
+        fi
         if [[ -z "${TARGET_VERSION}" ]]; then
             die "Could not determine latest release. Check your internet connection or use --version-tag."
         fi
