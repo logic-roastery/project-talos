@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/logic-roastery/project-talos/internal/config"
 	"github.com/logic-roastery/project-talos/internal/domain"
@@ -21,12 +22,15 @@ import (
 
 type GitHubHandler struct {
 	apps     store.AppStore
-	ghClient *github.AppClient
 	cfg      config.GitHubConfig
 	renderer *web.Renderer
 	host     string
 	domain   string
 	logger   *slog.Logger
+
+	mu        sync.Mutex
+	ghClient  *github.AppClient
+	initTried bool
 }
 
 func NewGitHubHandler(apps store.AppStore, ghClient *github.AppClient, cfg config.GitHubConfig, renderer *web.Renderer, host, domain string, logger *slog.Logger) *GitHubHandler {
@@ -41,9 +45,42 @@ func NewGitHubHandler(apps store.AppStore, ghClient *github.AppClient, cfg confi
 	}
 }
 
+// getClient returns the GitHub App client, lazily initializing it if needed.
+// This handles the race condition where the private key file isn't available at
+// startup but appears later (e.g. after a volume mount completes during upgrade).
+func (h *GitHubHandler) getClient() *github.AppClient {
+	if h.ghClient != nil {
+		return h.ghClient
+	}
+	if h.cfg.AppID == 0 {
+		return nil
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Double-check after acquiring lock
+	if h.ghClient != nil {
+		return h.ghClient
+	}
+	if h.initTried {
+		return nil
+	}
+
+	client, err := github.NewAppClient(h.cfg)
+	if err != nil {
+		h.initTried = true
+		h.logger.Warn("github app client lazy init failed", "error", err)
+		return nil
+	}
+	h.ghClient = client
+	h.logger.Info("github app client initialized (lazy)", "app_id", h.cfg.AppID)
+	return h.ghClient
+}
+
 // StartInstall redirects the user to the GitHub App installation page.
 func (h *GitHubHandler) StartInstall(w http.ResponseWriter, r *http.Request) {
-	if h.ghClient == nil || !h.ghClient.IsConfigured() {
+	if h.getClient() == nil {
 		http.Error(w, "GitHub App not configured", http.StatusServiceUnavailable)
 		return
 	}
@@ -69,7 +106,7 @@ func (h *GitHubHandler) StartInstall(w http.ResponseWriter, r *http.Request) {
 
 	// Redirect to GitHub App installation page
 	// The state parameter carries the Talos app ID
-	slug := h.ghClient.AppSlug()
+	slug := h.getClient().AppSlug()
 	redirectURL := fmt.Sprintf("https://github.com/apps/%s/installations/new?state=%s", slug, appID)
 
 	http.Redirect(w, r, redirectURL, http.StatusFound)
@@ -77,7 +114,7 @@ func (h *GitHubHandler) StartInstall(w http.ResponseWriter, r *http.Request) {
 
 // HandleCallback handles the GitHub App installation callback.
 func (h *GitHubHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
-	if h.ghClient == nil || !h.ghClient.IsConfigured() {
+	if h.getClient() == nil {
 		http.Error(w, "GitHub App not configured", http.StatusServiceUnavailable)
 		return
 	}
@@ -110,7 +147,7 @@ func (h *GitHubHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get installation details to find the repo
-	_, err = h.ghClient.GetInstallation(r.Context(), installationID)
+	_, err = h.getClient().GetInstallation(r.Context(), installationID)
 	if err != nil {
 		h.logger.Error("failed to get installation", "error", err)
 		http.Error(w, "failed to get installation", http.StatusInternalServerError)
@@ -118,7 +155,7 @@ func (h *GitHubHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the first repo from the installation
-	repos, err := h.ghClient.ListInstallationRepos(r.Context(), installationID)
+	repos, err := h.getClient().ListInstallationRepos(r.Context(), installationID)
 	if err != nil {
 		h.logger.Error("failed to list repos", "error", err)
 		http.Error(w, "failed to list repos", http.StatusInternalServerError)
@@ -210,7 +247,7 @@ func (h *GitHubHandler) setupWorkflow(ctx context.Context, app *domain.App, repo
 	}
 
 	// Commit the workflow file
-	if err := h.ghClient.CreateOrUpdateFile(ctx, installationID, owner, repoName,
+	if err := h.getClient().CreateOrUpdateFile(ctx, installationID, owner, repoName,
 		workflowPath, []byte(workflowYAML), commitMessage); err != nil {
 		return fmt.Errorf("create workflow: %w", err)
 	}
@@ -258,7 +295,7 @@ func (h *GitHubHandler) Disconnect(w http.ResponseWriter, r *http.Request) {
 // SetupPage shows the GitHub App setup page.
 func (h *GitHubHandler) SetupPage(w http.ResponseWriter, r *http.Request) {
 	// Check if already configured
-	if h.ghClient != nil && h.ghClient.IsConfigured() {
+	if h.getClient() != nil {
 		http.Redirect(w, r, "/settings/github/status", http.StatusFound)
 		return
 	}
@@ -449,11 +486,11 @@ func (h *GitHubHandler) saveCredentials(data *github.ManifestResponse) error {
 
 // StatusPage shows the current GitHub App configuration status.
 func (h *GitHubHandler) StatusPage(w http.ResponseWriter, r *http.Request) {
-	isConfigured := h.ghClient != nil && h.ghClient.IsConfigured()
+	isConfigured := h.getClient() != nil
 
 	appSlug := ""
 	if isConfigured {
-		appSlug = h.ghClient.AppSlug()
+		appSlug = h.getClient().AppSlug()
 	}
 
 	user := UserFromContext(r.Context())
@@ -513,12 +550,12 @@ type GitHubDebugResponse struct {
 
 // ListRepos returns all repos accessible across all GitHub App installations as JSON.
 func (h *GitHubHandler) ListRepos(w http.ResponseWriter, r *http.Request) {
-	if h.ghClient == nil || !h.ghClient.IsConfigured() {
+	if h.getClient() == nil {
 		http.Error(w, "GitHub App not configured", http.StatusServiceUnavailable)
 		return
 	}
 
-	repos, err := listAllRepos(r.Context(), h.ghClient, h.logger)
+	repos, err := listAllRepos(r.Context(), h.getClient(), h.logger)
 	if err != nil {
 		h.logger.Error("failed to list repos", "error", err)
 		http.Error(w, "failed to list repos", http.StatusInternalServerError)
@@ -531,10 +568,9 @@ func (h *GitHubHandler) ListRepos(w http.ResponseWriter, r *http.Request) {
 
 // RepoSelectorPartial returns an HTML fragment with a repo dropdown for HTMX.
 func (h *GitHubHandler) RepoSelectorPartial(w http.ResponseWriter, r *http.Request) {
-	if h.ghClient == nil || !h.ghClient.IsConfigured() {
-		h.logger.Warn("github repo selector unavailable", "reason", "github app not configured")
+	if h.getClient() == nil {
 		h.renderer.RenderPartial(w, "github_repo_selector.html", RepoSelectorData{
-			Error: "GitHub App is not fully configured yet. Enter the repository URL manually for now.",
+			Error: "GitHub App not configured. Set up the GitHub integration first.",
 		})
 		return
 	}
@@ -557,7 +593,7 @@ func (h *GitHubHandler) RepoSelectorPartial(w http.ResponseWriter, r *http.Reque
 
 func (h *GitHubHandler) Debug(w http.ResponseWriter, r *http.Request) {
 	resp := GitHubDebugResponse{
-		Configured:       h.ghClient != nil && h.ghClient.IsConfigured(),
+		Configured:       h.getClient() != nil,
 		AppID:            h.cfg.AppID,
 		AppSlug:          h.cfg.AppSlug,
 		HasWebhookSecret: h.cfg.WebhookSecret != "",
@@ -581,7 +617,7 @@ func (h *GitHubHandler) Debug(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	installations, err := h.ghClient.ListInstallations(r.Context())
+	installations, err := h.getClient().ListInstallations(r.Context())
 	if err != nil {
 		resp.ListInstallationsError = err.Error()
 		writeJSON(w, http.StatusOK, resp)
@@ -600,7 +636,7 @@ func (h *GitHubHandler) Debug(w http.ResponseWriter, r *http.Request) {
 			item.AccountType = inst.Account.GetType()
 		}
 
-		repos, err := h.ghClient.ListInstallationRepos(r.Context(), inst.GetID())
+		repos, err := h.getClient().ListInstallationRepos(r.Context(), inst.GetID())
 		if err != nil {
 			item.Error = err.Error()
 			resp.Installations = append(resp.Installations, item)
@@ -623,10 +659,13 @@ func (h *GitHubHandler) Debug(w http.ResponseWriter, r *http.Request) {
 // listAllRepos fetches all repos across all installations of the GitHub App.
 // Results are capped at 500 repos to avoid excessive API calls and large payloads.
 func (h *GitHubHandler) listAllRepos(ctx context.Context) ([]RepoInfo, error) {
-	return listAllRepos(ctx, h.ghClient, h.logger)
+	return listAllRepos(ctx, h.getClient(), h.logger)
 }
 
 func listAllRepos(ctx context.Context, ghClient *github.AppClient, logger *slog.Logger) ([]RepoInfo, error) {
+	if ghClient == nil {
+		return nil, fmt.Errorf("github app client not configured")
+	}
 	logger.Info("listing github app installations")
 	installations, err := ghClient.ListInstallations(ctx)
 	if err != nil {

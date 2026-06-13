@@ -124,14 +124,12 @@ func New(
 			})
 		}
 
-		// GitHub integration routes
-		if ghClient != nil && ghClient.IsConfigured() {
-			r.Get("/api/github/install", ghH.StartInstall)
-			r.Get("/api/github/callback", ghH.HandleCallback)
-			r.Get("/api/github/repos", ghH.ListRepos)
-			r.Get("/partials/github-repos", ghH.RepoSelectorPartial)
-			r.Post("/api/github/disconnect", ghH.Disconnect)
-		}
+		// GitHub integration routes (always registered; handler returns 503 if not configured)
+		r.Get("/api/github/install", ghH.StartInstall)
+		r.Get("/api/github/callback", ghH.HandleCallback)
+		r.Get("/api/github/repos", ghH.ListRepos)
+		r.Get("/partials/github-repos", ghH.RepoSelectorPartial)
+		r.Post("/api/github/disconnect", ghH.Disconnect)
 	})
 
 	// GitHub setup routes (always available, even without config)
