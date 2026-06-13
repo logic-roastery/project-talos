@@ -95,46 +95,93 @@ func (c *GarageClient) AllowKey(ctx context.Context, bucketID, accessKeyID strin
 	return nil
 }
 
-// do executes an HTTP request against the Garage admin API.
+// WaitForReady polls the admin API until it responds or the timeout is reached.
+func (c *GarageClient) WaitForReady(ctx context.Context, timeout time.Duration) error {
+	deadline := time.After(timeout)
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-deadline:
+			return fmt.Errorf("garage admin API not ready after %s", timeout)
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.adminURL+"/v2/GetClusterStatus", nil)
+			if err != nil {
+				continue
+			}
+			req.Header.Set("Authorization", "Bearer "+c.adminToken)
+			resp, err := c.httpClient.Do(req)
+			if err != nil {
+				continue
+			}
+			resp.Body.Close()
+			if resp.StatusCode < 500 {
+				return nil
+			}
+		}
+	}
+}
+
+// do executes an HTTP request against the Garage admin API with retries for transient errors.
 func (c *GarageClient) do(ctx context.Context, method, path string, body interface{}, result interface{}) error {
-	var bodyReader io.Reader
-	if body != nil {
-		jsonBytes, err := json.Marshal(body)
+	var lastErr error
+	for attempt := range 3 {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(time.Duration(attempt) * time.Second):
+			}
+		}
+
+		var bodyReader io.Reader
+		if body != nil {
+			jsonBytes, err := json.Marshal(body)
+			if err != nil {
+				return fmt.Errorf("marshal request: %w", err)
+			}
+			bodyReader = bytes.NewReader(jsonBytes)
+		}
+
+		req, err := http.NewRequestWithContext(ctx, method, c.adminURL+path, bodyReader)
 		if err != nil {
-			return fmt.Errorf("marshal request: %w", err)
+			return fmt.Errorf("create request: %w", err)
 		}
-		bodyReader = bytes.NewReader(jsonBytes)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, c.adminURL+path, bodyReader)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+c.adminToken)
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("garage admin API unreachable: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("garage admin API returned %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	if result != nil && len(respBody) > 0 {
-		if err := json.Unmarshal(respBody, result); err != nil {
-			return fmt.Errorf("decode response: %w", err)
+		req.Header.Set("Authorization", "Bearer "+c.adminToken)
+		if body != nil {
+			req.Header.Set("Content-Type", "application/json")
 		}
-	}
 
-	return nil
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("garage admin API unreachable: %w", err)
+			continue // retry on DNS/connection errors
+		}
+
+		respBody, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = fmt.Errorf("read response: %w", err)
+			continue
+		}
+
+		if resp.StatusCode >= 500 {
+			lastErr = fmt.Errorf("garage admin API returned %d: %s", resp.StatusCode, string(respBody))
+			continue // retry on server errors
+		}
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return fmt.Errorf("garage admin API returned %d: %s", resp.StatusCode, string(respBody))
+		}
+
+		if result != nil && len(respBody) > 0 {
+			if err := json.Unmarshal(respBody, result); err != nil {
+				return fmt.Errorf("decode response: %w", err)
+			}
+		}
+		return nil
+	}
+	return lastErr
 }
