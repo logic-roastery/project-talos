@@ -325,8 +325,13 @@ if [[ "${UPGRADE_MODE}" == "true" ]]; then
         CURRENT_IMAGE_TAG=$(docker inspect --format='{{.Config.Image}}' talos 2>/dev/null || echo "unknown")
         info "Current image: ${CURRENT_IMAGE_TAG}"
 
-        # Resolve image tag (strip leading 'v' — GitHub tags use v0.4.2, Docker images use 0.4.2)
-        IMAGE_TAG="${TARGET_VERSION#v}"
+        # Resolve image tag: use :latest when no version specified (matches fresh install),
+        # or a specific versioned tag when --version-tag is provided.
+        if [[ -n "${TARGET_VERSION}" ]]; then
+            IMAGE_TAG="${TARGET_VERSION#v}"
+        else
+            IMAGE_TAG="latest"
+        fi
 
         # Ensure .env exists (never overwrite it)
         [[ -f "${TALOS_ENV}" ]] || die "No .env found at ${TALOS_ENV}. Run install.sh first."
@@ -343,9 +348,11 @@ if [[ "${UPGRADE_MODE}" == "true" ]]; then
             exit 0
         fi
 
-        # Tag current image for rollback
-        docker tag "${GHCR_IMAGE_BASE}:latest" "${GHCR_IMAGE_BASE}:rollback-${BACKUP_TAG}" 2>/dev/null || true
-        ok "Tagged current image as ${GHCR_IMAGE_BASE}:rollback-${BACKUP_TAG}"
+        # Tag current image for rollback (use image ID, not :latest — container may use a versioned tag)
+        if [[ -n "${CURRENT_IMAGE_ID}" && "${CURRENT_IMAGE_ID}" != "unknown" ]]; then
+            docker tag "${CURRENT_IMAGE_ID}" "${GHCR_IMAGE_BASE}:rollback-${BACKUP_TAG}" 2>/dev/null || true
+            ok "Tagged current image as ${GHCR_IMAGE_BASE}:rollback-${BACKUP_TAG}"
+        fi
 
         # Recreate container (stop → rm → run)
         trap rollback_docker ERR
