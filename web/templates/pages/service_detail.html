@@ -4,22 +4,30 @@
         <div class="min-w-0 flex items-start gap-4">
             <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-hairline bg-canvas-dark/60 text-muted">
                 {{if eq .Service.Type "redis"}}
-                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4.5 7.5 12 4.5l7.5 3-7.5 3-7.5-3Zm0 4.5 7.5 3 7.5-3M4.5 16.5l7.5 3 7.5-3"></path>
+                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                 </svg>
                 {{else if eq .Service.Type "postgres"}}
-                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <ellipse cx="12" cy="6" rx="6.75" ry="2.75" stroke-width="1.75"></ellipse>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5.25 6v6c0 1.519 3.022 2.75 6.75 2.75s6.75-1.231 6.75-2.75V6m-13.5 6v6c0 1.519 3.022 2.75 6.75 2.75s6.75-1.231 6.75-2.75v-6"></path>
+                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <ellipse cx="12" cy="5" rx="8" ry="3"/>
+                    <path d="M4 5v5c0 1.657 3.582 3 8 3s8-1.343 8-3V5"/>
+                    <path d="M4 10v5c0 1.657 3.582 3 8 3s8-1.343 8-3v-5"/>
                 </svg>
                 {{else if eq .Service.Type "mysql"}}
-                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6.75 5.25h10.5A2.25 2.25 0 0 1 19.5 7.5v9a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 16.5v-9a2.25 2.25 0 0 1 2.25-2.25ZM8.25 9h7.5M8.25 12h7.5M8.25 15h4.5"></path>
+                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <ellipse cx="12" cy="5" rx="8" ry="3"/>
+                    <path d="M4 5v5c0 1.657 3.582 3 8 3s8-1.343 8-3V5"/>
+                    <path d="M4 10v5c0 1.657 3.582 3 8 3s8-1.343 8-3v-5"/>
+                    <path d="M20 14.5V19"/>
+                    <path d="M20 19l2-2"/>
+                    <path d="M20 19l-2-2"/>
                 </svg>
                 {{else}}
-                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3.75 15.75V6.75A2.25 2.25 0 0 1 6 4.5h6.879a2.25 2.25 0 0 1 1.591.659l4.371 4.371A2.25 2.25 0 0 1 19.5 11.12v4.63A2.25 2.25 0 0 1 17.25 18H6a2.25 2.25 0 0 1-2.25-2.25Z"></path>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12.75 4.5v4.5h4.5"></path>
+                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="7" width="18" height="13" rx="2"/>
+                    <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    <line x1="12" y1="12" x2="12" y2="16"/>
+                    <line x1="10" y1="14" x2="14" y2="14"/>
                 </svg>
                 {{end}}
             </div>
@@ -40,16 +48,16 @@
             <button hx-post="/api/services/{{.Service.ID}}/stop"
                 hx-confirm="Stop this service?"
                 class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-2.5 text-sm text-yellow-400 transition hover:bg-yellow-400/20 cursor-pointer">
-                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 9h6v6H9z"></path>
+                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="6" y="6" width="12" height="12" rx="2"/>
                 </svg>
                 Stop service
             </button>
             {{else}}
             <button hx-post="/api/services/{{.Service.ID}}/start"
                 class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-lime-accent/20 bg-lime-accent/10 px-4 py-2.5 text-sm text-lime-accent transition hover:bg-lime-accent/20 cursor-pointer">
-                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M8.25 6.75v10.5L16.5 12 8.25 6.75Z"></path>
+                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="6,3 20,12 6,21"/>
                 </svg>
                 {{if eq .Service.Status "stopped"}}Start service{{else}}Retry service{{end}}
             </button>
@@ -58,8 +66,11 @@
                 hx-confirm="Delete {{.Service.Name}}? This cannot be undone."
                 hx-on::after-request="if(event.detail.successful) window.location.href='/services'"
                 class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm text-muted transition hover:bg-pink-accent/10 hover:text-pink-accent cursor-pointer">
-                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6 7.5h12m-9.75 0V6A2.25 2.25 0 0 1 10.5 3.75h3A2.25 2.25 0 0 1 15.75 6v1.5m-8.25 0v10.125A2.625 2.625 0 0 0 10.125 20.25h3.75A2.625 2.625 0 0 0 16.5 17.625V7.5m-6 3v6m3-6v6"></path>
+                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3,6 5,6 21,6"/>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    <path d="M10 11v6m4-6v6"/>
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
                 </svg>
                 Delete service
             </button>
@@ -69,14 +80,21 @@
     {{if eq .Service.Status "error"}}
     <div class="mb-6 rounded-xl border border-pink-accent/20 bg-pink-accent/10 p-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-                <h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-pink-accent">Service Needs Attention</h2>
-                <p class="mt-1 text-sm text-body">This service is in an error state. Try starting it again, then verify the container runtime and credentials.</p>
+            <div class="flex items-start gap-3">
+                <svg class="mt-0.5 h-4 w-4 shrink-0 text-pink-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div>
+                    <h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-pink-accent">Service needs attention</h2>
+                    <p class="mt-1 text-sm text-body">This service is in an error state. Try starting it again, then verify the container runtime and credentials.</p>
+                </div>
             </div>
-            <button onclick="loadCredentials()" class="inline-flex min-h-10 items-center gap-2 rounded-lg border border-pink-accent/20 bg-night/40 px-3 py-2 text-sm text-pink-accent transition hover:bg-night/60 cursor-pointer">
-                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M2.25 12S5.25 5.25 12 5.25 21.75 12 21.75 12 18.75 18.75 12 18.75 2.25 12 2.25 12Z"></path>
-                    <circle cx="12" cy="12" r="3" stroke-width="1.75"></circle>
+            <button onclick="loadCredentials()" class="inline-flex min-h-10 items-center gap-2 self-start rounded-lg border border-pink-accent/20 bg-night/40 px-3 py-2 text-sm text-pink-accent transition hover:bg-night/60 cursor-pointer shrink-0">
+                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
                 </svg>
                 Load details
             </button>
@@ -84,91 +102,146 @@
     </div>
     {{else if eq .Service.Status "provisioning"}}
     <div class="mb-6 rounded-xl border border-yellow-400/20 bg-yellow-400/10 p-4">
-        <h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-yellow-400">Provisioning In Progress</h2>
-        <p class="mt-1 text-sm text-body">Talos is still preparing this service. Container details and connection info may not be complete yet.</p>
+        <div class="flex items-start gap-3">
+            <svg class="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
+            </svg>
+            <div>
+                <h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-yellow-400">Provisioning in progress</h2>
+                <p class="mt-1 text-sm text-body">Talos is still preparing this service. Container details and connection info may not be complete yet.</p>
+            </div>
+        </div>
     </div>
     {{else if eq .Service.Status "pending"}}
     <div class="mb-6 rounded-xl border border-yellow-400/20 bg-yellow-400/10 p-4">
-        <h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-yellow-400">Pending Startup</h2>
-        <p class="mt-1 text-sm text-body">This service has been created but is not running yet. Start it to make credentials and connection details usable.</p>
+        <div class="flex items-start gap-3">
+            <svg class="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12,6 12,12 16,14"/>
+            </svg>
+            <div>
+                <h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-yellow-400">Pending startup</h2>
+                <p class="mt-1 text-sm text-body">This service has been created but is not running yet. Start it to make credentials and connection details usable.</p>
+            </div>
+        </div>
     </div>
     {{else if eq .Service.Status "stopped"}}
     <div class="mb-6 rounded-xl border border-hairline bg-canvas-dark/40 p-4">
-        <h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-body">Service Stopped</h2>
-        <p class="mt-1 text-sm text-muted">The backing container is not running. Start it again before connecting apps or rotating credentials.</p>
+        <div class="flex items-start gap-3">
+            <svg class="mt-0.5 h-4 w-4 shrink-0 text-muted" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="6" y="6" width="12" height="12" rx="2"/>
+            </svg>
+            <div>
+                <h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-body">Service stopped</h2>
+                <p class="mt-1 text-sm text-muted">The backing container is not running. Start it again before connecting apps or rotating credentials.</p>
+            </div>
+        </div>
     </div>
     {{end}}
 
     <div class="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <div class="space-y-6">
-            <div class="bg-night border border-hairline rounded-xl p-6">
-                <div class="mb-4 flex items-center justify-between gap-3">
-                    <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Runtime</h2>
+
+            <!-- Runtime -->
+            <div class="bg-night border border-hairline rounded-xl overflow-hidden">
+                <div class="flex items-center justify-between gap-3 px-6 py-4 border-b border-hairline">
+                    <div class="flex items-center gap-2">
+                        <svg class="h-4 w-4 text-muted" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2"/>
+                            <path d="M8 21h8m-4-4v4"/>
+                        </svg>
+                        <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Runtime</h2>
+                    </div>
                     <span class="text-xs text-muted uppercase tracking-[0.16em]">Current state</span>
                 </div>
-                <div class="grid gap-3 sm:grid-cols-2">
-                    <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                <div class="grid gap-px sm:grid-cols-2 bg-hairline">
+                    <div class="bg-night px-5 py-4">
                         <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Container ID</span>
                         <span class="mt-2 block break-all font-mono text-xs leading-relaxed text-subtle">{{if .Service.ContainerID}}{{.Service.ContainerID}}{{else}}Not assigned yet{{end}}</span>
                     </div>
-                    <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                    <div class="bg-night px-5 py-4">
                         <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Port</span>
                         <span class="mt-2 block text-sm text-body">{{.Service.InternalPort}}</span>
                     </div>
-                    <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                    <div class="bg-night px-5 py-4">
                         <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Image</span>
                         <span class="mt-2 block break-all text-sm text-subtle">{{.Service.ImageRef}}</span>
                     </div>
-                    <div class="rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
-                        <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Volume Path</span>
+                    <div class="bg-night px-5 py-4">
+                        <span class="block text-[11px] uppercase tracking-[0.16em] text-muted">Volume path</span>
                         <span class="mt-2 block break-all text-sm text-subtle">{{.Service.VolumePath}}</span>
                     </div>
                 </div>
             </div>
 
-            <div class="bg-night border border-hairline rounded-xl p-6">
-                <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Quick Connect</h2>
-                        <p class="mt-1 text-sm text-faint">Load the generated connection info to copy a ready-to-use endpoint for apps or local tooling.</p>
+            <!-- Quick Connect -->
+            <div class="bg-night border border-hairline rounded-xl overflow-hidden">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 py-4 border-b border-hairline">
+                    <div class="flex items-center gap-2">
+                        <svg class="h-4 w-4 text-muted" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                        </svg>
+                        <div>
+                            <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Quick connect</h2>
+                            <p class="mt-0.5 text-xs text-faint">Load generated connection info for apps or local tooling.</p>
+                        </div>
                     </div>
-                    <button onclick="loadCredentials()" class="inline-flex min-h-10 items-center gap-2 self-start rounded-lg border border-hairline bg-hairline px-3 py-2 text-sm text-muted transition hover:text-body cursor-pointer">
-                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M2.25 12S5.25 5.25 12 5.25 21.75 12 21.75 12 18.75 18.75 12 18.75 2.25 12 2.25 12Z"></path>
-                            <circle cx="12" cy="12" r="3" stroke-width="1.75"></circle>
+                    <button onclick="loadCredentials()" class="inline-flex min-h-9 items-center gap-2 self-start rounded-lg border border-hairline bg-hairline px-3 py-2 text-sm text-muted transition hover:text-body cursor-pointer shrink-0">
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
                         </svg>
                         Load details
                     </button>
                 </div>
-                <div id="quick-connect-display" class="space-y-3">
+                <div id="quick-connect-display" class="p-5 space-y-3">
                     <div class="rounded-lg border border-dashed border-hairline px-4 py-5 text-sm text-muted">
                         Credentials stay hidden until requested. Load them to see the host, connection string, and direct copy actions.
                     </div>
                 </div>
             </div>
 
-            <div class="bg-night border border-hairline rounded-xl p-6">
-                <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Linked Apps</h2>
-                        <p class="mt-1 text-sm text-faint">Apps can link this service by alias from their settings page.</p>
-                    </div>
-                    <a href="/dashboard" class="inline-flex min-h-10 items-center gap-2 self-start rounded-lg border border-hairline bg-hairline px-3 py-2 text-sm text-muted transition hover:text-body">
-                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3.75 6.75h16.5m-16.5 5.25h16.5m-16.5 5.25h10.5"></path>
+            <!-- Linked Apps -->
+            <div class="bg-night border border-hairline rounded-xl overflow-hidden">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 py-4 border-b border-hairline">
+                    <div class="flex items-center gap-2">
+                        <svg class="h-4 w-4 text-muted" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="9" height="9" rx="1.5"/>
+                            <rect x="13" y="3" width="9" height="9" rx="1.5"/>
+                            <rect x="2" y="13" width="9" height="9" rx="1.5"/>
+                            <path d="M13 17.5h3.5a2 2 0 0 0 2-2V13"/>
                         </svg>
-                        Open Apps
+                        <div>
+                            <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Linked apps</h2>
+                            <p class="mt-0.5 text-xs text-faint">Apps link this service by alias from their settings page.</p>
+                        </div>
+                    </div>
+                    <a href="/dashboard" class="inline-flex min-h-9 items-center gap-2 self-start rounded-lg border border-hairline bg-hairline px-3 py-2 text-sm text-muted transition hover:text-body shrink-0">
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12h18M3 6h18M3 18h12"/>
+                        </svg>
+                        Open apps
                     </a>
                 </div>
+                <div class="p-5">
                 {{if .LinkedApps}}
-                <div class="space-y-3">
+                <div class="space-y-2">
                     {{range .LinkedApps}}
-                    <div class="flex flex-col gap-2 rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <span class="block text-sm text-body">App #{{.AppID}}</span>
-                            <span class="mt-1 block text-xs uppercase tracking-[0.16em] text-muted">Alias</span>
+                    <div class="flex items-center justify-between gap-3 rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-hairline bg-night text-muted">
+                                <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="3"/>
+                                    <path d="M9 9h.01M15 9h.01M9 15h6"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <span class="block text-sm text-body">App #{{.AppID}}</span>
+                                <span class="text-xs text-muted">Alias</span>
+                            </div>
                         </div>
-                        <code class="inline-flex w-fit items-center rounded-md bg-night/70 px-2.5 py-1 text-sm text-lime-accent">{{.Alias}}</code>
+                        <code class="inline-flex items-center rounded-md bg-night/70 px-2.5 py-1 text-sm text-lime-accent font-mono">{{.Alias}}</code>
                     </div>
                     {{end}}
                 </div>
@@ -177,26 +250,33 @@
                     No apps are linked yet. Open an app and attach this service from the app settings flow when you are ready to inject credentials.
                 </div>
                 {{end}}
+                </div>
             </div>
         </div>
 
+        <!-- Credentials sidebar -->
         <div class="space-y-6">
-            <div class="bg-night border border-hairline rounded-xl p-6">
-                <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Credentials</h2>
-                        <p class="mt-1 text-sm text-faint">Only sensitive values stay masked. Use reveal and copy controls as needed.</p>
+            <div class="bg-night border border-hairline rounded-xl overflow-hidden">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 py-4 border-b border-hairline">
+                    <div class="flex items-center gap-2">
+                        <svg class="h-4 w-4 text-muted" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                        </svg>
+                        <div>
+                            <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Credentials</h2>
+                            <p class="mt-0.5 text-xs text-faint">Sensitive values stay masked until revealed.</p>
+                        </div>
                     </div>
                     <button onclick="loadCredentials()" id="creds-btn"
-                        class="inline-flex min-h-10 items-center gap-2 self-start rounded-lg border border-hairline bg-hairline px-3 py-2 text-sm text-muted transition hover:text-body cursor-pointer">
-                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M2.25 12S5.25 5.25 12 5.25 21.75 12 21.75 12 18.75 18.75 12 18.75 2.25 12 2.25 12Z"></path>
-                            <circle cx="12" cy="12" r="3" stroke-width="1.75"></circle>
+                        class="inline-flex min-h-9 items-center gap-2 self-start rounded-lg border border-hairline bg-hairline px-3 py-2 text-sm text-muted transition hover:text-body cursor-pointer shrink-0">
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
                         </svg>
-                        Show Credentials
+                        Show credentials
                     </button>
                 </div>
-                <div id="creds-display" class="space-y-3 text-sm">
+                <div id="creds-display" class="p-5 space-y-3 text-sm">
                     <div class="rounded-lg border border-dashed border-hairline px-4 py-5 text-sm text-muted">
                         Load credentials to reveal the generated values for this service.
                     </div>
@@ -225,14 +305,14 @@ function renderQuickConnect(creds) {
 
     if (details.summary.length) {
         const summary = document.createElement('div');
-        summary.className = 'grid gap-3 sm:grid-cols-2';
+        summary.className = 'grid gap-px sm:grid-cols-2 rounded-lg overflow-hidden border border-hairline bg-hairline';
         for (const item of details.summary) {
             const card = document.createElement('div');
-            card.className = 'rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3';
+            card.className = 'bg-night px-4 py-3';
             card.innerHTML = '<span class="block text-[11px] uppercase tracking-[0.16em] text-muted">' + escapeHTML(item.label) + '</span>' +
-                '<div class="mt-2 flex items-start justify-between gap-3">' +
-                '<span class="min-w-0 break-all pr-2 text-sm leading-relaxed text-body">' + escapeHTML(item.value) + '</span>' +
-                '<button type="button" onclick="copyCred(this)" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Copy ' + escapeHTML(item.label) + '" data-value="' + escapeHTML(item.value) + '" data-copy-icon="' + copyIcon.replace(/"/g, '&quot;') + '" data-check-icon="' + checkIcon.replace(/"/g, '&quot;') + '">' + copyIcon + '</button>' +
+                '<div class="mt-2 flex items-start justify-between gap-2">' +
+                '<span class="min-w-0 break-all text-sm leading-relaxed text-body">' + escapeHTML(item.value) + '</span>' +
+                '<button type="button" onclick="copyCred(this)" class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Copy ' + escapeHTML(item.label) + '" data-value="' + escapeHTML(item.value) + '" data-copy-icon="' + copyIcon.replace(/"/g, '&quot;') + '" data-check-icon="' + checkIcon.replace(/"/g, '&quot;') + '">' + copyIcon + '</button>' +
                 '</div>';
             summary.appendChild(card);
         }
@@ -242,11 +322,12 @@ function renderQuickConnect(creds) {
     if (details.connectionString) {
         const block = document.createElement('div');
         block.className = 'rounded-lg border border-violet/20 bg-violet/10 px-4 py-3';
-        block.innerHTML = '<span class="block text-[11px] uppercase tracking-[0.16em] text-violet">Connection String</span>' +
-            '<div class="mt-2 space-y-3">' +
-            '<code class="block overflow-x-auto rounded-md bg-night/20 px-3 py-2 text-xs leading-relaxed text-body font-mono">' + escapeHTML(details.connectionString) + '</code>' +
-            '<button type="button" onclick="copyCred(this)" class="inline-flex h-9 items-center gap-2 rounded-md border border-violet/20 px-3 text-violet transition hover:bg-night/20 hover:text-body" aria-label="Copy connection string" data-value="' + escapeHTML(details.connectionString) + '" data-copy-icon="' + copyIcon.replace(/"/g, '&quot;') + '" data-check-icon="' + checkIcon.replace(/"/g, '&quot;') + '">' + copyIcon + '<span class="text-xs uppercase tracking-[0.16em]">Copy string</span></button>' +
-            '</div>';
+        block.innerHTML = '<div class="flex items-center gap-1.5 mb-2">' +
+            '<svg class="h-3.5 w-3.5 text-violet" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>' +
+            '<span class="text-[11px] uppercase tracking-[0.16em] text-violet">Connection string</span>' +
+            '</div>' +
+            '<code class="block overflow-x-auto rounded-md bg-night/30 px-3 py-2 text-xs leading-relaxed text-body font-mono mb-2">' + escapeHTML(details.connectionString) + '</code>' +
+            '<button type="button" onclick="copyCred(this)" class="inline-flex h-8 items-center gap-1.5 rounded-md border border-violet/20 px-2.5 text-violet transition hover:bg-night/20 hover:text-body" aria-label="Copy connection string" data-value="' + escapeHTML(details.connectionString) + '" data-copy-icon="' + copyIcon.replace(/"/g, '&quot;') + '" data-check-icon="' + checkIcon.replace(/"/g, '&quot;') + '">' + copyIcon + '<span class="text-xs uppercase tracking-[0.16em]">Copy string</span></button>';
         container.appendChild(block);
     }
 }
@@ -268,29 +349,25 @@ function renderCredentials(creds) {
         row.className = 'rounded-lg border border-hairline/80 bg-canvas-dark/40 px-3 py-3';
 
         if (isSensitive) {
-            row.innerHTML = '<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">' +
-                '<div class="space-y-1">' +
-                '<span class="block text-muted">' + escapeHTML(key) + '</span>' +
-                '<span class="credential-state inline-flex items-center rounded-full border border-hairline bg-night/60 px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-muted">Hidden</span>' +
+            row.innerHTML = '<div class="flex items-center justify-between gap-2 mb-2">' +
+                '<span class="text-xs text-muted uppercase tracking-[0.12em]">' + escapeHTML(key) + '</span>' +
+                '<span class="credential-state inline-flex items-center gap-1 rounded-full border border-hairline bg-night/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-muted">' +
+                '<span class="h-1 w-1 rounded-full bg-muted inline-block"></span>Hidden</span>' +
                 '</div>' +
-                '<div class="min-w-0 space-y-2 sm:max-w-[16rem]">' +
-                '<code class="credential-value block overflow-x-auto rounded-md bg-night/70 px-2 py-1.5 text-xs text-subtle font-mono" data-value="' + escapeHTML(displayValue) + '">••••••••</code>' +
-                '<div class="flex items-center justify-end gap-2">' +
-                '<button type="button" onclick="toggleCred(this)" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Toggle credential visibility" data-eye="' + eyeIcon.replace(/"/g, '&quot;') + '" data-eye-off="' + eyeOffIcon.replace(/"/g, '&quot;') + '">' + eyeIcon + '</button>' +
-                '<button type="button" onclick="copyCred(this)" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Copy credential" data-value="' + escapeHTML(displayValue) + '" data-copy-icon="' + copyIcon.replace(/"/g, '&quot;') + '" data-check-icon="' + checkIcon.replace(/"/g, '&quot;') + '">' + copyIcon + '</button>' +
-                '</div>' +
+                '<code class="credential-value block w-full overflow-x-auto rounded-md bg-night/70 px-2.5 py-2 text-xs text-subtle font-mono mb-2" data-value="' + escapeHTML(displayValue) + '">••••••••••••</code>' +
+                '<div class="flex items-center justify-end gap-1.5">' +
+                '<button type="button" onclick="toggleCred(this)" class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Toggle credential visibility" data-eye="' + eyeIcon.replace(/"/g, '&quot;') + '" data-eye-off="' + eyeOffIcon.replace(/"/g, '&quot;') + '">' + eyeIcon + '</button>' +
+                '<button type="button" onclick="copyCred(this)" class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Copy credential" data-value="' + escapeHTML(displayValue) + '" data-copy-icon="' + copyIcon.replace(/"/g, '&quot;') + '" data-check-icon="' + checkIcon.replace(/"/g, '&quot;') + '">' + copyIcon + '</button>' +
                 '</div>';
         } else {
-            row.innerHTML = '<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">' +
-                '<div class="space-y-1">' +
-                '<span class="block text-muted">' + escapeHTML(key) + '</span>' +
-                '<span class="inline-flex items-center rounded-full border border-lime-accent/20 bg-lime-accent/10 px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-lime-accent">Visible</span>' +
+            row.innerHTML = '<div class="flex items-center justify-between gap-2 mb-2">' +
+                '<span class="text-xs text-muted uppercase tracking-[0.12em]">' + escapeHTML(key) + '</span>' +
+                '<span class="inline-flex items-center gap-1 rounded-full border border-lime-accent/20 bg-lime-accent/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-lime-accent">' +
+                '<span class="h-1 w-1 rounded-full bg-lime-accent inline-block"></span>Visible</span>' +
                 '</div>' +
-                '<div class="min-w-0 space-y-2 sm:max-w-[16rem]">' +
-                '<code class="block overflow-x-auto rounded-md bg-night/70 px-2 py-1.5 text-xs text-subtle font-mono">' + escapeHTML(displayValue) + '</code>' +
-                '<div class="flex items-center justify-end gap-2">' +
-                '<button type="button" onclick="copyCred(this)" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Copy credential" data-value="' + escapeHTML(displayValue) + '" data-copy-icon="' + copyIcon.replace(/"/g, '&quot;') + '" data-check-icon="' + checkIcon.replace(/"/g, '&quot;') + '">' + copyIcon + '</button>' +
-                '</div>' +
+                '<code class="block w-full overflow-x-auto rounded-md bg-night/70 px-2.5 py-2 text-xs text-subtle font-mono mb-2">' + escapeHTML(displayValue) + '</code>' +
+                '<div class="flex items-center justify-end gap-1.5">' +
+                '<button type="button" onclick="copyCred(this)" class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted transition hover:bg-hairline hover:text-body" aria-label="Copy credential" data-value="' + escapeHTML(displayValue) + '" data-copy-icon="' + copyIcon.replace(/"/g, '&quot;') + '" data-check-icon="' + checkIcon.replace(/"/g, '&quot;') + '">' + copyIcon + '</button>' +
                 '</div>';
         }
 
@@ -335,13 +412,15 @@ function toggleCred(btn) {
     const row = btn.closest('.rounded-lg');
     const code = row.querySelector('.credential-value');
     const state = row.querySelector('.credential-state');
-    const revealing = code.textContent === '••••••••';
-    code.textContent = revealing ? code.dataset.value : '••••••••';
+    const revealing = code.textContent.includes('•');
+    code.textContent = revealing ? code.dataset.value : '••••••••••••';
     btn.innerHTML = revealing ? btn.dataset.eyeOff : btn.dataset.eye;
-    state.textContent = revealing ? 'Visible' : 'Hidden';
+    state.innerHTML = revealing
+        ? '<span class="h-1 w-1 rounded-full bg-lime-accent inline-block"></span>Visible'
+        : '<span class="h-1 w-1 rounded-full bg-muted inline-block"></span>Hidden';
     state.className = revealing
-        ? 'credential-state inline-flex items-center rounded-full border border-lime-accent/30 bg-lime-accent/10 px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-lime-accent'
-        : 'credential-state inline-flex items-center rounded-full border border-hairline bg-night/60 px-2 py-0.5 text-[11px] uppercase tracking-[0.16em] text-muted';
+        ? 'credential-state inline-flex items-center gap-1 rounded-full border border-lime-accent/30 bg-lime-accent/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-lime-accent'
+        : 'credential-state inline-flex items-center gap-1 rounded-full border border-hairline bg-night/60 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-muted';
 }
 
 async function copyCred(btn) {
@@ -367,19 +446,19 @@ function escapeHTML(value) {
 }
 
 function iconEye() {
-    return '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M2.25 12S5.25 5.25 12 5.25 21.75 12 21.75 12 18.75 18.75 12 18.75 2.25 12 2.25 12Z"></path><circle cx="12" cy="12" r="3" stroke-width="1.75"></circle></svg>';
+    return '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 }
 
 function iconEyeOff() {
-    return '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="m3 3 18 18m-9-2.25c-6.75 0-9.75-6.75-9.75-6.75a18.81 18.81 0 0 1 4.306-5.774m3.145-1.327A10.46 10.46 0 0 1 12 5.25c6.75 0 9.75 6.75 9.75 6.75a18.84 18.84 0 0 1-2.877 4.177M14.12 14.12A3 3 0 0 1 9.88 9.88"></path></svg>';
+    return '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 }
 
 function iconCopy() {
-    return '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M15.75 17.25v1.125A2.625 2.625 0 0 1 13.125 21H6.375A2.625 2.625 0 0 1 3.75 18.375V9.375A2.625 2.625 0 0 1 6.375 6.75H7.5m3.375-3.75h6.75A2.625 2.625 0 0 1 20.25 5.625v9a2.625 2.625 0 0 1-2.625 2.625h-6.75A2.625 2.625 0 0 1 8.25 14.625v-9A2.625 2.625 0 0 1 10.875 3Z"></path></svg>';
+    return '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 }
 
 function iconCheck() {
-    return '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="m4.5 12.75 6 6 9-13.5"></path></svg>';
+    return '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg>';
 }
 </script>
 {{end}}
