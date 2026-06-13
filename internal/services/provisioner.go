@@ -103,6 +103,26 @@ func (p *Provisioner) ProvisionService(ctx context.Context, svc *domain.Service,
 		return fmt.Errorf("update service: %w", err)
 	}
 
+	// Auto-create a default bucket for Garage services
+	if svc.Type == domain.ServiceGarage {
+		gc, ok := creds.(*domain.GarageCredentials)
+		if ok && gc.Bucket == "" {
+			garageClient := NewGarageClient(
+				fmt.Sprintf("http://%s:3903", containerName),
+				gc.AdminToken,
+			)
+			if bucket, err := garageClient.CreateBucket(ctx, svc.Name); err == nil && len(bucket.GlobalAliases) > 0 {
+				gc.Bucket = bucket.GlobalAliases[0]
+				if encErr := p.EncryptCredentials(svc, gc); encErr == nil {
+					p.services.UpdateService(ctx, svc)
+				}
+				p.logger.Info("auto-created default bucket", "service", svc.Name, "bucket", gc.Bucket)
+			} else if err != nil {
+				p.logger.Warn("auto-create bucket failed (non-fatal)", "service", svc.Name, "error", err)
+			}
+		}
+	}
+
 	p.logger.Info("service provisioned", "name", svc.Name, "type", svc.Type, "id", svc.ID)
 	return nil
 }
@@ -182,6 +202,20 @@ func (p *Provisioner) DecryptCredentials(svc *domain.Service, target interface{}
 		return fmt.Errorf("decrypt: %w", err)
 	}
 	return json.Unmarshal([]byte(credJSON), target)
+}
+
+// EncryptCredentials marshals and encrypts credentials, storing them on the service.
+func (p *Provisioner) EncryptCredentials(svc *domain.Service, creds interface{}) error {
+	credJSON, err := json.Marshal(creds)
+	if err != nil {
+		return fmt.Errorf("marshal creds: %w", err)
+	}
+	encrypted, err := crypto.Encrypt(string(credJSON), p.encKey)
+	if err != nil {
+		return fmt.Errorf("encrypt: %w", err)
+	}
+	svc.Credentials = encrypted
+	return nil
 }
 
 func (p *Provisioner) buildContainerConfig(svc *domain.Service, creds interface{}, volHost string) (docker.ContainerConfig, error) {

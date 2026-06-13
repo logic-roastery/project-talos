@@ -240,6 +240,133 @@ func (h *ServiceHandler) GetCredentials(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, creds)
 }
 
+// --- Garage Bucket Management ---
+
+func (h *ServiceHandler) ListBuckets(w http.ResponseWriter, r *http.Request) {
+	svc, err := h.getGarageService(w, r)
+	if err != nil {
+		return
+	}
+
+	gc, err := h.decryptGarageCreds(w, svc)
+	if err != nil {
+		return
+	}
+
+	client := services.NewGarageClient(
+		fmt.Sprintf("http://talos-svc-%s:3903", svc.Name),
+		gc.AdminToken,
+	)
+	buckets, err := client.ListBuckets(r.Context())
+	if err != nil {
+		writeError(w, http.StatusBadGateway, fmt.Sprintf("garage admin API: %v", err))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, buckets)
+}
+
+func (h *ServiceHandler) CreateBucket(w http.ResponseWriter, r *http.Request) {
+	svc, err := h.getGarageService(w, r)
+	if err != nil {
+		return
+	}
+
+	gc, err := h.decryptGarageCreds(w, svc)
+	if err != nil {
+		return
+	}
+
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Name == "" {
+		writeError(w, http.StatusBadRequest, "bucket name required")
+		return
+	}
+
+	client := services.NewGarageClient(
+		fmt.Sprintf("http://talos-svc-%s:3903", svc.Name),
+		gc.AdminToken,
+	)
+	bucket, err := client.CreateBucket(r.Context(), req.Name)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, fmt.Sprintf("garage admin API: %v", err))
+		return
+	}
+
+	// Update stored bucket name if it was empty
+	if gc.Bucket == "" && len(bucket.GlobalAliases) > 0 {
+		gc.Bucket = bucket.GlobalAliases[0]
+		if err := h.provisioner.EncryptCredentials(svc, gc); err == nil {
+			h.services.UpdateService(r.Context(), svc)
+		}
+	}
+
+	writeJSON(w, http.StatusCreated, bucket)
+}
+
+func (h *ServiceHandler) DeleteBucket(w http.ResponseWriter, r *http.Request) {
+	svc, err := h.getGarageService(w, r)
+	if err != nil {
+		return
+	}
+
+	gc, err := h.decryptGarageCreds(w, svc)
+	if err != nil {
+		return
+	}
+
+	bucketID := chi.URLParam(r, "bucketID")
+	if bucketID == "" {
+		writeError(w, http.StatusBadRequest, "bucket id required")
+		return
+	}
+
+	client := services.NewGarageClient(
+		fmt.Sprintf("http://talos-svc-%s:3903", svc.Name),
+		gc.AdminToken,
+	)
+	if err := client.DeleteBucket(r.Context(), bucketID); err != nil {
+		writeError(w, http.StatusBadGateway, fmt.Sprintf("garage admin API: %v", err))
+		return
+	}
+
+	// Clear stored bucket if it was the one deleted
+	// (We can't easily match by ID since stored bucket is the alias, so leave it)
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// getGarageService fetches a service and verifies it's a Garage service.
+func (h *ServiceHandler) getGarageService(w http.ResponseWriter, r *http.Request) (*domain.Service, error) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "serviceID"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid service id")
+		return nil, err
+	}
+	svc, err := h.services.GetService(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "service not found")
+		return nil, err
+	}
+	if svc.Type != domain.ServiceGarage {
+		writeError(w, http.StatusBadRequest, "not a garage service")
+		return nil, fmt.Errorf("not garage")
+	}
+	return svc, nil
+}
+
+// decryptGarageCreds decrypts and returns Garage credentials for a service.
+func (h *ServiceHandler) decryptGarageCreds(w http.ResponseWriter, svc *domain.Service) (*domain.GarageCredentials, error) {
+	var gc domain.GarageCredentials
+	if err := h.provisioner.DecryptCredentials(svc, &gc); err != nil {
+		writeError(w, http.StatusInternalServerError, "decrypt failed")
+		return nil, err
+	}
+	return &gc, nil
+}
+
 // --- App-Service Linking ---
 
 type linkServiceRequest struct {
