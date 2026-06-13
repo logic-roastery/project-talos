@@ -10,13 +10,12 @@
                 Download
             </a>
             <button hx-post="/api/backups/{{.ID}}/restore"
-                hx-confirm="Restore from this backup? This will stop all services and replace the database."
-                hx-on::after-request="if(event.detail.successful) alert('Backup restored. Please restart the server.')"
+                hx-on::click="event.preventDefault(); event.stopPropagation(); restoreBackup{{.ID}}()"
                 class="text-xs text-lime-accent hover:text-lime-accent/80 transition uppercase tracking-wider font-bold cursor-pointer">
                 Restore
             </button>
             <button hx-delete="/api/backups/{{.ID}}"
-                hx-confirm="Delete this backup? This cannot be undone."
+                hx-on::click="event.preventDefault(); event.stopPropagation(); deleteBackup{{.ID}}()"
                 hx-target="#backup-{{.ID}}"
                 hx-swap="outerHTML"
                 class="text-xs text-muted hover:text-pink-accent transition uppercase tracking-wider font-bold cursor-pointer">
@@ -25,4 +24,25 @@
         </div>
     </td>
 </tr>
+<script>
+async function restoreBackup{{.ID}}() {
+    try { await showConfirm({ title: 'Restore backup', message: 'This will stop all services and replace the database.', confirmText: 'Restore', variant: 'warning' }); } catch { return; }
+    const res = await fetch('/api/backups/{{.ID}}/restore', { method: 'POST' });
+    if (res.ok) {
+        showToast({ type: 'success', title: 'Backup restored', message: 'Please restart the server to apply changes.' });
+    } else {
+        showToast({ type: 'error', title: 'Restore failed', message: 'Could not restore backup.' });
+    }
+}
+async function deleteBackup{{.ID}}() {
+    try { await showConfirm({ title: 'Delete backup', message: 'This cannot be undone.', confirmText: 'Delete', variant: 'danger' }); } catch { return; }
+    const res = await fetch('/api/backups/{{.ID}}', { method: 'DELETE' });
+    if (res.ok) {
+        document.getElementById('backup-{{.ID}}').remove();
+        showToast({ type: 'success', title: 'Backup deleted' });
+    } else {
+        showToast({ type: 'error', title: 'Delete failed', message: 'Could not delete backup.' });
+    }
+}
+</script>
 {{end}}

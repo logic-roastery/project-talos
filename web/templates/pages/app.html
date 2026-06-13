@@ -377,13 +377,14 @@
 })();
 
 async function restartAdoptedApp() {
-    if (!confirm('Restart this adopted container?')) return;
+    try { await showConfirm({ title: 'Restart container', message: 'This will restart the adopted container. Running connections will be dropped.', confirmText: 'Restart', variant: 'warning' }); } catch { return; }
     const res = await fetch('/api/apps/{{.App.ID}}/restart', { method: 'POST' });
     if (!res.ok) {
-        alert('Failed to restart container');
+        showToast({ type: 'error', title: 'Restart failed', message: 'Could not restart the container.' });
         return;
     }
-    window.location.reload();
+    showToast({ type: 'success', title: 'Container restarting' });
+    setTimeout(function() { window.location.reload(); }, 1500);
 }
 </script>
 {{end}}

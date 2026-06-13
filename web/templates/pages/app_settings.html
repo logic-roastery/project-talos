@@ -185,7 +185,7 @@ document.getElementById('link-form')?.addEventListener('submit', async function(
     e.preventDefault();
     const serviceID = parseInt(document.getElementById('link-service').value);
     const alias = document.getElementById('link-alias').value.trim().toUpperCase();
-    if (!serviceID || !alias) { alert('Select a service and enter an alias'); return; }
+    if (!serviceID || !alias) { showToast({ type: 'warning', title: 'Missing fields', message: 'Select a service and enter an alias.' }); return; }
 
     const res = await fetch('/api/apps/{{.App.ID}}/services', {
         method: 'POST',
@@ -193,7 +193,7 @@ document.getElementById('link-form')?.addEventListener('submit', async function(
         body: JSON.stringify({ service_id: serviceID, alias: alias })
     });
     if (res.ok) location.reload();
-    else alert('Failed to link service');
+    else showToast({ type: 'error', title: 'Link failed', message: 'Could not link service.' });
 });
 
 document.getElementById('env-form')?.addEventListener('submit', async function(e) {
@@ -201,7 +201,7 @@ document.getElementById('env-form')?.addEventListener('submit', async function(e
     const key = document.getElementById('env-key').value.trim().toUpperCase();
     const value = document.getElementById('env-value').value;
     const isSecret = document.getElementById('env-secret').checked;
-    if (!key) { alert('Enter a key'); return; }
+    if (!key) { showToast({ type: 'warning', title: 'Key required', message: 'Enter an environment variable key.' }); return; }
 
     const res = await fetch('/api/apps/{{.App.ID}}/env', {
         method: 'POST',
@@ -209,7 +209,7 @@ document.getElementById('env-form')?.addEventListener('submit', async function(e
         body: JSON.stringify({ key: key, value: value, is_secret: isSecret })
     });
     if (res.ok) location.reload();
-    else alert('Failed to set env var');
+    else showToast({ type: 'error', title: 'Save failed', message: 'Could not save environment variable.' });
 });
 
 document.getElementById('settings-form')?.addEventListener('submit', async function(e) {

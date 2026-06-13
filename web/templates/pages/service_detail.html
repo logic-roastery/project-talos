@@ -328,7 +328,7 @@
 <script>
 async function loadCredentials() {
     const res = await fetch('/api/services/{{.Service.ID}}/credentials');
-    if (!res.ok) { alert('Failed to load credentials'); return; }
+    if (!res.ok) { showToast({ type: 'error', title: 'Load failed', message: 'Could not load credentials.' }); return; }
     const creds = await res.json();
     renderQuickConnect(creds);
     renderCredentials(creds);
@@ -417,7 +417,7 @@ function renderCredentials(creds) {
 
 async function loadBuckets() {
     const res = await fetch('/api/services/{{.Service.ID}}/buckets');
-    if (!res.ok) { const err = await res.json().catch(() => ({})); alert(err.error || 'Failed to load buckets'); return; }
+    if (!res.ok) { const err = await res.json().catch(() => ({})); showToast({ type: 'error', title: 'Load failed', message: err.error || 'Could not load buckets.' }); return; }
     const buckets = await res.json();
     const container = document.getElementById('bucket-list');
     if (!buckets || buckets.length === 0) {
@@ -445,23 +445,24 @@ async function loadBuckets() {
 async function createBucket() {
     const input = document.getElementById('new-bucket-name');
     const name = input.value.trim();
-    if (!name) { alert('Enter a bucket name'); return; }
+    if (!name) { showToast({ type: 'warning', title: 'Name required', message: 'Enter a bucket name.' }); return; }
     const res = await fetch('/api/services/{{.Service.ID}}/buckets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name }),
     });
-    if (!res.ok) { const err = await res.json().catch(() => ({})); alert(err.error || 'Failed to create bucket'); return; }
+    if (!res.ok) { const err = await res.json().catch(() => ({})); showToast({ type: 'error', title: 'Create failed', message: err.error || 'Could not create bucket.' }); return; }
     input.value = '';
     loadBuckets();
 }
 
 async function deleteBucket(bucketId, alias) {
-    if (!confirm('Delete bucket "' + alias + '"? This cannot be undone.')) return;
+    try { await showConfirm({ title: 'Delete bucket', message: 'Delete "' + alias + '"? This cannot be undone.', confirmText: 'Delete', variant: 'danger' }); } catch { return; }
     const res = await fetch('/api/services/{{.Service.ID}}/buckets/' + encodeURIComponent(bucketId), {
         method: 'DELETE',
     });
-    if (!res.ok) { const err = await res.json().catch(() => ({})); alert(err.error || 'Failed to delete bucket'); return; }
+    if (!res.ok) { const err = await res.json().catch(() => ({})); showToast({ type: 'error', title: 'Delete failed', message: err.error || 'Could not delete bucket.' }); return; }
+    showToast({ type: 'success', title: 'Bucket deleted', message: '"' + alias + '" has been removed.' });
     loadBuckets();
 }
 
