@@ -92,10 +92,16 @@ If you downloaded and kept `install.sh` locally, use:
 sudo bash install.sh --upgrade
 ```
 
-Or target a specific version:
+The script automatically resolves the latest version. If you need a specific version:
 
 ```bash
-sudo bash install.sh --upgrade --version-tag v0.2.0
+sudo bash install.sh --upgrade --version-tag v0.4.0
+```
+
+For Docker mode upgrades, add `--docker`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo bash -s -- --upgrade --docker
 ```
 
 The upgrade process preserves your configuration and data, and automatically rolls back on failure.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/logic-roastery/project-talos/internal/domain"
@@ -91,6 +92,10 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.services.CreateService(r.Context(), svc); err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			writeError(w, http.StatusConflict, "A service with this name already exists")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

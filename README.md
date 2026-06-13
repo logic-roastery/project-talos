@@ -67,7 +67,7 @@ docker pull ghcr.io/logic-roastery/project-talos:latest
 docker pull egasa/project-talos:latest
 ```
 
-Docker upgrade note:
+Docker upgrade:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo bash -s -- --upgrade --docker
@@ -79,10 +79,10 @@ If you saved `install.sh` locally during installation, you can also run:
 sudo bash install.sh --upgrade --docker
 ```
 
-If `latest release` lookup fails, upgrade to a specific tag explicitly:
+The script auto-detects the latest version (including prereleases). If auto-detection fails, specify a version explicitly:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo bash -s -- --upgrade --docker --version-tag 0.2.6
+curl -sSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/scripts/install.sh | sudo bash -s -- --upgrade --docker --version-tag v0.4.0
 ```
 
 `--version-tag` must exactly match the Git tag name in the repository.

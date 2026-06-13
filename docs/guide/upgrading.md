@@ -20,6 +20,26 @@ sudo bash install.sh --upgrade
 
 The installer automatically detects your Talos installation mode (bare binary or Docker). This detection does not mean `install.sh` is available locally after a piped install.
 
+### How Version Resolution Works
+
+When `--version-tag` is not specified, the script:
+
+1. Queries the GitHub `/releases/latest` API for the newest stable release.
+2. If that returns nothing (e.g. all releases are marked as prerelease), falls back to the `/releases` API and picks the newest release.
+3. If both fail, the script exits with an error and suggests using `--version-tag`.
+
+This fallback ensures the script works even when all releases are prereleases.
+
+::: tip
+If auto-detection fails for any reason (network issues, rate limiting), use `--version-tag` to specify the exact version:
+
+```bash
+sudo bash install.sh --upgrade --docker --version-tag v0.4.0
+```
+
+Check available versions at [GitHub Releases](https://github.com/logic-roastery/project-talos/releases).
+:::
+
 ## Bare Binary Mode
 
 ### Upgrade to Latest Version
