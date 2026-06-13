@@ -40,7 +40,7 @@
                         View Apps
                     </a>
                     <form method="POST" action="/api/github/disconnect" class="inline"
-                          onsubmit="return confirm('Disconnect GitHub App? This will stop automatic deployments.');">
+                          onsubmit="event.preventDefault(); disconnectGitHub();">
                         <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium text-pink-accent hover:bg-pink-accent/10 border border-hairline transition">
                             Disconnect
                         </button>
@@ -95,4 +95,17 @@
         </a>
     </div>
 </div>
+
+<script>
+async function disconnectGitHub() {
+    try { await showConfirm({ title: 'Disconnect GitHub', message: 'This will stop automatic deployments. You can reconnect later.', confirmText: 'Disconnect', variant: 'danger' }); } catch { return; }
+    const res = await fetch('/api/github/disconnect', { method: 'POST' });
+    if (res.ok) {
+        showToast({ type: 'success', title: 'Disconnected' });
+        setTimeout(function() { window.location.reload(); }, 1000);
+    } else {
+        showToast({ type: 'error', title: 'Disconnect failed', message: 'Could not disconnect GitHub App.' });
+    }
+}
+</script>
 {{end}}

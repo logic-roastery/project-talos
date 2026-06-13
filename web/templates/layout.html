@@ -106,7 +106,25 @@
     <main class="mx-auto max-w-5xl px-6 py-8">
         {{.Content}}
     </main>
-    <div id="flash-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+    <div id="flash-container" class="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2 pointer-events-none"></div>
+
+    <!-- Confirm modal backdrop -->
+    <div id="confirm-backdrop" class="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4" onclick="if(event.target===this)_confirmReject()">
+        <div class="w-full max-w-md rounded-xl border border-hairline bg-night p-5 shadow-2xl pointer-events-auto">
+            <div class="flex items-start gap-3">
+                <div id="confirm-icon" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"></div>
+                <div class="flex-1 min-w-0">
+                    <p id="confirm-title" class="text-sm font-semibold text-heading"></p>
+                    <p id="confirm-message" class="mt-1 text-sm text-muted"></p>
+                </div>
+            </div>
+            <div class="mt-4 flex justify-end gap-2">
+                <button onclick="_confirmReject()" class="px-3 py-1.5 text-sm text-muted hover:text-body transition cursor-pointer rounded-lg">Cancel</button>
+                <button id="confirm-action" onclick="_confirmResolve()" class="px-3 py-1.5 text-sm font-medium rounded-lg transition cursor-pointer"></button>
+            </div>
+        </div>
+    </div>
+
     <script>
         function toggleTheme() {
             const html = document.documentElement;
@@ -133,6 +151,73 @@
                 document.getElementById('icon-moon')?.classList.remove('hidden');
             }
         })();
+
+        // --- Toast notification system ---
+        const _toastIcons = {
+            info: '<svg class="h-4 w-4 text-violet" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+            success: '<svg class="h-4 w-4 text-lime-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="9,12 11,14 15,10"/></svg>',
+            warning: '<svg class="h-4 w-4 text-yellow-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+            error: '<svg class="h-4 w-4 text-pink-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+        };
+        const _toastColors = {
+            info:    { border: 'border-violet/20',          bg: 'bg-violet/10',          iconBg: 'bg-violet/15',          text: 'text-violet',          sub: 'text-violet/80',          dismiss: 'text-violet/60 hover:text-violet' },
+            success: { border: 'border-lime-accent/20',     bg: 'bg-lime-accent/10',     iconBg: 'bg-lime-accent/15',     text: 'text-lime-accent',     sub: 'text-lime-accent/80',     dismiss: 'text-lime-accent/60 hover:text-lime-accent' },
+            warning: { border: 'border-yellow-400/20',      bg: 'bg-yellow-400/10',      iconBg: 'bg-yellow-400/15',      text: 'text-yellow-400',      sub: 'text-yellow-400/80',      dismiss: 'text-yellow-400/60 hover:text-yellow-400' },
+            error:   { border: 'border-pink-accent/20',     bg: 'bg-pink-accent/10',     iconBg: 'bg-pink-accent/15',     text: 'text-pink-accent',     sub: 'text-pink-accent/80',     dismiss: 'text-pink-accent/60 hover:text-pink-accent' },
+        };
+
+        /**
+         * showToast({ type: 'info'|'success'|'warning'|'error', title: string, message: string, duration?: number })
+         */
+        function showToast(opts) {
+            const c = _toastColors[opts.type] || _toastColors.info;
+            const icon = _toastIcons[opts.type] || _toastIcons.info;
+            const el = document.createElement('div');
+            el.className = 'pointer-events-auto flex items-start gap-3 rounded-xl border ' + c.border + ' ' + c.bg + ' p-4 shadow-lg max-w-sm animate-[toastIn_0.2s_ease-out]';
+            el.innerHTML = '<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ' + c.iconBg + '">' + icon + '</div>' +
+                '<div class="flex-1 min-w-0">' +
+                '<p class="text-sm font-semibold ' + c.text + '">' + _esc(opts.title) + '</p>' +
+                (opts.message ? '<p class="mt-1 text-sm ' + c.sub + '">' + _esc(opts.message) + '</p>' : '') +
+                '</div>' +
+                '<button onclick="this.closest(\'div\').remove()" class="shrink-0 ' + c.dismiss + ' transition cursor-pointer" aria-label="Dismiss">' +
+                '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+            document.getElementById('flash-container').appendChild(el);
+            const dur = opts.duration || 4000;
+            if (dur > 0) setTimeout(function() { el.remove(); }, dur);
+        }
+
+        // --- Confirm dialog ---
+        let _confirmResolve, _confirmReject;
+
+        /**
+         * showConfirm({ title: string, message: string, confirmText?: string, variant?: 'danger'|'warning'|'info' })
+         * Returns a Promise that resolves on confirm, rejects on cancel.
+         */
+        function showConfirm(opts) {
+            return new Promise(function(resolve, reject) {
+                _confirmResolve = function() { document.getElementById('confirm-backdrop').classList.add('hidden'); document.getElementById('confirm-backdrop').classList.remove('flex'); resolve(); };
+                _confirmReject  = function() { document.getElementById('confirm-backdrop').classList.add('hidden'); document.getElementById('confirm-backdrop').classList.remove('flex'); reject(); };
+                const v = opts.variant || 'danger';
+                const colors = {
+                    danger:  { iconBg: 'bg-pink-accent/15',    icon: _toastIcons.error,   btnBg: 'bg-pink-accent/10 hover:bg-pink-accent/20 border-pink-accent/30',    btnText: 'text-pink-accent' },
+                    warning: { iconBg: 'bg-yellow-400/15',     icon: _toastIcons.warning, btnBg: 'bg-yellow-400/10 hover:bg-yellow-400/20 border-yellow-400/30',     btnText: 'text-yellow-400' },
+                    info:    { iconBg: 'bg-violet/15',         icon: _toastIcons.info,    btnBg: 'bg-violet/10 hover:bg-violet/20 border-violet/30',                 btnText: 'text-violet' },
+                };
+                const vc = colors[v] || colors.danger;
+                document.getElementById('confirm-icon').className = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ' + vc.iconBg;
+                document.getElementById('confirm-icon').innerHTML = vc.icon;
+                document.getElementById('confirm-title').textContent = opts.title || 'Are you sure?';
+                document.getElementById('confirm-message').textContent = opts.message || '';
+                const btn = document.getElementById('confirm-action');
+                btn.textContent = opts.confirmText || 'Confirm';
+                btn.className = 'px-3 py-1.5 text-sm font-medium rounded-lg border transition cursor-pointer ' + vc.btnBg + ' ' + vc.btnText;
+                document.getElementById('confirm-backdrop').classList.remove('hidden');
+                document.getElementById('confirm-backdrop').classList.add('flex');
+            });
+        }
+
+        function _esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     </script>
+    <style>@keyframes toastIn { from { opacity: 0; transform: translateY(1rem) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }</style>
 </body>
 </html>

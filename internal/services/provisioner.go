@@ -387,7 +387,7 @@ func GenerateServiceName(svcType domain.ServiceType) string {
 func DefaultCredentials(svcType domain.ServiceType, containerName string) interface{} {
 	switch svcType {
 	case domain.ServicePostgres:
-		return domain.PostgresCredentials{
+		return &domain.PostgresCredentials{
 			Host:     containerName,
 			Port:     5432,
 			Database: "app",
@@ -395,7 +395,7 @@ func DefaultCredentials(svcType domain.ServiceType, containerName string) interf
 			Password: GeneratePassword(24),
 		}
 	case domain.ServiceMySQL:
-		return domain.MySQLCredentials{
+		return &domain.MySQLCredentials{
 			Host:     containerName,
 			Port:     3306,
 			Database: "app",
@@ -403,13 +403,13 @@ func DefaultCredentials(svcType domain.ServiceType, containerName string) interf
 			Password: GeneratePassword(24),
 		}
 	case domain.ServiceRedis:
-		return domain.RedisCredentials{
+		return &domain.RedisCredentials{
 			Host:     containerName,
 			Port:     6379,
 			Password: GeneratePassword(24),
 		}
 	case domain.ServiceGarage:
-		return domain.GarageCredentials{
+		return &domain.GarageCredentials{
 			Endpoint:   fmt.Sprintf("http://%s:3900", containerName),
 			Region:     "garage",
 			AccessKey:  GenerateAccessKey(20),
@@ -419,7 +419,7 @@ func DefaultCredentials(svcType domain.ServiceType, containerName string) interf
 			RPCSecret:  GeneratePassword(32),
 		}
 	case domain.ServiceGarageWebUI:
-		return domain.GarageWebUICredentials{
+		return &domain.GarageWebUICredentials{
 			AdminAPIURL: fmt.Sprintf("http://talos-svc-%s:3903", containerName),
 			S3Endpoint:  fmt.Sprintf("http://talos-svc-%s:3900", containerName),
 			AdminKey:    "",
@@ -439,7 +439,7 @@ func FormatEnvVars(svc *domain.Service, creds interface{}, alias string) []strin
 
 	switch svc.Type {
 	case domain.ServicePostgres:
-		c := creds.(domain.PostgresCredentials)
+		c := creds.(*domain.PostgresCredentials)
 		vars = []string{
 			fmt.Sprintf("%s_URL=postgres://%s:%s@%s:%d/%s", prefix, c.User, c.Password, c.Host, c.Port, c.Database),
 			fmt.Sprintf("%s_HOST=%s", prefix, c.Host),
@@ -450,7 +450,7 @@ func FormatEnvVars(svc *domain.Service, creds interface{}, alias string) []strin
 		}
 
 	case domain.ServiceMySQL:
-		c := creds.(domain.MySQLCredentials)
+		c := creds.(*domain.MySQLCredentials)
 		vars = []string{
 			fmt.Sprintf("%s_URL=mysql://%s:%s@%s:%d/%s", prefix, c.User, c.Password, c.Host, c.Port, c.Database),
 			fmt.Sprintf("%s_HOST=%s", prefix, c.Host),
@@ -461,7 +461,7 @@ func FormatEnvVars(svc *domain.Service, creds interface{}, alias string) []strin
 		}
 
 	case domain.ServiceRedis:
-		c := creds.(domain.RedisCredentials)
+		c := creds.(*domain.RedisCredentials)
 		vars = []string{
 			fmt.Sprintf("%s_URL=redis://:%s@%s:%d", prefix, c.Password, c.Host, c.Port),
 			fmt.Sprintf("%s_HOST=%s", prefix, c.Host),
@@ -470,7 +470,7 @@ func FormatEnvVars(svc *domain.Service, creds interface{}, alias string) []strin
 		}
 
 	case domain.ServiceGarage:
-		c := creds.(domain.GarageCredentials)
+		c := creds.(*domain.GarageCredentials)
 		vars = []string{
 			fmt.Sprintf("%s_ENDPOINT=%s", prefix, c.Endpoint),
 			fmt.Sprintf("%s_REGION=%s", prefix, c.Region),
@@ -480,7 +480,7 @@ func FormatEnvVars(svc *domain.Service, creds interface{}, alias string) []strin
 			fmt.Sprintf("%s_ADMIN_TOKEN=%s", prefix, c.AdminToken),
 		}
 	case domain.ServiceGarageWebUI:
-		c := creds.(domain.GarageWebUICredentials)
+		c := creds.(*domain.GarageWebUICredentials)
 		vars = []string{
 			fmt.Sprintf("%s_ADMIN_API_URL=%s", prefix, c.AdminAPIURL),
 			fmt.Sprintf("%s_S3_ENDPOINT=%s", prefix, c.S3Endpoint),

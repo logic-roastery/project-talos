@@ -78,9 +78,9 @@ func TestGenerateServiceName(t *testing.T) {
 func TestDefaultCredentials(t *testing.T) {
 	t.Run("postgres", func(t *testing.T) {
 		creds := DefaultCredentials(domain.ServicePostgres, "mycontainer")
-		pc, ok := creds.(domain.PostgresCredentials)
+		pc, ok := creds.(*domain.PostgresCredentials)
 		if !ok {
-			t.Fatalf("expected PostgresCredentials, got %T", creds)
+			t.Fatalf("expected *domain.PostgresCredentials, got %T", creds)
 		}
 		if pc.Host != "mycontainer" {
 			t.Errorf("Host: expected %q, got %q", "mycontainer", pc.Host)
@@ -101,9 +101,9 @@ func TestDefaultCredentials(t *testing.T) {
 
 	t.Run("mysql", func(t *testing.T) {
 		creds := DefaultCredentials(domain.ServiceMySQL, "mycontainer")
-		mc, ok := creds.(domain.MySQLCredentials)
+		mc, ok := creds.(*domain.MySQLCredentials)
 		if !ok {
-			t.Fatalf("expected MySQLCredentials, got %T", creds)
+			t.Fatalf("expected *domain.MySQLCredentials, got %T", creds)
 		}
 		if mc.Host != "mycontainer" {
 			t.Errorf("Host: expected %q, got %q", "mycontainer", mc.Host)
@@ -124,9 +124,9 @@ func TestDefaultCredentials(t *testing.T) {
 
 	t.Run("redis", func(t *testing.T) {
 		creds := DefaultCredentials(domain.ServiceRedis, "mycontainer")
-		rc, ok := creds.(domain.RedisCredentials)
+		rc, ok := creds.(*domain.RedisCredentials)
 		if !ok {
-			t.Fatalf("expected RedisCredentials, got %T", creds)
+			t.Fatalf("expected *domain.RedisCredentials, got %T", creds)
 		}
 		if rc.Host != "mycontainer" {
 			t.Errorf("Host: expected %q, got %q", "mycontainer", rc.Host)
@@ -138,9 +138,9 @@ func TestDefaultCredentials(t *testing.T) {
 
 	t.Run("garage", func(t *testing.T) {
 		creds := DefaultCredentials(domain.ServiceGarage, "mycontainer")
-		gc, ok := creds.(domain.GarageCredentials)
+		gc, ok := creds.(*domain.GarageCredentials)
 		if !ok {
-			t.Fatalf("expected GarageCredentials, got %T", creds)
+			t.Fatalf("expected *domain.GarageCredentials, got %T", creds)
 		}
 		if !regexp.MustCompile(`mycontainer`).MatchString(gc.Endpoint) {
 			t.Errorf("Endpoint: expected to contain %q, got %q", "mycontainer", gc.Endpoint)
@@ -164,7 +164,7 @@ func TestDefaultCredentials(t *testing.T) {
 func TestFormatEnvVars(t *testing.T) {
 	t.Run("postgres", func(t *testing.T) {
 		svc := &domain.Service{Type: domain.ServicePostgres}
-		creds := domain.PostgresCredentials{
+		creds := &domain.PostgresCredentials{
 			Host:     "pg-host",
 			Port:     5432,
 			Database: "app",
@@ -190,7 +190,7 @@ func TestFormatEnvVars(t *testing.T) {
 
 	t.Run("mysql", func(t *testing.T) {
 		svc := &domain.Service{Type: domain.ServiceMySQL}
-		creds := domain.MySQLCredentials{
+		creds := &domain.MySQLCredentials{
 			Host:     "my-host",
 			Port:     3306,
 			Database: "app",
@@ -216,7 +216,7 @@ func TestFormatEnvVars(t *testing.T) {
 
 	t.Run("redis", func(t *testing.T) {
 		svc := &domain.Service{Type: domain.ServiceRedis}
-		creds := domain.RedisCredentials{
+		creds := &domain.RedisCredentials{
 			Host:     "cache-host",
 			Port:     6379,
 			Password: "secret789",
@@ -238,7 +238,7 @@ func TestFormatEnvVars(t *testing.T) {
 
 	t.Run("garage", func(t *testing.T) {
 		svc := &domain.Service{Type: domain.ServiceGarage}
-		creds := domain.GarageCredentials{
+		creds := &domain.GarageCredentials{
 			Endpoint:  "http://mycontainer:3900",
 			Region:    "garage",
 			AccessKey: "AKID1234567890123456",

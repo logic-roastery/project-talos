@@ -1,5 +1,5 @@
 {{define "service_detail.html"}}
-<div class="max-w-4xl mx-auto">
+<div class="max-w-4xl mx-auto" xmlns:hx-on="http://www.w3.org/1999/xhtml">
     <div class="mb-8 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div class="min-w-0 flex items-start gap-4">
             <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-hairline bg-canvas-dark/60 text-muted">
@@ -45,8 +45,7 @@
         </div>
         <div class="flex flex-wrap items-center gap-2 lg:justify-end">
             {{if eq .Service.Status "active"}}
-            <button hx-post="/api/services/{{.Service.ID}}/stop"
-                hx-confirm="Stop this service?"
+            <button onclick="confirmStopService()"
                 class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-2.5 text-sm text-yellow-400 transition hover:bg-yellow-400/20 cursor-pointer">
                 <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="6" y="6" width="12" height="12" rx="2"/>
@@ -62,9 +61,7 @@
                 {{if eq .Service.Status "stopped"}}Start service{{else}}Retry service{{end}}
             </button>
             {{end}}
-            <button hx-delete="/api/services/{{.Service.ID}}"
-                hx-confirm="Delete {{.Service.Name}}? This cannot be undone."
-                hx-on::after-request="if(event.detail.successful) window.location.href='/services'"
+            <button onclick="confirmDeleteService()"
                 class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm text-muted transition hover:bg-pink-accent/10 hover:text-pink-accent cursor-pointer">
                 <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="3,6 5,6 21,6"/>
@@ -328,7 +325,7 @@
 <script>
 async function loadCredentials() {
     const res = await fetch('/api/services/{{.Service.ID}}/credentials');
-    if (!res.ok) { alert('Failed to load credentials'); return; }
+    if (!res.ok) { showToast({ type: 'error', title: 'Load failed', message: 'Could not load credentials.' }); return; }
     const creds = await res.json();
     renderQuickConnect(creds);
     renderCredentials(creds);
@@ -417,7 +414,7 @@ function renderCredentials(creds) {
 
 async function loadBuckets() {
     const res = await fetch('/api/services/{{.Service.ID}}/buckets');
-    if (!res.ok) { const err = await res.json().catch(() => ({})); alert(err.error || 'Failed to load buckets'); return; }
+    if (!res.ok) { const err = await res.json().catch(() => ({})); showToast({ type: 'error', title: 'Load failed', message: err.error || 'Could not load buckets.' }); return; }
     const buckets = await res.json();
     const container = document.getElementById('bucket-list');
     if (!buckets || buckets.length === 0) {
@@ -445,23 +442,24 @@ async function loadBuckets() {
 async function createBucket() {
     const input = document.getElementById('new-bucket-name');
     const name = input.value.trim();
-    if (!name) { alert('Enter a bucket name'); return; }
+    if (!name) { showToast({ type: 'warning', title: 'Name required', message: 'Enter a bucket name.' }); return; }
     const res = await fetch('/api/services/{{.Service.ID}}/buckets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name }),
     });
-    if (!res.ok) { const err = await res.json().catch(() => ({})); alert(err.error || 'Failed to create bucket'); return; }
+    if (!res.ok) { const err = await res.json().catch(() => ({})); showToast({ type: 'error', title: 'Create failed', message: err.error || 'Could not create bucket.' }); return; }
     input.value = '';
     loadBuckets();
 }
 
 async function deleteBucket(bucketId, alias) {
-    if (!confirm('Delete bucket "' + alias + '"? This cannot be undone.')) return;
+    try { await showConfirm({ title: 'Delete bucket', message: 'Delete "' + alias + '"? This cannot be undone.', confirmText: 'Delete', variant: 'danger' }); } catch { return; }
     const res = await fetch('/api/services/{{.Service.ID}}/buckets/' + encodeURIComponent(bucketId), {
         method: 'DELETE',
     });
-    if (!res.ok) { const err = await res.json().catch(() => ({})); alert(err.error || 'Failed to delete bucket'); return; }
+    if (!res.ok) { const err = await res.json().catch(() => ({})); showToast({ type: 'error', title: 'Delete failed', message: err.error || 'Could not delete bucket.' }); return; }
+    showToast({ type: 'success', title: 'Bucket deleted', message: '"' + alias + '" has been removed.' });
     loadBuckets();
 }
 
@@ -550,6 +548,28 @@ function iconCopy() {
 
 function iconCheck() {
     return '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg>';
+}
+
+async function confirmStopService() {
+    try { await showConfirm({ title: 'Stop service', message: 'This will stop the running service.', confirmText: 'Stop', variant: 'warning' }); } catch { return; }
+    const res = await fetch('/api/services/{{.Service.ID}}/stop', { method: 'POST' });
+    if (res.ok) {
+        showToast({ type: 'success', title: 'Service stopped' });
+        setTimeout(function() { window.location.reload(); }, 1000);
+    } else {
+        showToast({ type: 'error', title: 'Stop failed', message: 'Could not stop the service.' });
+    }
+}
+
+async function confirmDeleteService() {
+    try { await showConfirm({ title: 'Delete service', message: 'Delete {{.Service.Name}}? This cannot be undone.', confirmText: 'Delete', variant: 'danger' }); } catch { return; }
+    const res = await fetch('/api/services/{{.Service.ID}}', { method: 'DELETE' });
+    if (res.ok) {
+        showToast({ type: 'success', title: 'Service deleted' });
+        window.location.href = '/services';
+    } else {
+        showToast({ type: 'error', title: 'Delete failed', message: 'Could not delete the service.' });
+    }
 }
 </script>
 {{end}}

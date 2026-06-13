@@ -310,28 +310,28 @@ func (e *Engine) collectEnvVars(ctx context.Context, app *domain.App) []string {
 					e.logger.Warn("decrypt creds", "service", svc.Name, "error", err)
 					continue
 				}
-				creds = pc
+				creds = &pc
 			case domain.ServiceMySQL:
 				var mc domain.MySQLCredentials
 				if err := e.provisioner.DecryptCredentials(svc, &mc); err != nil {
 					e.logger.Warn("decrypt creds", "service", svc.Name, "error", err)
 					continue
 				}
-				creds = mc
+				creds = &mc
 			case domain.ServiceRedis:
 				var rc domain.RedisCredentials
 				if err := e.provisioner.DecryptCredentials(svc, &rc); err != nil {
 					e.logger.Warn("decrypt creds", "service", svc.Name, "error", err)
 					continue
 				}
-				creds = rc
+				creds = &rc
 			case domain.ServiceGarage:
 				var gc domain.GarageCredentials
 				if err := e.provisioner.DecryptCredentials(svc, &gc); err != nil {
 					e.logger.Warn("decrypt creds", "service", svc.Name, "error", err)
 					continue
 				}
-				creds = gc
+				creds = &gc
 			default:
 				continue
 			}

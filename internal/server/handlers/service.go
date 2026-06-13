@@ -107,7 +107,7 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Auto-provision Garage Web UI sidecar
 	if req.Type == domain.ServiceGarage {
-		garageCreds := creds.(domain.GarageCredentials)
+		garageCreds := creds.(*domain.GarageCredentials)
 		webUICreds := domain.GarageWebUICredentials{
 			AdminAPIURL: fmt.Sprintf("http://talos-svc-%s:3903", req.Name),
 			S3Endpoint:  fmt.Sprintf("http://talos-svc-%s:3900", req.Name),
@@ -546,7 +546,7 @@ func (h *ServiceHandler) RevealEnvVar(w http.ResponseWriter, r *http.Request) {
 func buildCredsFromMap(svcType domain.ServiceType, m map[string]interface{}, containerName string) interface{} {
 	switch svcType {
 	case domain.ServicePostgres:
-		c := domain.PostgresCredentials{
+		c := &domain.PostgresCredentials{
 			Host: containerName, Port: 5432, Database: "app", User: "postgres", Password: services.GeneratePassword(24),
 		}
 		if v, ok := m["database"].(string); ok && v != "" {
@@ -560,7 +560,7 @@ func buildCredsFromMap(svcType domain.ServiceType, m map[string]interface{}, con
 		}
 		return c
 	case domain.ServiceMySQL:
-		c := domain.MySQLCredentials{
+		c := &domain.MySQLCredentials{
 			Host: containerName, Port: 3306, Database: "app", User: "mysql", Password: services.GeneratePassword(24),
 		}
 		if v, ok := m["database"].(string); ok && v != "" {
@@ -574,7 +574,7 @@ func buildCredsFromMap(svcType domain.ServiceType, m map[string]interface{}, con
 		}
 		return c
 	case domain.ServiceRedis:
-		c := domain.RedisCredentials{
+		c := &domain.RedisCredentials{
 			Host: containerName, Port: 6379, Password: services.GeneratePassword(24),
 		}
 		if v, ok := m["password"].(string); ok && v != "" {
@@ -582,7 +582,7 @@ func buildCredsFromMap(svcType domain.ServiceType, m map[string]interface{}, con
 		}
 		return c
 	case domain.ServiceGarage:
-		c := domain.GarageCredentials{
+		c := &domain.GarageCredentials{
 			Endpoint:   fmt.Sprintf("http://%s:3900", containerName),
 			Region:     "garage",
 			AccessKey:  services.GenerateAccessKey(20),
@@ -604,7 +604,7 @@ func buildCredsFromMap(svcType domain.ServiceType, m map[string]interface{}, con
 		}
 		return c
 	case domain.ServiceGarageWebUI:
-		c := domain.GarageWebUICredentials{
+		c := &domain.GarageWebUICredentials{
 			AdminAPIURL: fmt.Sprintf("http://%s:3903", containerName),
 			S3Endpoint:  fmt.Sprintf("http://%s:3900", containerName),
 			Username:    "admin",
