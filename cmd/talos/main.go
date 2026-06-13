@@ -131,7 +131,7 @@ func main() {
 	}
 
 	dataDir := filepath.Dir(cfg.Database.Path)
-	provisioner := services.NewProvisioner(db, dockerClient, dataDir, encKey, logger)
+	provisioner := services.NewProvisioner(db, dockerClient, dataDir, cfg.Docker.HostDataRoot, encKey, logger)
 	webhook := github.NewWebhookHandler(cfg.GitHub.WebhookSecret)
 
 	// GitHub App client — initialized lazily by the handler on first use.

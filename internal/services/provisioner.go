@@ -20,21 +20,40 @@ import (
 )
 
 type Provisioner struct {
-	services store.ServiceStore
-	docker   *docker.Client
-	dataDir  string
-	encKey   []byte
-	logger   *slog.Logger
+	services     store.ServiceStore
+	docker       *docker.Client
+	dataDir      string
+	hostDataRoot string // host-path equivalent of dataDir (for bind mounts when running in container)
+	encKey       []byte
+	logger       *slog.Logger
 }
 
-func NewProvisioner(services store.ServiceStore, docker *docker.Client, dataDir string, encKey []byte, logger *slog.Logger) *Provisioner {
+func NewProvisioner(services store.ServiceStore, docker *docker.Client, dataDir, hostDataRoot string, encKey []byte, logger *slog.Logger) *Provisioner {
 	return &Provisioner{
-		services: services,
-		docker:   docker,
-		dataDir:  dataDir,
-		encKey:   encKey,
-		logger:   logger,
+		services:     services,
+		docker:       docker,
+		dataDir:      dataDir,
+		hostDataRoot: hostDataRoot,
+		encKey:       encKey,
+		logger:       logger,
 	}
+}
+
+// hostPath translates a container-internal path to the equivalent host path.
+// When running Talos inside Docker, dataDir is a container path (e.g. /data)
+// but Docker bind mounts need host paths (e.g. /opt/talos/data).
+// If hostDataRoot is empty, the path is returned as-is (bare metal mode).
+func (p *Provisioner) hostPath(containerPath string) string {
+	if p.hostDataRoot == "" {
+		return containerPath
+	}
+	// Replace the dataDir prefix with hostDataRoot
+	// e.g. "/data/services/main-storage" → "/opt/talos/data/services/main-storage"
+	rel, err := filepath.Rel(p.dataDir, containerPath)
+	if err != nil {
+		return containerPath
+	}
+	return filepath.Join(p.hostDataRoot, rel)
 }
 
 // ProvisionService creates and starts a managed service container.
@@ -260,7 +279,7 @@ func (p *Provisioner) buildContainerConfigFromJSON(svc *domain.Service, credJSON
 			"POSTGRES_USER=" + pc.User,
 			"POSTGRES_PASSWORD=" + pc.Password,
 		}
-		cfg.Volumes = []string{volHost + ":" + def.VolumePath}
+		cfg.Volumes = []string{p.hostPath(volHost) + ":" + def.VolumePath}
 		cfg.HealthCheck = &container.HealthConfig{
 			Test:     def.HealthCmd,
 			Interval: 10 * time.Second,
@@ -277,7 +296,7 @@ func (p *Provisioner) buildContainerConfigFromJSON(svc *domain.Service, credJSON
 			"MYSQL_PASSWORD=" + mc.Password,
 			"MYSQL_ROOT_PASSWORD=" + mc.Password,
 		}
-		cfg.Volumes = []string{volHost + ":" + def.VolumePath}
+		cfg.Volumes = []string{p.hostPath(volHost) + ":" + def.VolumePath}
 		cfg.HealthCheck = &container.HealthConfig{
 			Test:     def.HealthCmd,
 			Interval: 10 * time.Second,
@@ -288,7 +307,7 @@ func (p *Provisioner) buildContainerConfigFromJSON(svc *domain.Service, credJSON
 	case domain.ServiceRedis:
 		var rc domain.RedisCredentials
 		json.Unmarshal([]byte(credJSON), &rc)
-		cfg.Volumes = []string{volHost + ":" + def.VolumePath}
+		cfg.Volumes = []string{p.hostPath(volHost) + ":" + def.VolumePath}
 		cfg.HealthCheck = &container.HealthConfig{
 			Test:     []string{"CMD", "redis-cli", "-a", rc.Password, "ping"},
 			Interval: 10 * time.Second,
@@ -298,11 +317,14 @@ func (p *Provisioner) buildContainerConfigFromJSON(svc *domain.Service, credJSON
 	case domain.ServiceGarage:
 		var gc domain.GarageCredentials
 		json.Unmarshal([]byte(credJSON), &gc)
-		cfg.Env = []string{
+		cfgEnv := []string{
 			"GARAGE_CONFIG_FILE=/etc/garage.toml",
 		}
+		cfg.Env = cfgEnv
+		// Use host path for the config file bind mount (Docker resolves host paths, not container-internal ones)
+		configHostPath := p.hostPath(volHost + "/garage.toml")
 		cfg.Volumes = []string{
-			volHost + "/garage.toml:/etc/garage.toml:ro",
+			configHostPath + ":/etc/garage.toml:ro",
 			containerName + "-meta:/var/lib/garage/meta",
 			containerName + "-data:/var/lib/garage/data",
 		}
