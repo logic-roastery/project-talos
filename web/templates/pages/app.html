@@ -1,5 +1,5 @@
 {{define "app.html"}}
-<div class="mb-6">
+<div class="mb-6" xmlns:hx-on="http://www.w3.org/1999/xhtml">
     <a href="/dashboard" class="text-muted hover:text-body text-sm transition">&larr; Back to dashboard</a>
 </div>
 
@@ -44,8 +44,7 @@
                     Deploy
                 </a>
                 {{end}}
-                <button hx-delete="/apps/{{.App.ID}}" hx-confirm="Delete {{.App.Name}}? This cannot be undone."
-                    hx-on::after-request="if(event.detail.successful) window.location.href='/dashboard'"
+                <button onclick="confirmDeleteApp()"
                     class="inline-flex items-center gap-2 rounded-xl px-2 py-2 text-sm text-muted transition hover:text-pink-accent cursor-pointer">
                     Delete
                 </button>
@@ -162,8 +161,7 @@
                     </div>
                     <p class="max-w-2xl text-sm text-muted">Pushes to <span class="font-medium text-body">{{.App.Branch}}</span> trigger deployments for this app.</p>
                 </div>
-                <button hx-post="/api/github/disconnect?app_id={{.App.ID}}" hx-confirm="Disconnect GitHub? Auto-deploy will be disabled."
-                    hx-on::after-request="if(event.detail.successful) window.location.reload()"
+                <button onclick="confirmDisconnectGitHub()"
                     class="inline-flex items-center gap-2 rounded-xl border border-hairline bg-canvas-dark/40 px-4 py-2.5 text-sm text-body transition hover:text-pink-accent cursor-pointer">
                     Disconnect GitHub
                 </button>
@@ -204,8 +202,8 @@
                     </button>
                 </form>
 
-                <form hx-post="/apps/{{.App.ID}}/rollback" hx-target="#deploy-history" hx-swap="afterbegin">
-                    <button type="submit" hx-confirm="Rollback to last successful deploy?"
+                <form id="rollback-form" hx-post="/apps/{{.App.ID}}/rollback" hx-target="#deploy-history" hx-swap="afterbegin">
+                    <button type="button" onclick="confirmRollback()"
                         class="inline-flex items-center gap-2 rounded-xl border border-hairline bg-canvas-dark/40 px-4 py-2.5 text-sm text-body transition hover:bg-canvas-dark/70 cursor-pointer">
                         Rollback
                     </button>
@@ -385,6 +383,32 @@ async function restartAdoptedApp() {
     }
     showToast({ type: 'success', title: 'Container restarting' });
     setTimeout(function() { window.location.reload(); }, 1500);
+}
+
+async function confirmDeleteApp() {
+    try { await showConfirm({ title: 'Delete app', message: 'Delete {{.App.Name}}? This cannot be undone.', confirmText: 'Delete', variant: 'danger' }); } catch { return; }
+    const res = await fetch('/api/apps/{{.App.ID}}', { method: 'DELETE' });
+    if (res.ok) {
+        showToast({ type: 'success', title: 'App deleted' });
+        window.location.href = '/dashboard';
+    } else {
+        showToast({ type: 'error', title: 'Delete failed', message: 'Could not delete the app.' });
+    }
+}
+
+async function confirmDisconnectGitHub() {
+    try { await showConfirm({ title: 'Disconnect GitHub', message: 'Auto-deploy will be disabled for this app.', confirmText: 'Disconnect', variant: 'warning' }); } catch { return; }
+    const res = await fetch('/api/github/disconnect?app_id={{.App.ID}}', { method: 'POST' });
+    if (res.ok) {
+        showToast({ type: 'success', title: 'Disconnected' });
+        window.location.reload();
+    } else {
+        showToast({ type: 'error', title: 'Disconnect failed' });
+    }
+}
+async function confirmRollback() {
+    try { await showConfirm({ title: 'Rollback', message: 'Rollback to last successful deploy?', confirmText: 'Rollback', variant: 'warning' }); } catch { return; }
+    htmx.trigger('#rollback-form', 'submit');
 }
 </script>
 {{end}}

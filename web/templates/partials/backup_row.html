@@ -1,5 +1,5 @@
 {{define "backup_row.html"}}
-<tr id="backup-{{.ID}}" class="border-b border-hairline/50 hover:bg-ink/50 transition">
+<tr id="backup-{{.ID}}" class="border-b border-hairline/50 hover:bg-ink/50 transition" xmlns:hx-on="http://www.w3.org/1999/xhtml">
     <td class="px-4 py-3 font-medium text-body font-mono text-xs">{{.Filename}}</td>
     <td class="px-4 py-3 text-muted">{{formatSize .Size}}</td>
     <td class="px-4 py-3 text-muted">{{timeAgo .CreatedAt}}</td>
@@ -9,15 +9,11 @@
                class="text-xs text-violet hover:text-violet/80 transition uppercase tracking-wider font-bold">
                 Download
             </a>
-            <button hx-post="/api/backups/{{.ID}}/restore"
-                hx-on::click="event.preventDefault(); event.stopPropagation(); restoreBackup{{.ID}}()"
+            <button onclick="restoreBackup{{.ID}}()"
                 class="text-xs text-lime-accent hover:text-lime-accent/80 transition uppercase tracking-wider font-bold cursor-pointer">
                 Restore
             </button>
-            <button hx-delete="/api/backups/{{.ID}}"
-                hx-on::click="event.preventDefault(); event.stopPropagation(); deleteBackup{{.ID}}()"
-                hx-target="#backup-{{.ID}}"
-                hx-swap="outerHTML"
+            <button onclick="deleteBackup{{.ID}}()"
                 class="text-xs text-muted hover:text-pink-accent transition uppercase tracking-wider font-bold cursor-pointer">
                 Delete
             </button>
