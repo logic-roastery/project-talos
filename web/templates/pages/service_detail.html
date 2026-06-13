@@ -202,6 +202,45 @@
                 </div>
             </div>
 
+            {{if eq .Service.Type "garage"}}
+            <!-- Buckets -->
+            <div class="bg-night border border-hairline rounded-xl overflow-hidden">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 py-4 border-b border-hairline">
+                    <div class="flex items-center gap-2">
+                        <svg class="h-4 w-4 text-muted" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                        </svg>
+                        <div>
+                            <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Buckets</h2>
+                            <p class="mt-0.5 text-xs text-faint">Manage S3 buckets for this Garage instance.</p>
+                        </div>
+                    </div>
+                    <button onclick="loadBuckets()" class="inline-flex min-h-9 items-center gap-2 self-start rounded-lg border border-hairline bg-hairline px-3 py-2 text-sm text-muted transition hover:text-body cursor-pointer shrink-0">
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        Load buckets
+                    </button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div class="flex gap-2">
+                        <input id="new-bucket-name" type="text" placeholder="my-bucket"
+                            class="flex-1 rounded-lg border border-hairline bg-canvas-dark/60 px-3 py-2 text-sm text-body placeholder:text-faint focus:outline-none focus:ring-1 focus:ring-lime-accent/40 focus:border-lime-accent/40">
+                        <button onclick="createBucket()"
+                            class="inline-flex min-h-9 items-center gap-2 rounded-lg border border-lime-accent/30 bg-lime-accent/10 px-3 py-2 text-sm text-lime-accent transition hover:bg-lime-accent/20 cursor-pointer shrink-0">
+                            Create
+                        </button>
+                    </div>
+                    <div id="bucket-list">
+                        <div class="rounded-lg border border-dashed border-hairline px-4 py-5 text-sm text-muted">
+                            Click "Load buckets" to view and manage S3 buckets.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {{end}}
+
             <!-- Linked Apps -->
             <div class="bg-night border border-hairline rounded-xl overflow-hidden">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 py-4 border-b border-hairline">
@@ -375,6 +414,57 @@ function renderCredentials(creds) {
     }
 }
 
+
+async function loadBuckets() {
+    const res = await fetch('/api/services/{{.Service.ID}}/buckets');
+    if (!res.ok) { const err = await res.json().catch(() => ({})); alert(err.error || 'Failed to load buckets'); return; }
+    const buckets = await res.json();
+    const container = document.getElementById('bucket-list');
+    if (!buckets || buckets.length === 0) {
+        container.innerHTML = '<div class="rounded-lg border border-dashed border-hairline px-4 py-5 text-sm text-muted">No buckets found. Create one above.</div>';
+        return;
+    }
+    container.innerHTML = '';
+    for (const b of buckets) {
+        const alias = b.globalAliases && b.globalAliases.length ? b.globalAliases[0] : b.id.substring(0, 12);
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between gap-3 rounded-lg border border-hairline/80 bg-canvas-dark/40 px-4 py-3';
+        row.innerHTML = '<div class="min-w-0">' +
+            '<span class="block text-sm text-body font-mono truncate">' + escapeHTML(alias) + '</span>' +
+            '<span class="text-xs text-muted">ID: ' + escapeHTML(b.id.substring(0, 16)) + '…</span>' +
+            '</div>' +
+            '<button onclick="deleteBucket(\'' + escapeHTML(b.id) + '\', \'' + escapeHTML(alias) + '\')" ' +
+            'class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted transition hover:bg-red-500/10 hover:text-red-400 cursor-pointer" aria-label="Delete bucket">' +
+            '<svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">' +
+            '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>' +
+            '</svg></button>';
+        container.appendChild(row);
+    }
+}
+
+async function createBucket() {
+    const input = document.getElementById('new-bucket-name');
+    const name = input.value.trim();
+    if (!name) { alert('Enter a bucket name'); return; }
+    const res = await fetch('/api/services/{{.Service.ID}}/buckets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name }),
+    });
+    if (!res.ok) { const err = await res.json().catch(() => ({})); alert(err.error || 'Failed to create bucket'); return; }
+    input.value = '';
+    loadBuckets();
+}
+
+async function deleteBucket(bucketId, alias) {
+    if (!confirm('Delete bucket "' + alias + '"? This cannot be undone.')) return;
+    const res = await fetch('/api/services/{{.Service.ID}}/buckets/' + encodeURIComponent(bucketId), {
+        method: 'DELETE',
+    });
+    if (!res.ok) { const err = await res.json().catch(() => ({})); alert(err.error || 'Failed to delete bucket'); return; }
+    loadBuckets();
+}
+
 function buildConnectionDetails(creds) {
     const type = '{{.Service.Type}}';
     const summary = [];
@@ -402,6 +492,7 @@ function buildConnectionDetails(creds) {
         if (creds.endpoint) summary.push({ label: 'Endpoint', value: creds.endpoint });
         if (creds.bucket) summary.push({ label: 'Bucket', value: creds.bucket });
         if (creds.region) summary.push({ label: 'Region', value: creds.region });
+        if (creds.admin_token) summary.push({ label: 'Admin Token', value: creds.admin_token });
         connectionString = creds.endpoint;
     }
 

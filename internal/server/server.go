@@ -108,6 +108,9 @@ func New(
 			r.Post("/{serviceID}/stop", svcH.Stop)
 			r.Post("/{serviceID}/start", svcH.Start)
 			r.Get("/{serviceID}/credentials", svcH.GetCredentials)
+			r.Get("/{serviceID}/buckets", svcH.ListBuckets)
+			r.Post("/{serviceID}/buckets", svcH.CreateBucket)
+			r.Delete("/{serviceID}/buckets/{bucketID}", svcH.DeleteBucket)
 		})
 
 		// Backup management

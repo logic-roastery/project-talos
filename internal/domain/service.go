@@ -6,10 +6,11 @@ import "time"
 type ServiceType string
 
 const (
-	ServicePostgres ServiceType = "postgres"
-	ServiceMySQL    ServiceType = "mysql"
-	ServiceRedis    ServiceType = "redis"
-	ServiceGarage   ServiceType = "garage"
+	ServicePostgres    ServiceType = "postgres"
+	ServiceMySQL       ServiceType = "mysql"
+	ServiceRedis       ServiceType = "redis"
+	ServiceGarage      ServiceType = "garage"
+	ServiceGarageWebUI ServiceType = "garage_webui"
 )
 
 // ServiceStatus represents the lifecycle state of a service.
@@ -93,11 +94,21 @@ type RedisCredentials struct {
 }
 
 type GarageCredentials struct {
-	Endpoint  string `json:"endpoint"`
-	Region    string `json:"region"`
-	AccessKey string `json:"access_key"`
-	SecretKey string `json:"secret_key"`
-	Bucket    string `json:"bucket"`
+	Endpoint   string `json:"endpoint"`
+	Region     string `json:"region"`
+	AccessKey  string `json:"access_key"`
+	SecretKey  string `json:"secret_key"`
+	Bucket     string `json:"bucket"`
+	AdminToken string `json:"admin_token"`
+	RPCSecret  string `json:"rpc_secret"`
+}
+
+type GarageWebUICredentials struct {
+	AdminAPIURL string `json:"admin_api_url"`
+	S3Endpoint  string `json:"s3_endpoint"`
+	AdminKey    string `json:"admin_key"`
+	Username    string `json:"username"`
+	Password    string `json:"password"`
 }
 
 // ServiceDefinition contains the built-in configuration for each service type.
@@ -134,9 +145,16 @@ var ServiceDefinitions = map[ServiceType]ServiceDefinition{
 	},
 	ServiceGarage: {
 		Type:         ServiceGarage,
-		DefaultImage: "dxflrs/garage:v1.0",
+		DefaultImage: "dxflrs/garage:v2.0.0",
 		Port:         3900,
-		VolumePath:   "/data",
+		VolumePath:   "/var/lib/garage",
 		HealthCmd:    []string{"CMD-SHELL", "wget -qO- http://localhost:3900/health || exit 1"},
+	},
+	ServiceGarageWebUI: {
+		Type:         ServiceGarageWebUI,
+		DefaultImage: "khairul169/garage-webui:latest",
+		Port:         3909,
+		VolumePath:   "",
+		HealthCmd:    []string{"CMD-SHELL", "wget -qO- http://localhost:3909/ || exit 1"},
 	},
 }

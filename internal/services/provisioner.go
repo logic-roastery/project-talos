@@ -61,6 +61,17 @@ func (p *Provisioner) ProvisionService(ctx context.Context, svc *domain.Service,
 		return fmt.Errorf("create volume dir: %w", err)
 	}
 
+	// Generate garage.toml and create meta/data subdirs for Garage
+	if svc.Type == domain.ServiceGarage {
+		os.MkdirAll(filepath.Join(volHost, "meta"), 0755)
+		os.MkdirAll(filepath.Join(volHost, "data"), 0755)
+		gc := creds.(*domain.GarageCredentials)
+		configContent := generateGarageConfig(svc.Name, gc)
+		if err := os.WriteFile(filepath.Join(volHost, "garage.toml"), []byte(configContent), 0644); err != nil {
+			return fmt.Errorf("write garage config: %w", err)
+		}
+	}
+
 	// Build container config based on service type
 	containerCfg, err := p.buildContainerConfig(svc, creds, volHost)
 	if err != nil {
@@ -90,6 +101,26 @@ func (p *Provisioner) ProvisionService(ctx context.Context, svc *domain.Service,
 	svc.Status = domain.ServiceStatusActive
 	if err := p.services.UpdateService(ctx, svc); err != nil {
 		return fmt.Errorf("update service: %w", err)
+	}
+
+	// Auto-create a default bucket for Garage services
+	if svc.Type == domain.ServiceGarage {
+		gc, ok := creds.(*domain.GarageCredentials)
+		if ok && gc.Bucket == "" {
+			garageClient := NewGarageClient(
+				fmt.Sprintf("http://%s:3903", containerName),
+				gc.AdminToken,
+			)
+			if bucket, err := garageClient.CreateBucket(ctx, svc.Name); err == nil && len(bucket.GlobalAliases) > 0 {
+				gc.Bucket = bucket.GlobalAliases[0]
+				if encErr := p.EncryptCredentials(svc, gc); encErr == nil {
+					p.services.UpdateService(ctx, svc)
+				}
+				p.logger.Info("auto-created default bucket", "service", svc.Name, "bucket", gc.Bucket)
+			} else if err != nil {
+				p.logger.Warn("auto-create bucket failed (non-fatal)", "service", svc.Name, "error", err)
+			}
+		}
 	}
 
 	p.logger.Info("service provisioned", "name", svc.Name, "type", svc.Type, "id", svc.ID)
@@ -135,6 +166,15 @@ func (p *Provisioner) StartService(ctx context.Context, svc *domain.Service) err
 	}
 
 	volHost := filepath.Join(p.dataDir, "services", svc.Name)
+
+	// Regenerate garage.toml if needed
+	if svc.Type == domain.ServiceGarage {
+		var gc domain.GarageCredentials
+		json.Unmarshal([]byte(credJSON), &gc)
+		configContent := generateGarageConfig(svc.Name, &gc)
+		os.WriteFile(filepath.Join(volHost, "garage.toml"), []byte(configContent), 0644)
+	}
+
 	containerCfg, err := p.buildContainerConfigFromJSON(svc, credJSON, volHost)
 	if err != nil {
 		return fmt.Errorf("build config: %w", err)
@@ -162,6 +202,20 @@ func (p *Provisioner) DecryptCredentials(svc *domain.Service, target interface{}
 		return fmt.Errorf("decrypt: %w", err)
 	}
 	return json.Unmarshal([]byte(credJSON), target)
+}
+
+// EncryptCredentials marshals and encrypts credentials, storing them on the service.
+func (p *Provisioner) EncryptCredentials(svc *domain.Service, creds interface{}) error {
+	credJSON, err := json.Marshal(creds)
+	if err != nil {
+		return fmt.Errorf("marshal creds: %w", err)
+	}
+	encrypted, err := crypto.Encrypt(string(credJSON), p.encKey)
+	if err != nil {
+		return fmt.Errorf("encrypt: %w", err)
+	}
+	svc.Credentials = encrypted
+	return nil
 }
 
 func (p *Provisioner) buildContainerConfig(svc *domain.Service, creds interface{}, volHost string) (docker.ContainerConfig, error) {
@@ -230,9 +284,37 @@ func (p *Provisioner) buildContainerConfigFromJSON(svc *domain.Service, credJSON
 		}
 
 	case domain.ServiceGarage:
-		cfg.Volumes = []string{volHost + ":" + def.VolumePath}
+		var gc domain.GarageCredentials
+		json.Unmarshal([]byte(credJSON), &gc)
+		cfg.Env = []string{
+			"GARAGE_CONFIG_FILE=/etc/garage.toml",
+		}
+		cfg.Volumes = []string{
+			volHost + "/garage.toml:/etc/garage.toml:ro",
+			volHost + "/meta:/var/lib/garage/meta",
+			volHost + "/data:/var/lib/garage/data",
+		}
+		cfg.InternalPort = 3900 // S3 API
 		cfg.HealthCheck = &container.HealthConfig{
-			Test:     def.HealthCmd,
+			Test:     []string{"CMD-SHELL", "wget -qO- http://localhost:3900/health || exit 1"},
+			Interval: 10 * time.Second,
+			Timeout:  5 * time.Second,
+			Retries:  5,
+		}
+
+	case domain.ServiceGarageWebUI:
+		var wc domain.GarageWebUICredentials
+		json.Unmarshal([]byte(credJSON), &wc)
+		cfg.Env = []string{
+			"API_BASE_URL=" + wc.AdminAPIURL,
+			"API_ADMIN_KEY=" + wc.AdminKey,
+			"S3_ENDPOINT_URL=" + wc.S3Endpoint,
+		}
+		if wc.Username != "" {
+			cfg.Env = append(cfg.Env, "AUTH_USER_PASS="+wc.Username+":"+wc.Password)
+		}
+		cfg.HealthCheck = &container.HealthConfig{
+			Test:     []string{"CMD-SHELL", "wget -qO- http://localhost:3909/ || exit 1"},
 			Interval: 10 * time.Second,
 			Timeout:  5 * time.Second,
 			Retries:  5,
@@ -265,6 +347,26 @@ func GenerateAccessKey(length int) string {
 		result[i] = chars[n.Int64()]
 	}
 	return string(result)
+}
+
+func generateGarageConfig(svcName string, creds *domain.GarageCredentials) string {
+	return fmt.Sprintf(`metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "sqlite"
+replication_factor = 1
+
+rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "127.0.0.1:3901"
+rpc_secret = "%s"
+
+[s3_api]
+s3_region = "%s"
+api_bind_addr = "[::]:3900"
+
+[admin]
+api_bind_addr = "[::]:3903"
+admin_token = "%s"
+`, creds.RPCSecret, creds.Region, creds.AdminToken)
 }
 
 func GenerateServiceName(svcType domain.ServiceType) string {
@@ -308,11 +410,21 @@ func DefaultCredentials(svcType domain.ServiceType, containerName string) interf
 		}
 	case domain.ServiceGarage:
 		return domain.GarageCredentials{
-			Endpoint:  fmt.Sprintf("http://%s:3900", containerName),
-			Region:    "garage",
-			AccessKey: GenerateAccessKey(20),
-			SecretKey: GeneratePassword(40),
-			Bucket:    "",
+			Endpoint:   fmt.Sprintf("http://%s:3900", containerName),
+			Region:     "garage",
+			AccessKey:  GenerateAccessKey(20),
+			SecretKey:  GeneratePassword(40),
+			Bucket:     "",
+			AdminToken: GeneratePassword(32),
+			RPCSecret:  GeneratePassword(32),
+		}
+	case domain.ServiceGarageWebUI:
+		return domain.GarageWebUICredentials{
+			AdminAPIURL: fmt.Sprintf("http://talos-svc-%s:3903", containerName),
+			S3Endpoint:  fmt.Sprintf("http://talos-svc-%s:3900", containerName),
+			AdminKey:    "",
+			Username:    "admin",
+			Password:    GeneratePassword(16),
 		}
 	default:
 		return nil
@@ -365,6 +477,15 @@ func FormatEnvVars(svc *domain.Service, creds interface{}, alias string) []strin
 			fmt.Sprintf("%s_ACCESS_KEY=%s", prefix, c.AccessKey),
 			fmt.Sprintf("%s_SECRET_KEY=%s", prefix, c.SecretKey),
 			fmt.Sprintf("%s_BUCKET=%s", prefix, c.Bucket),
+			fmt.Sprintf("%s_ADMIN_TOKEN=%s", prefix, c.AdminToken),
+		}
+	case domain.ServiceGarageWebUI:
+		c := creds.(domain.GarageWebUICredentials)
+		vars = []string{
+			fmt.Sprintf("%s_ADMIN_API_URL=%s", prefix, c.AdminAPIURL),
+			fmt.Sprintf("%s_S3_ENDPOINT=%s", prefix, c.S3Endpoint),
+			fmt.Sprintf("%s_USERNAME=%s", prefix, c.Username),
+			fmt.Sprintf("%s_PASSWORD=%s", prefix, c.Password),
 		}
 	}
 
