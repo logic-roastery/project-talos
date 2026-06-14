@@ -134,11 +134,19 @@ func main() {
 	provisioner := services.NewProvisioner(db, dockerClient, dataDir, cfg.Docker.HostDataRoot, encKey, logger)
 	webhook := github.NewWebhookHandler(cfg.GitHub.WebhookSecret)
 
-	// GitHub App client — initialized lazily by the handler on first use.
-	// This avoids a startup race when the private key file is mounted after boot.
+	// Initialize GitHub App client and builder.
+	// The client may also be lazily initialized by the handler if this fails.
 	var ghClient *github.AppClient
+	if cfg.GitHub.AppID != 0 {
+		var ghErr error
+		ghClient, ghErr = github.NewAppClient(cfg.GitHub)
+		if ghErr != nil {
+			logger.Warn("github app client not available at startup (will retry lazily)", "error", ghErr)
+		} else {
+			logger.Info("github app configured", "app_id", cfg.GitHub.AppID)
+		}
+	}
 
-	// Initialize builder for talos_build mode (optional)
 	var buildr *builder.Builder
 	if ghClient != nil {
 		buildr = builder.NewBuilder(ghClient, dockerClient, logger, dataDir)
