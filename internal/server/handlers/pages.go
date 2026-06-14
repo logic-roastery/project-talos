@@ -584,14 +584,25 @@ func (h *PageHandler) ServiceDetailPage(w http.ResponseWriter, r *http.Request) 
 
 	linkedApps, _ := h.services.GetLinkedApps(r.Context(), id)
 
+	// Look up WebUI sidecar for Garage services
+	var sidecar *domain.Service
+	if svc.Type == domain.ServiceGarage {
+		webUISvc, err := h.services.GetServiceByName(r.Context(), svc.Name+"-webui")
+		if err == nil {
+			sidecar = webUISvc
+		}
+	}
+
 	data := struct {
 		User       *web.UserData
 		Service    *domain.Service
 		LinkedApps []*domain.AppService
+		Sidecar    *domain.Service
 	}{
 		User:       h.userData(r),
 		Service:    svc,
 		LinkedApps: linkedApps,
+		Sidecar:    sidecar,
 	}
 	h.renderer.Render(w, "service_detail.html", svc.Name, h.userData(r), data)
 }

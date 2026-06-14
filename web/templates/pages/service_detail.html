@@ -238,6 +238,33 @@
             </div>
             {{end}}
 
+            {{if .Sidecar}}
+            <!-- Web UI -->
+            <div class="bg-night border border-hairline rounded-xl overflow-hidden">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 py-4 border-b border-hairline">
+                    <div class="flex items-center gap-2">
+                        <svg class="h-4 w-4 text-muted" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/>
+                        </svg>
+                        <div>
+                            <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Web UI</h2>
+                            <p class="mt-0.5 text-xs text-faint">Garage management dashboard.</p>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs uppercase tracking-[0.16em] {{statusBg .Sidecar.Status}} {{statusText .Sidecar.Status}} {{statusBorder .Sidecar.Status}}">
+                        <span class="h-1.5 w-1.5 rounded-full {{statusDot .Sidecar.Status}}"></span>
+                        {{.Sidecar.Status}}
+                    </span>
+                </div>
+                <div class="p-5">
+                    <div class="flex items-center gap-3 rounded-lg border border-hairline bg-canvas-dark/40 px-4 py-3">
+                        <code class="text-sm text-violet font-mono">http://{{.Service.Name}}:3909</code>
+                        <span class="text-xs text-muted">Internal only — add a Traefik route to expose publicly.</span>
+                    </div>
+                </div>
+            </div>
+            {{end}}
+
             <!-- Linked Apps -->
             <div class="bg-night border border-hairline rounded-xl overflow-hidden">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 py-4 border-b border-hairline">
@@ -582,5 +609,42 @@ async function confirmDeleteService() {
         showToast({ type: 'error', title: 'Delete failed', message: 'Could not delete the service.' });
     }
 }
+
+// Poll for provisional status updates (pending/provisioning → active/error)
+(function() {
+    var statusEl = document.querySelector('[class*="rounded-full"][class*="uppercase"]') ||
+                   document.querySelector('.inline-flex.items-center.gap-1\\.5.rounded-full');
+    if (!statusEl) return;
+    var status = statusEl.textContent.trim();
+    if (status !== 'pending' && status !== 'provisioning') return;
+
+    var pollCount = 0;
+    var maxPolls = 90; // ~3 minutes at 2s intervals
+    var pollTimer = setInterval(async function() {
+        pollCount++;
+        try {
+            var res = await fetch('/api/services/{{.Service.ID}}');
+            if (!res.ok) return;
+            var svc = await res.json();
+            if (svc.status === 'active') {
+                clearInterval(pollTimer);
+                showToast({ type: 'success', title: 'Service ready', message: svc.name + ' is now running.' });
+                setTimeout(function() { window.location.reload(); }, 1000);
+            } else if (svc.status === 'error') {
+                clearInterval(pollTimer);
+                showToast({ type: 'error', title: 'Provision failed', message: 'Check the container runtime.' });
+                setTimeout(function() { window.location.reload(); }, 2000);
+            } else if (svc.status === 'stopped') {
+                clearInterval(pollTimer);
+                window.location.reload();
+            }
+        } catch(e) {}
+        if (pollCount >= maxPolls) {
+            clearInterval(pollTimer);
+            showToast({ type: 'warning', title: 'Still provisioning', message: 'Taking longer than expected. The page will refresh soon.' });
+            setTimeout(function() { window.location.reload(); }, 5000);
+        }
+    }, 2000);
+})();
 </script>
 {{end}}
