@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -582,13 +584,15 @@ func buildCredsFromMap(svcType domain.ServiceType, m map[string]interface{}, con
 		}
 		return c
 	case domain.ServiceGarage:
+		rpcSecret := make([]byte, 32)
+		rand.Read(rpcSecret)
 		c := &domain.GarageCredentials{
 			Endpoint:   fmt.Sprintf("http://%s:3900", containerName),
 			Region:     "garage",
 			AccessKey:  services.GenerateAccessKey(20),
 			SecretKey:  services.GeneratePassword(40),
 			AdminToken: services.GeneratePassword(32),
-			RPCSecret:  services.GeneratePassword(32),
+			RPCSecret:  hex.EncodeToString(rpcSecret),
 		}
 		if v, ok := m["region"].(string); ok && v != "" {
 			c.Region = v
