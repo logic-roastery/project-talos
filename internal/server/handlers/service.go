@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,10 +20,11 @@ import (
 type ServiceHandler struct {
 	services    store.ServiceStore
 	provisioner *services.Provisioner
+	logger      *slog.Logger
 }
 
-func NewServiceHandler(services store.ServiceStore, provisioner *services.Provisioner) *ServiceHandler {
-	return &ServiceHandler{services: services, provisioner: provisioner}
+func NewServiceHandler(services store.ServiceStore, provisioner *services.Provisioner, logger *slog.Logger) *ServiceHandler {
+	return &ServiceHandler{services: services, provisioner: provisioner, logger: logger}
 }
 
 // --- Service CRUD ---
@@ -102,36 +105,42 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.provisioner.ProvisionService(r.Context(), svc, creds); err != nil {
-		writeError(w, http.StatusInternalServerError, fmt.Sprintf("provision failed: %v", err))
-		return
-	}
+	// Provision asynchronously — return 202 immediately.
+	// The service detail page polls GET /api/services/{id} for status updates.
+	go func() {
+		ctx := context.Background()
+		if err := h.provisioner.ProvisionService(ctx, svc, creds); err != nil {
+			h.logger.Error("async provision failed", "service", svc.Name, "error", err)
+		}
 
-	// Auto-provision Garage Web UI sidecar
-	if req.Type == domain.ServiceGarage {
-		garageCreds := creds.(*domain.GarageCredentials)
-		webUICreds := domain.GarageWebUICredentials{
-			AdminAPIURL: fmt.Sprintf("http://talos-svc-%s:3903", req.Name),
-			S3Endpoint:  fmt.Sprintf("http://talos-svc-%s:3900", req.Name),
-			AdminKey:    garageCreds.AdminToken,
-			Username:    "admin",
-			Password:    services.GeneratePassword(16),
+		// Auto-provision Garage Web UI sidecar
+		if req.Type == domain.ServiceGarage {
+			garageCreds := creds.(*domain.GarageCredentials)
+			webUICreds := domain.GarageWebUICredentials{
+				AdminAPIURL: fmt.Sprintf("http://talos-svc-%s:3903", req.Name),
+				S3Endpoint:  fmt.Sprintf("http://talos-svc-%s:3900", req.Name),
+				AdminKey:    garageCreds.AdminToken,
+				Username:    "admin",
+				Password:    services.GeneratePassword(16),
+			}
+			webUIDef := domain.ServiceDefinitions[domain.ServiceGarageWebUI]
+			webUISvc := &domain.Service{
+				Name:         req.Name + "-webui",
+				Type:         domain.ServiceGarageWebUI,
+				ImageRef:     webUIDef.DefaultImage,
+				Status:       domain.ServiceStatusPending,
+				InternalPort: webUIDef.Port,
+			}
+			if err := h.services.CreateService(ctx, webUISvc); err == nil {
+				if err := h.provisioner.ProvisionService(ctx, webUISvc, webUICreds); err != nil {
+					h.logger.Error("async webui provision failed", "service", webUISvc.Name, "error", err)
+				}
+			}
 		}
-		webUIDef := domain.ServiceDefinitions[domain.ServiceGarageWebUI]
-		webUISvc := &domain.Service{
-			Name:         req.Name + "-webui",
-			Type:         domain.ServiceGarageWebUI,
-			ImageRef:     webUIDef.DefaultImage,
-			Status:       domain.ServiceStatusPending,
-			InternalPort: webUIDef.Port,
-		}
-		if err := h.services.CreateService(r.Context(), webUISvc); err == nil {
-			h.provisioner.ProvisionService(r.Context(), webUISvc, webUICreds)
-		}
-	}
+	}()
 
 	svc.Credentials = ""
-	writeJSON(w, http.StatusCreated, svc)
+	writeJSON(w, http.StatusAccepted, svc)
 }
 
 func (h *ServiceHandler) Delete(w http.ResponseWriter, r *http.Request) {

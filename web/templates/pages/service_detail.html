@@ -582,5 +582,42 @@ async function confirmDeleteService() {
         showToast({ type: 'error', title: 'Delete failed', message: 'Could not delete the service.' });
     }
 }
+
+// Poll for provisional status updates (pending/provisioning → active/error)
+(function() {
+    var statusEl = document.querySelector('[class*="rounded-full"][class*="uppercase"]') ||
+                   document.querySelector('.inline-flex.items-center.gap-1\\.5.rounded-full');
+    if (!statusEl) return;
+    var status = statusEl.textContent.trim();
+    if (status !== 'pending' && status !== 'provisioning') return;
+
+    var pollCount = 0;
+    var maxPolls = 90; // ~3 minutes at 2s intervals
+    var pollTimer = setInterval(async function() {
+        pollCount++;
+        try {
+            var res = await fetch('/api/services/{{.Service.ID}}');
+            if (!res.ok) return;
+            var svc = await res.json();
+            if (svc.status === 'active') {
+                clearInterval(pollTimer);
+                showToast({ type: 'success', title: 'Service ready', message: svc.name + ' is now running.' });
+                setTimeout(function() { window.location.reload(); }, 1000);
+            } else if (svc.status === 'error') {
+                clearInterval(pollTimer);
+                showToast({ type: 'error', title: 'Provision failed', message: 'Check the container runtime.' });
+                setTimeout(function() { window.location.reload(); }, 2000);
+            } else if (svc.status === 'stopped') {
+                clearInterval(pollTimer);
+                window.location.reload();
+            }
+        } catch(e) {}
+        if (pollCount >= maxPolls) {
+            clearInterval(pollTimer);
+            showToast({ type: 'warning', title: 'Still provisioning', message: 'Taking longer than expected. The page will refresh soon.' });
+            setTimeout(function() { window.location.reload(); }, 5000);
+        }
+    }, 2000);
+})();
 </script>
 {{end}}

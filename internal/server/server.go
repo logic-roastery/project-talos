@@ -68,7 +68,7 @@ func New(
 		r.Get("/api/github/debug", ghH.Debug)
 
 		appH := handlers.NewAppHandler(apps, deploys, dockerClient, proxy, serverHost, serverDomain, serverProxyMode)
-		svcH := handlers.NewServiceHandler(svcStore, provisioner)
+		svcH := handlers.NewServiceHandler(svcStore, provisioner, logger)
 		r.Route("/api/apps", func(r chi.Router) {
 			r.Get("/", appH.List)
 			r.Post("/", appH.Create)
