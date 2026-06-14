@@ -32,6 +32,7 @@ type GitHubHandler struct {
 	mu              sync.Mutex
 	ghClient        *github.AppClient
 	lastInitAttempt time.Time
+	onClientReady   func(*github.AppClient) // called once when client is lazily initialized
 }
 
 func NewGitHubHandler(apps store.AppStore, ghClient *github.AppClient, cfg config.GitHubConfig, renderer *web.Renderer, host, domain string, logger *slog.Logger) *GitHubHandler {
@@ -75,7 +76,15 @@ func (h *GitHubHandler) getClient() *github.AppClient {
 	}
 	h.ghClient = client
 	h.logger.Info("github app client initialized", "app_id", h.cfg.AppID)
+	if h.onClientReady != nil {
+		h.onClientReady(client)
+	}
 	return h.ghClient
+}
+
+// SetOnClientReady registers a callback that fires once when the client is lazily initialized.
+func (h *GitHubHandler) SetOnClientReady(fn func(*github.AppClient)) {
+	h.onClientReady = fn
 }
 
 // StartInstall redirects the user to the GitHub App installation page.

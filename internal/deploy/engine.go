@@ -10,6 +10,7 @@ import (
 
 	"github.com/logic-roastery/project-talos/internal/builder"
 	"github.com/logic-roastery/project-talos/internal/domain"
+	"github.com/logic-roastery/project-talos/internal/github"
 	"github.com/logic-roastery/project-talos/internal/proxy/traefik"
 	"github.com/logic-roastery/project-talos/internal/runtime/docker"
 	"github.com/logic-roastery/project-talos/internal/services"
@@ -24,10 +25,12 @@ type Engine struct {
 	docker      *docker.Client
 	proxy       *traefik.Manager
 	builder     *builder.Builder
+	ghClient    *github.AppClient
+	dataDir     string
 	logger      *slog.Logger
 }
 
-func NewEngine(apps store.AppStore, deploys store.DeployStore, services store.ServiceStore, provisioner *services.Provisioner, docker *docker.Client, proxy *traefik.Manager, builder *builder.Builder, logger *slog.Logger) *Engine {
+func NewEngine(apps store.AppStore, deploys store.DeployStore, services store.ServiceStore, provisioner *services.Provisioner, docker *docker.Client, proxy *traefik.Manager, builder *builder.Builder, ghClient *github.AppClient, dataDir string, logger *slog.Logger) *Engine {
 	return &Engine{
 		apps:        apps,
 		deploys:     deploys,
@@ -36,8 +39,27 @@ func NewEngine(apps store.AppStore, deploys store.DeployStore, services store.Se
 		docker:      docker,
 		proxy:       proxy,
 		builder:     builder,
+		ghClient:    ghClient,
+		dataDir:     dataDir,
 		logger:      logger,
 	}
+}
+
+// getBuilder returns the builder, creating it lazily if ghClient became available after startup.
+func (e *Engine) getBuilder() *builder.Builder {
+	if e.builder != nil {
+		return e.builder
+	}
+	if e.ghClient != nil {
+		e.builder = builder.NewBuilder(e.ghClient, e.docker, e.logger, e.dataDir)
+		return e.builder
+	}
+	return nil
+}
+
+// SetGHClient updates the GitHub client reference, enabling lazy builder creation.
+func (e *Engine) SetGHClient(c *github.AppClient) {
+	e.ghClient = c
 }
 
 func (e *Engine) Deploy(ctx context.Context, appID int64, imageRef, commitSHA, branch, triggeredBy string) (*domain.Deploy, error) {
@@ -59,10 +81,11 @@ func (e *Engine) Deploy(ctx context.Context, appID int64, imageRef, commitSHA, b
 
 	// For talos_build mode, build the image locally if no imageRef provided
 	if app.BuildMode == domain.BuildModeTalosBuild && imageRef == "" {
-		if e.builder == nil {
+		b := e.getBuilder()
+		if b == nil {
 			return nil, fmt.Errorf("builder not configured for talos_build mode")
 		}
-		result, err := e.builder.CloneAndBuild(ctx, app, commitSHA)
+		result, err := b.CloneAndBuild(ctx, app, commitSHA)
 		if err != nil {
 			return nil, fmt.Errorf("clone and build: %w", err)
 		}
