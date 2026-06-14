@@ -461,10 +461,16 @@ func (h *PageHandler) TriggerDeploy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if imageRef == "" || branch == "" {
-		h.renderer.RenderStatus(w, http.StatusUnprocessableEntity, "flash.html",
-			map[string]string{"Color": "red", "Message": "Image ref and branch are required."})
-		return
+	// For talos_build mode, image_ref is optional (Talos builds automatically)
+	if app.BuildMode != domain.BuildModeTalosBuild {
+		if imageRef == "" {
+			h.renderer.RenderStatus(w, http.StatusUnprocessableEntity, "flash.html",
+				map[string]string{"Color": "red", "Message": "Image ref is required."})
+			return
+		}
+	}
+	if branch == "" {
+		branch = app.Branch
 	}
 
 	d, err := h.engine.Deploy(r.Context(), appID, imageRef, "", branch, "manual")

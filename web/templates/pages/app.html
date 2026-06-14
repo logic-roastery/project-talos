@@ -189,6 +189,14 @@
             <div class="space-y-4">
                 <form hx-post="/apps/{{.App.ID}}/deploy" hx-target="#deploy-history" hx-swap="afterbegin"
                     class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    {{if eq .App.BuildMode "talos_build"}}
+                    <div class="min-w-0 flex-1">
+                        <label class="block text-xs text-muted mb-1 uppercase tracking-[0.18em] font-medium">Branch</label>
+                        <input type="text" name="branch" value="{{.App.Branch}}" placeholder="main"
+                            class="w-full rounded-xl border border-hairline bg-canvas-dark px-3 py-2.5 text-sm text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
+                    </div>
+                    <input type="hidden" name="image_ref" value="">
+                    {{else}}
                     <div class="min-w-0 flex-1">
                         <label class="block text-xs text-muted mb-1 uppercase tracking-[0.18em] font-medium">Image Ref</label>
                         <input type="text" name="image_ref" required placeholder="user/app:tag"
@@ -196,6 +204,7 @@
                             class="w-full rounded-xl border border-hairline bg-canvas-dark px-3 py-2.5 text-sm text-body placeholder-muted focus:border-violet focus:ring-1 focus:ring-violet/30 focus:outline-none transition">
                     </div>
                     <input type="hidden" name="branch" value="{{.App.Branch}}">
+                    {{end}}
                     <button type="submit"
                         class="inline-flex items-center justify-center gap-2 rounded-xl bg-lime-accent px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.16em] text-midnight transition hover:bg-lime-accent/90 cursor-pointer whitespace-nowrap">
                         Deploy
