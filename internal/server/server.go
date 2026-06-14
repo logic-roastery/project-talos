@@ -56,6 +56,9 @@ func New(
 
 	authH := handlers.NewAuthHandler(authSvc)
 	ghH := handlers.NewGitHubHandler(apps, ghClient, ghCfg, renderer, serverHost, serverDomain, logger)
+	ghH.SetOnClientReady(func(c *github.AppClient) {
+		engine.SetGHClient(c)
+	})
 	r.Post("/api/auth/setup", authH.Setup)
 	r.Post("/api/auth/login", authH.Login)
 	r.Get("/api/auth/status", authH.SetupStatus)

@@ -152,7 +152,7 @@ func main() {
 		buildr = builder.NewBuilder(ghClient, dockerClient, logger, dataDir)
 	}
 
-	engine := deploy.NewEngine(db, db, db, provisioner, dockerClient, proxy, buildr, logger)
+	engine := deploy.NewEngine(db, db, db, provisioner, dockerClient, proxy, buildr, ghClient, dataDir, logger)
 
 	renderer, err := web.NewRenderer()
 	if err != nil {
