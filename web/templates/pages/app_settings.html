@@ -99,9 +99,9 @@
         {{if .Links}}
         <div class="space-y-2 mb-4">
             {{range .Links}}
-            <div class="flex items-center justify-between bg-ink rounded-md px-4 py-2" id="link-{{.ServiceID}}">
+            <div class="flex items-center justify-between bg-ink rounded-md px-4 py-2" data-link-id="{{.ServiceID}}">
                 <span class="text-sm">Service #{{.ServiceID}} → <code class="text-lime-accent">{{.Alias}}</code></span>
-                <button onclick="unlinkService{{.ServiceID}}()"
+                <button onclick="unlinkService(this)" data-id="{{.ServiceID}}"
                     class="text-muted hover:text-pink-accent text-xs cursor-pointer">✕ Unlink</button>
             </div>
             {{end}}
@@ -254,18 +254,19 @@ document.getElementById('settings-form')?.addEventListener('submit', async funct
     }
 });
 
-{{range .Links}}
-async function unlinkService{{.ServiceID}}() {
+
+async function unlinkService(btn) {
+    const id = btn.dataset.id;
     try { await showConfirm({ title: 'Unlink service', message: 'Remove the link to this service?', confirmText: 'Unlink', variant: 'warning' }); } catch { return; }
-    const res = await fetch('/api/apps/{{$.App.ID}}/services/{{.ServiceID}}', { method: 'DELETE' });
+    const res = await fetch('/api/apps/{{.App.ID}}/services/' + id, { method: 'DELETE' });
     if (res.ok) {
-        document.getElementById('link-{{.ServiceID}}').remove();
+        const row = document.querySelector('[data-link-id="' + CSS.escape(id) + '"]');
+        if (row) row.remove();
         showToast({ type: 'success', title: 'Service unlinked' });
     } else {
         showToast({ type: 'error', title: 'Unlink failed' });
     }
 }
-{{end}}
 
 
 
