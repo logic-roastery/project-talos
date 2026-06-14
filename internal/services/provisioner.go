@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -143,34 +144,47 @@ func (p *Provisioner) ProvisionService(ctx context.Context, svc *domain.Service,
 	if svc.Type == domain.ServiceGarage {
 		gc, ok := creds.(*domain.GarageCredentials)
 		if ok && gc.Bucket == "" {
-			garageClient := NewGarageClient(
-				fmt.Sprintf("http://%s:3903", containerName),
-				gc.AdminToken,
-			)
-			// Wait for Garage admin API to be ready (up to 30s)
-			if err := garageClient.WaitForReady(ctx, 30*time.Second); err != nil {
-				p.logger.Warn("garage admin API not ready, skipping auto-create bucket", "service", svc.Name, "error", err)
+			adminURL, urlErr := p.GarageAdminURL(ctx, svc)
+			if urlErr != nil {
+				p.logger.Warn("cannot resolve garage admin URL, skipping auto-create bucket", "service", svc.Name, "error", urlErr)
 			} else {
-				// Ensure the cluster layout is configured (required for fresh installs)
-				configured, err := garageClient.IsClusterConfigured(ctx)
-				if err != nil {
-					p.logger.Warn("could not check cluster status", "service", svc.Name, "error", err)
-				} else if !configured {
-					p.logger.Info("configuring single-node garage layout", "service", svc.Name)
-					if err := garageClient.ConfigureSingleNodeLayout(ctx); err != nil {
-						p.logger.Warn("failed to configure garage layout", "service", svc.Name, "error", err)
+				garageClient := NewGarageClient(adminURL, gc.AdminToken)
+				if err := garageClient.WaitForReady(ctx, 30*time.Second); err != nil {
+					p.logger.Warn("garage admin API not ready, skipping auto-create bucket", "service", svc.Name, "error", err)
+				} else {
+					// Ensure cluster layout is configured (required for fresh installs)
+					configured, err := garageClient.IsClusterConfigured(ctx)
+					if err != nil {
+						p.logger.Warn("could not check cluster status", "service", svc.Name, "error", err)
+					} else if !configured {
+						p.logger.Info("configuring single-node garage layout", "service", svc.Name)
+						if err := garageClient.ConfigureSingleNodeLayout(ctx); err != nil {
+							p.logger.Warn("failed to configure garage layout", "service", svc.Name, "error", err)
+						}
 					}
-					// Brief pause for the ring to become ready after layout apply
-					time.Sleep(2 * time.Second)
-				}
-				if bucket, err := garageClient.CreateBucket(ctx, svc.Name); err == nil && len(bucket.GlobalAliases) > 0 {
-					gc.Bucket = bucket.GlobalAliases[0]
-					if encErr := p.EncryptCredentials(svc, gc); encErr == nil {
-						p.services.UpdateService(ctx, svc)
+					// Retry CreateBucket — ring may still be stabilizing after layout apply
+					var bucket *GarageBucketInfo
+					for attempt := range 10 {
+						if attempt > 0 {
+							select {
+							case <-ctx.Done():
+								break
+							case <-time.After(2 * time.Second):
+							}
+						}
+						bucket, err = garageClient.CreateBucket(ctx, svc.Name)
+						if err == nil {
+							break
+						}
 					}
-					p.logger.Info("auto-created default bucket", "service", svc.Name, "bucket", gc.Bucket)
-				} else if err != nil {
-					p.logger.Warn("auto-create bucket failed (non-fatal)", "service", svc.Name, "error", err)
+					if bucket != nil && len(bucket.GlobalAliases) > 0 {
+						if encErr := p.EncryptCredentials(svc, gc); encErr == nil {
+							p.services.UpdateService(ctx, svc)
+						}
+						p.logger.Info("auto-created default bucket", "service", svc.Name, "bucket", gc.Bucket)
+					} else if err != nil {
+						p.logger.Warn("auto-create bucket failed (non-fatal)", "service", svc.Name, "error", err)
+					}
 				}
 			}
 		}
@@ -205,6 +219,34 @@ func (p *Provisioner) DeleteService(ctx context.Context, id int64) error {
 	p.docker.StopAndRemove(ctx, containerName)
 
 	return p.services.DeleteService(ctx, id)
+}
+
+// GarageAdminURL returns the URL to reach the Garage admin API for a service.
+// Uses Docker inspect to resolve the container IP so it works both in-container
+// (Docker DNS) and on bare-metal dev machines (no DNS).
+func (p *Provisioner) GarageAdminURL(ctx context.Context, svc *domain.Service) (string, error) {
+	containerName := fmt.Sprintf("talos-svc-%s", svc.Name)
+	addr := containerName // Docker DNS hostname, works when Talos runs inside Docker
+
+	// Try DNS resolution first (works inside Docker network)
+	conn, err := (&net.Dialer{Timeout: 1 * time.Second}).DialContext(ctx, "tcp", net.JoinHostPort(containerName, "3903"))
+	if err == nil {
+		conn.Close()
+		return fmt.Sprintf("http://%s:3903", containerName), nil
+	}
+
+	// DNS failed — fall back to Docker inspect for the IP (works locally and on server)
+	inspect, err := p.docker.Inspect(ctx, containerName)
+	if err != nil {
+		return "", fmt.Errorf("resolve garage admin address: %w", err)
+	}
+	for _, net := range inspect.NetworkSettings.Networks {
+		if !net.IPAddress.IsUnspecified() {
+			addr = net.IPAddress.String()
+			break
+		}
+	}
+	return fmt.Sprintf("http://%s:3903", addr), nil
 }
 
 // StartService starts a stopped service.

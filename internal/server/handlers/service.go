@@ -264,10 +264,12 @@ func (h *ServiceHandler) ListBuckets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := services.NewGarageClient(
-		fmt.Sprintf("http://talos-svc-%s:3903", svc.Name),
-		gc.AdminToken,
-	)
+	adminURL, err := h.provisioner.GarageAdminURL(r.Context(), svc)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, fmt.Sprintf("resolve garage: %v", err))
+		return
+	}
+	client := services.NewGarageClient(adminURL, gc.AdminToken)
 	buckets, err := client.ListBuckets(r.Context())
 	if err != nil {
 		writeError(w, http.StatusBadGateway, fmt.Sprintf("garage admin API: %v", err))
@@ -295,11 +297,12 @@ func (h *ServiceHandler) CreateBucket(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bucket name required")
 		return
 	}
-
-	client := services.NewGarageClient(
-		fmt.Sprintf("http://talos-svc-%s:3903", svc.Name),
-		gc.AdminToken,
-	)
+	adminURL, err := h.provisioner.GarageAdminURL(r.Context(), svc)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, fmt.Sprintf("resolve garage: %v", err))
+		return
+	}
+	client := services.NewGarageClient(adminURL, gc.AdminToken)
 	bucket, err := client.CreateBucket(r.Context(), req.Name)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, fmt.Sprintf("garage admin API: %v", err))
@@ -334,10 +337,12 @@ func (h *ServiceHandler) DeleteBucket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := services.NewGarageClient(
-		fmt.Sprintf("http://talos-svc-%s:3903", svc.Name),
-		gc.AdminToken,
-	)
+	adminURL, err := h.provisioner.GarageAdminURL(r.Context(), svc)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, fmt.Sprintf("resolve garage: %v", err))
+		return
+	}
+	client := services.NewGarageClient(adminURL, gc.AdminToken)
 	if err := client.DeleteBucket(r.Context(), bucketID); err != nil {
 		writeError(w, http.StatusBadGateway, fmt.Sprintf("garage admin API: %v", err))
 		return

@@ -103,10 +103,12 @@ type garageNodeInfo struct {
 
 // garageClusterStatus is the response from GetClusterStatus.
 type garageClusterStatus struct {
+	Node   string             `json:"node"`
 	Layout garageLayoutStatus `json:"layout"`
 }
 
 type garageLayoutStatus struct {
+	Version           int                `json:"version"`
 	ReplicationFactor int                `json:"replicationFactor"`
 	Roles             []garageLayoutRole `json:"roles"`
 }
@@ -120,42 +122,62 @@ type garageLayoutRole struct {
 
 // IsClusterConfigured returns true when the Garage cluster has at least one node assigned in the layout.
 func (c *GarageClient) IsClusterConfigured(ctx context.Context) (bool, error) {
-	var status garageClusterStatus
-	if err := c.do(ctx, http.MethodGet, "/v2/GetClusterStatus", nil, &status); err != nil {
-		return false, fmt.Errorf("get cluster status: %w", err)
+	var layout struct {
+		Roles []interface{} `json:"roles"`
 	}
-	return len(status.Layout.Roles) > 0, nil
+	if err := c.do(ctx, http.MethodGet, "/v2/GetClusterLayout", nil, &layout); err != nil {
+		return false, fmt.Errorf("get cluster layout: %w", err)
+	}
+	return len(layout.Roles) > 0, nil
 }
 
-// ConfigureSingleNodeLayout assigns this node to zone "dc1" with capacity 1 and applies the layout.
+// ConfigureSingleNodeLayout assigns this node to zone "dc1" with 1 GB capacity and applies the layout.
 // This is required before any data operations on a fresh single-node Garage cluster.
 func (c *GarageClient) ConfigureSingleNodeLayout(ctx context.Context) error {
-	// 1. Get this node's ID
-	var nodeInfo garageNodeInfo
-	if err := c.do(ctx, http.MethodGet, "/v2/GetNodeInfo", nil, &nodeInfo); err != nil {
+	// 1. Get this node's ID via GetNodeInfo?node=self
+	var nodeInfoResp struct {
+		Success map[string]interface{} `json:"success"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/v2/GetNodeInfo?node=self", nil, &nodeInfoResp); err != nil {
 		return fmt.Errorf("get node info: %w", err)
 	}
-	if nodeInfo.NodeID == "" {
-		return fmt.Errorf("empty node ID from GetNodeInfo")
+	if len(nodeInfoResp.Success) == 0 {
+		return fmt.Errorf("could not determine node ID: empty success map")
+	}
+	var nodeID string
+	for k := range nodeInfoResp.Success {
+		nodeID = k // the map key IS the node ID
+		break
 	}
 
-	// 2. Assign the node to the layout
-	layoutReq := map[string]interface{}{
+	// 2. Get current layout version
+	var layoutResp struct {
+		Version int `json:"version"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/v2/GetClusterLayout", nil, &layoutResp); err != nil {
+		return fmt.Errorf("get cluster layout: %w", err)
+	}
+
+	// 3. Stage the role change via UpdateClusterLayout (capacity in bytes)
+	updateReq := map[string]interface{}{
 		"roles": []map[string]interface{}{
 			{
-				"id":       nodeInfo.NodeID,
+				"id":       nodeID,
 				"zone":     "dc1",
-				"capacity": 1,
+				"capacity": 1_000_000_000, // 1 GB in bytes
 				"tags":     []string{},
 			},
 		},
 	}
-	if err := c.do(ctx, http.MethodPost, "/v2/UpdateClusterLayout", layoutReq, nil); err != nil {
+	if err := c.do(ctx, http.MethodPost, "/v2/UpdateClusterLayout", updateReq, nil); err != nil {
 		return fmt.Errorf("update cluster layout: %w", err)
 	}
 
-	// 3. Apply the layout
-	if err := c.do(ctx, http.MethodPost, "/v2/ApplyClusterLayout", map[string]interface{}{}, nil); err != nil {
+	// 4. Apply the layout — version must be current + 1
+	applyReq := map[string]interface{}{
+		"version": layoutResp.Version + 1,
+	}
+	if err := c.do(ctx, http.MethodPost, "/v2/ApplyClusterLayout", applyReq, nil); err != nil {
 		return fmt.Errorf("apply cluster layout: %w", err)
 	}
 
