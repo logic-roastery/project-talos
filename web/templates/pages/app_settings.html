@@ -140,14 +140,14 @@
             {{if .EnvVars}}
             <div class="space-y-2 mb-4">
                 {{range .EnvVars}}
-                <div class="flex items-center justify-between bg-ink rounded-md px-4 py-2" id="env-{{.Key}}">
+                <div class="flex items-center justify-between bg-ink rounded-md px-4 py-2" data-env-key="{{.Key}}">
                     <div class="flex items-center gap-3">
                         <code class="text-sm text-lime-accent font-mono">{{.Key}}</code>
                         <span class="text-muted">=</span>
                         <code class="text-sm text-subtle font-mono">{{.Value}}</code>
                         {{if .IsSecret}}<span class="text-xs px-1.5 py-0.5 bg-yellow-400/10 text-yellow-400 rounded-md">secret</span>{{end}}
                     </div>
-                    <button onclick="deleteEnvVar{{.Key}}()"
+                    <button onclick="deleteEnvVar(this)" data-key="{{.Key}}"
                         class="text-muted hover:text-pink-accent text-xs cursor-pointer">✕</button>
                 </div>
                 {{end}}
@@ -171,6 +171,18 @@
             </button>
         </form>
     </div>
+
+        <div class="mt-4 pt-4 border-t border-hairline">
+            <h3 class="text-xs font-semibold text-muted uppercase tracking-wider mb-2">Import from .env</h3>
+            <p class="text-xs text-muted mb-2">Paste KEY=VALUE pairs (one per line) to bulk-import environment variables.</p>
+            <textarea id="env-bulk" rows="4" placeholder="SECRET_KEY=abc123&#10;API_URL=https://example.com&#10;DEBUG=true"
+                class="w-full bg-canvas-dark border border-hairline rounded-md px-3 py-2 text-xs font-mono focus:outline-none focus:border-violet focus:ring-1 focus:ring-violet/30 mb-2"></textarea>
+            <button onclick="parseBulkEnv()"
+                class="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-hairline px-3 py-1.5 text-xs text-muted transition hover:text-body cursor-pointer">
+                Parse &amp; Import
+            </button>
+            <span id="env-bulk-status" class="ml-2 text-xs text-muted"></span>
+        </div>
     {{end}}
 </div>
 
@@ -255,17 +267,47 @@ async function unlinkService{{.ServiceID}}() {
 }
 {{end}}
 
-{{range .EnvVars}}
-async function deleteEnvVar{{.Key}}() {
-    try { await showConfirm({ title: 'Delete variable', message: 'Delete {{.Key}}?', confirmText: 'Delete', variant: 'danger' }); } catch { return; }
-    const res = await fetch('/api/apps/{{$.App.ID}}/env/{{.Key}}', { method: 'DELETE' });
+
+
+async function deleteEnvVar(btn) {
+    const key = btn.dataset.key;
+    try { await showConfirm({ title: 'Delete variable', message: 'Delete ' + key + '?', confirmText: 'Delete', variant: 'danger' }); } catch { return; }
+    const res = await fetch('/api/apps/{{.App.ID}}/env/' + encodeURIComponent(key), { method: 'DELETE' });
     if (res.ok) {
-        document.getElementById('env-{{.Key}}').remove();
+        const row = document.querySelector('[data-env-key="' + CSS.escape(key) + '"]');
+        if (row) row.remove();
         showToast({ type: 'success', title: 'Variable deleted' });
     } else {
         showToast({ type: 'error', title: 'Delete failed' });
     }
 }
-{{end}}
-</script>
+
+async function parseBulkEnv() {
+    const textarea = document.getElementById('env-bulk');
+    const status = document.getElementById('env-bulk-status');
+    const raw = textarea.value.trim();
+    if (!raw) { status.textContent = 'Paste some KEY=VALUE pairs first.'; return; }
+
+    const lines = raw.split('\n').filter(function(l) { return l.trim() && !l.trim().startsWith('#'); });
+    let imported = 0;
+    status.textContent = 'Importing ' + lines.length + ' variables…';
+
+    for (const line of lines) {
+        const eq = line.indexOf('=');
+        if (eq < 1) continue;
+        const key = line.substring(0, eq).trim().toUpperCase();
+        const value = line.substring(eq + 1).trim();
+        if (!key) continue;
+        try {
+            const res = await fetch('/api/apps/{{.App.ID}}/env', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: key, value: value, is_secret: false })
+            });
+            if (res.ok) imported++;
+        } catch(e) {}
+    }
+    status.textContent = imported + ' of ' + lines.length + ' imported.';
+    if (imported > 0) { textarea.value = ''; setTimeout(function() { window.location.reload(); }, 1000); }
+}
 {{end}}
