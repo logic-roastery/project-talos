@@ -481,7 +481,7 @@ func (h *PageHandler) TriggerDeploy(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.renderer.RenderStatus(w, http.StatusInternalServerError, "flash.html",
-			map[string]string{"Color": "red", "Message": "Failed to trigger deploy."})
+			map[string]string{"Color": "red", "Message": fmt.Sprintf("Deploy failed: %v", err)})
 		return
 	}
 
