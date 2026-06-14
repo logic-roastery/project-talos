@@ -95,6 +95,73 @@ func (c *GarageClient) AllowKey(ctx context.Context, bucketID, accessKeyID strin
 	return nil
 }
 
+// garageNodeInfo is the response from GetNodeInfo.
+type garageNodeInfo struct {
+	NodeID   string `json:"id"`
+	Hostname string `json:"hostname"`
+}
+
+// garageClusterStatus is the response from GetClusterStatus.
+type garageClusterStatus struct {
+	Layout garageLayoutStatus `json:"layout"`
+}
+
+type garageLayoutStatus struct {
+	ReplicationFactor int                `json:"replicationFactor"`
+	Roles             []garageLayoutRole `json:"roles"`
+}
+
+type garageLayoutRole struct {
+	ID       string   `json:"id"`
+	Zone     string   `json:"zone"`
+	Capacity int64    `json:"capacity"`
+	Tags     []string `json:"tags"`
+}
+
+// IsClusterConfigured returns true when the Garage cluster has at least one node assigned in the layout.
+func (c *GarageClient) IsClusterConfigured(ctx context.Context) (bool, error) {
+	var status garageClusterStatus
+	if err := c.do(ctx, http.MethodGet, "/v2/GetClusterStatus", nil, &status); err != nil {
+		return false, fmt.Errorf("get cluster status: %w", err)
+	}
+	return len(status.Layout.Roles) > 0, nil
+}
+
+// ConfigureSingleNodeLayout assigns this node to zone "dc1" with capacity 1 and applies the layout.
+// This is required before any data operations on a fresh single-node Garage cluster.
+func (c *GarageClient) ConfigureSingleNodeLayout(ctx context.Context) error {
+	// 1. Get this node's ID
+	var nodeInfo garageNodeInfo
+	if err := c.do(ctx, http.MethodGet, "/v2/GetNodeInfo", nil, &nodeInfo); err != nil {
+		return fmt.Errorf("get node info: %w", err)
+	}
+	if nodeInfo.NodeID == "" {
+		return fmt.Errorf("empty node ID from GetNodeInfo")
+	}
+
+	// 2. Assign the node to the layout
+	layoutReq := map[string]interface{}{
+		"roles": []map[string]interface{}{
+			{
+				"id":       nodeInfo.NodeID,
+				"zone":     "dc1",
+				"capacity": 1,
+				"tags":     []string{},
+			},
+		},
+	}
+	if err := c.do(ctx, http.MethodPost, "/v2/UpdateClusterLayout", layoutReq, nil); err != nil {
+		return fmt.Errorf("update cluster layout: %w", err)
+	}
+
+	// 3. Apply the layout
+	if err := c.do(ctx, http.MethodPost, "/v2/ApplyClusterLayout", map[string]interface{}{}, nil); err != nil {
+		return fmt.Errorf("apply cluster layout: %w", err)
+	}
+
+	return nil
+}
+
 // WaitForReady polls the admin API until it responds or the timeout is reached.
 func (c *GarageClient) WaitForReady(ctx context.Context, timeout time.Duration) error {
 	deadline := time.After(timeout)

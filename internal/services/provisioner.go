@@ -150,14 +150,28 @@ func (p *Provisioner) ProvisionService(ctx context.Context, svc *domain.Service,
 			// Wait for Garage admin API to be ready (up to 30s)
 			if err := garageClient.WaitForReady(ctx, 30*time.Second); err != nil {
 				p.logger.Warn("garage admin API not ready, skipping auto-create bucket", "service", svc.Name, "error", err)
-			} else if bucket, err := garageClient.CreateBucket(ctx, svc.Name); err == nil && len(bucket.GlobalAliases) > 0 {
-				gc.Bucket = bucket.GlobalAliases[0]
-				if encErr := p.EncryptCredentials(svc, gc); encErr == nil {
-					p.services.UpdateService(ctx, svc)
+			} else {
+				// Ensure the cluster layout is configured (required for fresh installs)
+				configured, err := garageClient.IsClusterConfigured(ctx)
+				if err != nil {
+					p.logger.Warn("could not check cluster status", "service", svc.Name, "error", err)
+				} else if !configured {
+					p.logger.Info("configuring single-node garage layout", "service", svc.Name)
+					if err := garageClient.ConfigureSingleNodeLayout(ctx); err != nil {
+						p.logger.Warn("failed to configure garage layout", "service", svc.Name, "error", err)
+					}
+					// Brief pause for the ring to become ready after layout apply
+					time.Sleep(2 * time.Second)
 				}
-				p.logger.Info("auto-created default bucket", "service", svc.Name, "bucket", gc.Bucket)
-			} else if err != nil {
-				p.logger.Warn("auto-create bucket failed (non-fatal)", "service", svc.Name, "error", err)
+				if bucket, err := garageClient.CreateBucket(ctx, svc.Name); err == nil && len(bucket.GlobalAliases) > 0 {
+					gc.Bucket = bucket.GlobalAliases[0]
+					if encErr := p.EncryptCredentials(svc, gc); encErr == nil {
+						p.services.UpdateService(ctx, svc)
+					}
+					p.logger.Info("auto-created default bucket", "service", svc.Name, "bucket", gc.Bucket)
+				} else if err != nil {
+					p.logger.Warn("auto-create bucket failed (non-fatal)", "service", svc.Name, "error", err)
+				}
 			}
 		}
 	}
