@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -44,16 +45,26 @@ func NewProvisioner(services store.ServiceStore, docker *docker.Client, dataDir,
 // but Docker bind mounts need host paths (e.g. /opt/talos/data).
 // If hostDataRoot is empty, the path is returned as-is (bare metal mode).
 func (p *Provisioner) hostPath(containerPath string) string {
-	if p.hostDataRoot == "" {
-		return containerPath
+	var result string
+	if p.hostDataRoot != "" {
+		// Running inside Docker: replace dataDir prefix with hostDataRoot
+		rel, err := filepath.Rel(p.dataDir, containerPath)
+		if err != nil {
+			result = containerPath
+		} else {
+			result = filepath.Join(p.hostDataRoot, rel)
+		}
+	} else {
+		// Bare metal: use path as-is
+		result = containerPath
 	}
-	// Replace the dataDir prefix with hostDataRoot
-	// e.g. "/data/services/main-storage" → "/opt/talos/data/services/main-storage"
-	rel, err := filepath.Rel(p.dataDir, containerPath)
-	if err != nil {
-		return containerPath
+	// Docker requires absolute paths for bind mounts
+	if !filepath.IsAbs(result) {
+		if abs, err := filepath.Abs(result); err == nil {
+			result = abs
+		}
 	}
-	return filepath.Join(p.hostDataRoot, rel)
+	return result
 }
 
 // ProvisionService creates and starts a managed service container.
@@ -442,6 +453,8 @@ func DefaultCredentials(svcType domain.ServiceType, containerName string) interf
 			Password: GeneratePassword(24),
 		}
 	case domain.ServiceGarage:
+		rpcSecret := make([]byte, 32)
+		rand.Read(rpcSecret)
 		return &domain.GarageCredentials{
 			Endpoint:   fmt.Sprintf("http://%s:3900", containerName),
 			Region:     "garage",
@@ -449,7 +462,7 @@ func DefaultCredentials(svcType domain.ServiceType, containerName string) interf
 			SecretKey:  GeneratePassword(40),
 			Bucket:     "",
 			AdminToken: GeneratePassword(32),
-			RPCSecret:  GeneratePassword(32),
+			RPCSecret:  hex.EncodeToString(rpcSecret),
 		}
 	case domain.ServiceGarageWebUI:
 		return &domain.GarageWebUICredentials{
