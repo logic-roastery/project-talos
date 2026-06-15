@@ -360,6 +360,7 @@ func applyCommand(mode InstallMode, proxyMode config.ProxyMode, dockerImage, env
 		if image == "" {
 			image = "ghcr.io/logic-roastery/project-talos:latest"
 		}
+		privateKeyPath := filepath.Join(filepath.Dir(envPath), "github-app.private-key.pem")
 		if proxyMode == config.ProxyModeExternal {
 			lines := []string{
 				"docker pull " + image,
@@ -374,8 +375,11 @@ func applyCommand(mode InstallMode, proxyMode config.ProxyMode, dockerImage, env
 				"  -v /var/run/docker.sock:/var/run/docker.sock \\",
 				"  -v /opt/talos/data:/data \\",
 				fmt.Sprintf("  -v %s:%s \\", envPath, envPath),
-				fmt.Sprintf("  --env-file %s \\", envPath),
 			}
+			if defaultFileExists(privateKeyPath) {
+				lines = append(lines, fmt.Sprintf("  -v %s:%s:ro \\", privateKeyPath, privateKeyPath))
+			}
+			lines = append(lines, fmt.Sprintf("  --env-file %s \\", envPath))
 			if domain != "" {
 				lines = append(lines,
 					"  --label traefik.enable=true \\",
@@ -403,8 +407,9 @@ func applyCommand(mode InstallMode, proxyMode config.ProxyMode, dockerImage, env
 			"  -v /var/run/docker.sock:/var/run/docker.sock \\\n"+
 			"  -v /opt/talos/data:/data \\\n"+
 			"  -v %s:%s \\\n"+
+			"%s"+
 			"  --env-file %s \\\n"+
-			"  %s", port, envPath, envPath, envPath, image)
+			"  %s", port, envPath, envPath, dockerPrivateKeyMountArg(privateKeyPath), envPath, image)
 	case InstallModeBare:
 		if proxyMode == config.ProxyModeExternal && domain != "" {
 			return "sudo systemctl restart talos\n# Then update your external proxy to route Host(`" + domain + "`) to http://<server-ip-or-host>:3000"
@@ -413,6 +418,13 @@ func applyCommand(mode InstallMode, proxyMode config.ProxyMode, dockerImage, env
 	default:
 		return "Restart the running Talos process so it reloads " + envPath
 	}
+}
+
+func dockerPrivateKeyMountArg(path string) string {
+	if !defaultFileExists(path) {
+		return ""
+	}
+	return fmt.Sprintf("  -v %s:%s:ro \\\n", path, path)
 }
 
 func defaultFileExists(path string) bool {
