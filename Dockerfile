@@ -15,7 +15,7 @@ RUN CGO_ENABLED=0 go build \
 # Runtime stage
 FROM alpine:3.23
 
-RUN apk add --no-cache ca-certificates docker-cli
+RUN apk add --no-cache ca-certificates docker-cli git
 
 COPY --from=builder /talos /usr/local/bin/talos
 
