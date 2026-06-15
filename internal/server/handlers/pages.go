@@ -554,6 +554,29 @@ func (h *PageHandler) DeployStatusPartial(w http.ResponseWriter, r *http.Request
 	h.renderer.RenderPartial(w, "deploy_status.html", d)
 }
 
+func (h *PageHandler) DeployRowPartial(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r, "deployID")
+	if err != nil {
+		http.Error(w, "invalid deploy id", http.StatusBadRequest)
+		return
+	}
+
+	d, err := h.deploys.GetDeploy(r.Context(), id)
+	if err != nil {
+		http.Error(w, "deploy not found", http.StatusNotFound)
+		return
+	}
+
+	data := struct {
+		Deploy *domain.Deploy
+		AppID  int64
+	}{
+		Deploy: d,
+		AppID:  d.AppID,
+	}
+	h.renderer.RenderPartial(w, "deploy_row.html", data)
+}
+
 // --- Service Pages ---
 
 func (h *PageHandler) ServicesPage(w http.ResponseWriter, r *http.Request) {
