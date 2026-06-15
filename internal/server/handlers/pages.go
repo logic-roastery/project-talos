@@ -480,6 +480,7 @@ func (h *PageHandler) TriggerDeploy(w http.ResponseWriter, r *http.Request) {
 				map[string]string{"Color": "yellow", "Message": "A deploy is already running. Wait for it to finish or roll back."})
 			return
 		}
+		h.logger.Error("deploy failed", "app_id", appID, "error", err)
 		h.renderer.RenderStatus(w, http.StatusInternalServerError, "flash.html",
 			map[string]string{"Color": "red", "Message": fmt.Sprintf("Deploy failed: %v", err)})
 		return
