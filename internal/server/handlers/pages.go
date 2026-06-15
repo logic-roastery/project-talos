@@ -457,7 +457,7 @@ func (h *PageHandler) TriggerDeploy(w http.ResponseWriter, r *http.Request) {
 	}
 	if app.AppType != domain.AppTypeManaged {
 		h.renderer.RenderStatus(w, http.StatusBadRequest, "flash.html",
-			map[string]string{"Color": "yellow", "Message": "Only Talos-managed apps support deploys."})
+			map[string]string{"Color": "yellow", "Message": "Only Talos-managed apps support deploys. External apps are deployed by their CI pipeline."})
 		return
 	}
 
@@ -465,7 +465,7 @@ func (h *PageHandler) TriggerDeploy(w http.ResponseWriter, r *http.Request) {
 	if app.BuildMode != domain.BuildModeTalosBuild {
 		if imageRef == "" {
 			h.renderer.RenderStatus(w, http.StatusUnprocessableEntity, "flash.html",
-				map[string]string{"Color": "red", "Message": "Image ref is required."})
+				map[string]string{"Color": "red", "Message": "Image ref is required for external CI apps (e.g. ghcr.io/org/app:latest)."})
 			return
 		}
 	}
@@ -477,7 +477,7 @@ func (h *PageHandler) TriggerDeploy(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, domain.ErrDeployInProgress) {
 			h.renderer.RenderStatus(w, http.StatusConflict, "flash.html",
-				map[string]string{"Color": "yellow", "Message": "Deploy already in progress."})
+				map[string]string{"Color": "yellow", "Message": "A deploy is already running. Wait for it to finish or roll back."})
 			return
 		}
 		h.renderer.RenderStatus(w, http.StatusInternalServerError, "flash.html",

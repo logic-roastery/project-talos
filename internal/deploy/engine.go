@@ -45,21 +45,23 @@ func NewEngine(apps store.AppStore, deploys store.DeployStore, services store.Se
 	}
 }
 
-// getBuilder returns the builder, creating it lazily if ghClient became available after startup.
 func (e *Engine) getBuilder() *builder.Builder {
 	if e.builder != nil {
 		return e.builder
 	}
 	if e.ghClient != nil {
+		e.logger.Info("engine: creating builder from lazy github client")
 		e.builder = builder.NewBuilder(e.ghClient, e.docker, e.logger, e.dataDir)
 		return e.builder
 	}
+	e.logger.Warn("engine: builder not available (ghClient is nil)")
 	return nil
 }
 
 // SetGHClient updates the GitHub client reference, enabling lazy builder creation.
 func (e *Engine) SetGHClient(c *github.AppClient) {
 	e.ghClient = c
+	e.logger.Info("engine: github client updated via lazy init")
 }
 
 func (e *Engine) Deploy(ctx context.Context, appID int64, imageRef, commitSHA, branch, triggeredBy string) (*domain.Deploy, error) {
@@ -83,21 +85,16 @@ func (e *Engine) Deploy(ctx context.Context, appID int64, imageRef, commitSHA, b
 	if app.BuildMode == domain.BuildModeTalosBuild && imageRef == "" {
 		b := e.getBuilder()
 		if b == nil {
-			return nil, fmt.Errorf("builder not configured for talos_build mode")
+			return nil, fmt.Errorf("GitHub App is not connected — go to Settings → GitHub to set it up, then try again")
+		}
+		if app.RepoURL == "" {
+			return nil, fmt.Errorf("no repository URL set for this app — edit the app settings to add one")
 		}
 		result, err := b.CloneAndBuild(ctx, app, commitSHA)
 		if err != nil {
-			return nil, fmt.Errorf("clone and build: %w", err)
+			return nil, fmt.Errorf("build failed: %w", err)
 		}
 		imageRef = result.ImageRef
-
-		// Auto-fill internal port if detected and app still has the default port
-		if result.Port > 0 && app.InternalPort == 3000 {
-			app.InternalPort = result.Port
-			if err := e.apps.UpdateApp(ctx, app); err != nil {
-				e.logger.Warn("could not update app port from detection", "error", err)
-			}
-		}
 	}
 
 	d := &domain.Deploy{
