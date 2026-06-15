@@ -187,7 +187,8 @@
                 <p class="mt-1 text-sm text-muted">Release a new image or roll back to the last successful deploy.</p>
             </div>
             <div class="space-y-4">
-                <form hx-post="/apps/{{.App.ID}}/deploy" hx-target="#deploy-history" hx-swap="afterbegin"
+                <div id="deploy-feedback" class="hidden"></div>
+                <form id="deploy-form" hx-post="/apps/{{.App.ID}}/deploy" hx-target="#deploy-history" hx-swap="afterbegin"
                     class="flex flex-col gap-3 sm:flex-row sm:items-end">
                     {{if eq .App.BuildMode "talos_build"}}
                     <div class="min-w-0 flex-1">
@@ -381,6 +382,37 @@
             disconnectLogs();
         };
     };
+})();
+
+(function() {
+    var feedback = document.getElementById('deploy-feedback');
+    var forms = ['deploy-form', 'rollback-form']
+        .map(function(id) { return document.getElementById(id); })
+        .filter(Boolean);
+
+    if (!feedback || forms.length === 0) return;
+
+    function clearFeedback() {
+        feedback.innerHTML = '';
+        feedback.classList.add('hidden');
+    }
+
+    function showFeedback(html) {
+        feedback.innerHTML = html;
+        feedback.classList.remove('hidden');
+    }
+
+    forms.forEach(function(form) {
+        form.addEventListener('htmx:beforeRequest', clearFeedback);
+        form.addEventListener('htmx:beforeSwap', function(event) {
+            if (event.detail.xhr.status >= 400) {
+                event.detail.shouldSwap = false;
+                showFeedback(event.detail.xhr.responseText);
+            } else {
+                clearFeedback();
+            }
+        });
+    });
 })();
 
 async function restartAdoptedApp() {

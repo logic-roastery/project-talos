@@ -7,6 +7,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/url"
+	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -191,6 +194,51 @@ func (c *AppClient) ListInstallationRepos(ctx context.Context, installationID in
 	}
 
 	return allRepos, nil
+}
+
+// ResolveBranchHeadSHA returns the HEAD commit SHA for the given repository branch.
+func (c *AppClient) ResolveBranchHeadSHA(ctx context.Context, installationID int64, owner, repo, branch string) (string, error) {
+	client, err := c.InstallationClient(ctx, installationID)
+	if err != nil {
+		return "", err
+	}
+
+	ref, _, err := client.Git.GetRef(ctx, owner, repo, "refs/heads/"+branch)
+	if err != nil {
+		return "", fmt.Errorf("get branch ref: %w", err)
+	}
+
+	sha := ref.GetObject().GetSHA()
+	if sha == "" {
+		return "", fmt.Errorf("branch %q has no HEAD SHA", branch)
+	}
+
+	return sha, nil
+}
+
+// ParseRepoFullName extracts the owner/repo pair from a GitHub repository URL.
+func ParseRepoFullName(repoURL string) (owner, repo string, err error) {
+	u, err := url.Parse(strings.TrimSpace(repoURL))
+	if err != nil {
+		return "", "", fmt.Errorf("parse repo URL: %w", err)
+	}
+	if !strings.EqualFold(u.Host, "github.com") {
+		return "", "", fmt.Errorf("unsupported repository host: %s", u.Host)
+	}
+
+	repoPath := strings.Trim(path.Clean(u.Path), "/")
+	parts := strings.Split(repoPath, "/")
+	if len(parts) < 2 {
+		return "", "", fmt.Errorf("invalid GitHub repository path: %s", u.Path)
+	}
+
+	owner = parts[0]
+	repo = strings.TrimSuffix(parts[1], ".git")
+	if owner == "" || repo == "" {
+		return "", "", fmt.Errorf("invalid GitHub repository path: %s", u.Path)
+	}
+
+	return owner, repo, nil
 }
 
 // GetRepoContent fetches the content of a file or directory at the given path.

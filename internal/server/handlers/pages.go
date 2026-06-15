@@ -63,6 +63,11 @@ func NewPageHandler(renderer *web.Renderer, apps store.AppStore, deploys store.D
 	}
 }
 
+// SetGHClient updates the GitHub client after lazy initialization.
+func (h *PageHandler) SetGHClient(c *github.AppClient) {
+	h.ghClient = c
+}
+
 func (h *PageHandler) userData(r *http.Request) *web.UserData {
 	u := UserFromContext(r.Context())
 	if u == nil {

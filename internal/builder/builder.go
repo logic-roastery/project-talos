@@ -46,6 +46,9 @@ func (b *Builder) CloneAndBuild(ctx context.Context, app *domain.App, commitSHA 
 	if app.GitHubInstallationID == nil {
 		return nil, fmt.Errorf("app %d has no GitHub installation", app.ID)
 	}
+	if commitSHA == "" {
+		return nil, fmt.Errorf("commit SHA is required for talos_build")
+	}
 
 	// Get installation token for cloning
 	token, err := b.ghClient.GetInstallationToken(ctx, *app.GitHubInstallationID)
@@ -54,7 +57,7 @@ func (b *Builder) CloneAndBuild(ctx context.Context, app *domain.App, commitSHA 
 	}
 
 	// Create temporary directory for clone
-	cloneDir := filepath.Join(b.dataDir, "builds", fmt.Sprintf("%d-%s", app.ID, commitSHA[:7]))
+	cloneDir := filepath.Join(b.dataDir, "builds", fmt.Sprintf("%d-%s", app.ID, shortCommitSHA(commitSHA)))
 	if err := os.MkdirAll(cloneDir, 0755); err != nil {
 		return nil, fmt.Errorf("create clone dir: %w", err)
 	}
@@ -92,17 +95,18 @@ func (b *Builder) buildImageRef(app *domain.App, commitSHA string) string {
 	if registry == "" {
 		registry = "ghcr.io"
 	}
+	shortSHA := shortCommitSHA(commitSHA)
 
 	// Extract owner/repo from RepoURL
 	parts := strings.Split(strings.TrimPrefix(app.RepoURL, "https://github.com/"), "/")
 	if len(parts) >= 2 {
 		owner := parts[0]
 		repo := strings.TrimSuffix(parts[1], ".git")
-		return fmt.Sprintf("%s/%s/%s:%s", registry, owner, repo, commitSHA[:7])
+		return fmt.Sprintf("%s/%s/%s:%s", registry, owner, repo, shortSHA)
 	}
 
 	// Fallback to app name
-	return fmt.Sprintf("%s/%s:%s", registry, app.Name, commitSHA[:7])
+	return fmt.Sprintf("%s/%s:%s", registry, app.Name, shortSHA)
 }
 
 // cloneRepo clones the repository to the specified directory.
@@ -181,4 +185,14 @@ func (b *Builder) buildImage(ctx context.Context, buildDir, imageRef, projectTyp
 
 	b.logger.Info("docker image built", "image", imageRef)
 	return result, nil
+}
+
+func shortCommitSHA(commitSHA string) string {
+	if len(commitSHA) >= 7 {
+		return commitSHA[:7]
+	}
+	if commitSHA != "" {
+		return commitSHA
+	}
+	return "manual"
 }

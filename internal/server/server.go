@@ -56,8 +56,12 @@ func New(
 
 	authH := handlers.NewAuthHandler(authSvc)
 	ghH := handlers.NewGitHubHandler(apps, ghClient, ghCfg, renderer, serverHost, serverDomain, logger)
+	var pageH *handlers.PageHandler
 	ghH.SetOnClientReady(func(c *github.AppClient) {
 		engine.SetGHClient(c)
+		if pageH != nil {
+			pageH.SetGHClient(c)
+		}
 	})
 	r.Post("/api/auth/setup", authH.Setup)
 	r.Post("/api/auth/login", authH.Login)
@@ -313,7 +317,7 @@ func New(
 
 	// Page routes (HTML)
 	settingsSvc := settings.NewService(dockerClient)
-	pageH := handlers.NewPageHandler(renderer, apps, deploys, users, svcStore, backupStore, authSvc, engine, dockerClient, proxy, ghClient, settingsSvc, serverHost, serverDomain, serverProxyMode, serverPort, logger)
+	pageH = handlers.NewPageHandler(renderer, apps, deploys, users, svcStore, backupStore, authSvc, engine, dockerClient, proxy, ghClient, settingsSvc, serverHost, serverDomain, serverProxyMode, serverPort, logger)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/dashboard", http.StatusFound)
