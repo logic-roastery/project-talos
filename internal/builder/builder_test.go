@@ -26,3 +26,28 @@ func TestShortCommitSHA(t *testing.T) {
 		})
 	}
 }
+
+func TestEffectivePlanPort(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		detectedPort   int
+		configuredPort int
+		want           int
+	}{
+		{name: "uses configured port", detectedPort: 8080, configuredPort: 9001, want: 9001},
+		{name: "uses detected port when no configured port", detectedPort: 8080, configuredPort: 0, want: 8080},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := effectivePlanPort(tt.detectedPort, tt.configuredPort); got != tt.want {
+				t.Fatalf("effectivePlanPort(%d, %d) = %d, want %d", tt.detectedPort, tt.configuredPort, got, tt.want)
+			}
+		})
+	}
+}
