@@ -60,3 +60,4 @@ tmp/
 # Claude Code
 .claude/
 .code-review-graph/
+/.cache/

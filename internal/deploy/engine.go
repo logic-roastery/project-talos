@@ -90,6 +90,13 @@ func (e *Engine) Deploy(ctx context.Context, appID int64, imageRef, commitSHA, b
 		if app.RepoURL == "" {
 			return nil, fmt.Errorf("no repository URL set for this app — edit the app settings to add one")
 		}
+		if commitSHA == "" {
+			resolvedSHA, err := e.resolveBuildCommitSHA(ctx, app, branch)
+			if err != nil {
+				return nil, err
+			}
+			commitSHA = resolvedSHA
+		}
 		result, err := b.CloneAndBuild(ctx, app, commitSHA)
 		if err != nil {
 			return nil, fmt.Errorf("build failed: %w", err)
@@ -112,6 +119,33 @@ func (e *Engine) Deploy(ctx context.Context, appID int64, imageRef, commitSHA, b
 	go e.execute(context.Background(), app, d)
 
 	return d, nil
+}
+
+func (e *Engine) resolveBuildCommitSHA(ctx context.Context, app *domain.App, branch string) (string, error) {
+	if e.ghClient == nil {
+		return "", fmt.Errorf("GitHub App is not connected — go to Settings → GitHub to set it up, then try again")
+	}
+	if app.GitHubInstallationID == nil {
+		return "", fmt.Errorf("this app is not connected to a GitHub installation")
+	}
+	if branch == "" {
+		branch = app.Branch
+	}
+	if branch == "" {
+		return "", fmt.Errorf("no branch configured for this app")
+	}
+
+	owner, repo, err := github.ParseRepoFullName(app.RepoURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid repository URL: %w", err)
+	}
+
+	sha, err := e.ghClient.ResolveBranchHeadSHA(ctx, *app.GitHubInstallationID, owner, repo, branch)
+	if err != nil {
+		return "", fmt.Errorf("resolve branch HEAD for %s: %w", branch, err)
+	}
+
+	return sha, nil
 }
 
 func (e *Engine) Rollback(ctx context.Context, appID int64) (*domain.Deploy, error) {
