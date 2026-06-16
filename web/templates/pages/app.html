@@ -312,6 +312,7 @@
 <script>
 (function() {
     var logSource = null;
+    var maxLogLines = 300;
     var logOutput = document.getElementById('log-output');
     var logStatus = document.getElementById('log-status');
     var logStatusDot = document.getElementById('log-status-dot');
@@ -342,6 +343,9 @@
         line.className = type === 'stderr' ? 'text-pink-accent' : 'text-body';
         line.textContent = data;
         logOutput.appendChild(line);
+        while (logOutput.childElementCount > maxLogLines) {
+            logOutput.removeChild(logOutput.firstElementChild);
+        }
         logOutput.scrollTop = logOutput.scrollHeight;
     }
 
@@ -383,6 +387,8 @@
             disconnectLogs();
         };
     };
+
+    window.addEventListener('beforeunload', disconnectLogs);
 })();
 
 (function() {
@@ -455,23 +461,238 @@ async function confirmRollback() {
     htmx.trigger('#rollback-form', 'submit');
 }
 
-window.toggleDeployEvents = function(deployID) {
-    var row = document.getElementById('deploy-events-' + deployID);
-    if (!row) return;
+window.__talosDeployEvents = window.__talosDeployEvents || (function() {
+    var source = null;
+    var sourceDeployID = null;
+    var maxEvents = 300;
+    var terminalStatuses = {
+        success: true,
+        failed: true,
+        auto_rollback: true,
+        rollback: true
+    };
 
-    var isHidden = row.classList.contains('hidden');
-    if (isHidden) {
-        row.classList.remove('hidden');
-        if (row.dataset.loaded !== 'true') {
-            row.dataset.loaded = 'true';
-            htmx.ajax('GET', '/api/deploys/' + deployID + '/events', { target: '#deploy-events-' + deployID, swap: 'innerHTML' });
+    function row(deployID) {
+        return document.getElementById('deploy-events-' + deployID);
+    }
+
+    function content(deployID) {
+        return document.getElementById('deploy-events-content-' + deployID);
+    }
+
+    function body(deployID) {
+        return document.getElementById('deploy-block-' + deployID);
+    }
+
+    function setPlaceholder(deployID, text) {
+        var target = content(deployID);
+        if (!target) return;
+        target.innerHTML = '';
+        var empty = document.createElement('div');
+        empty.className = 'text-xs text-muted';
+        empty.textContent = text;
+        target.appendChild(empty);
+    }
+
+    function updateSummaryStatus(deployID, status) {
+        var block = body(deployID);
+        var eventsRow = row(deployID);
+        if (block) block.dataset.deployStatus = status;
+        if (eventsRow) eventsRow.dataset.deployStatus = status;
+    }
+
+    function renderEventNode(event) {
+        var line = document.createElement('div');
+        var color = 'text-muted';
+        if (event.level === 'error') {
+            color = 'text-red-400';
+        } else if (event.level === 'warn') {
+            color = 'text-yellow-400';
         }
-        return;
+        line.className = 'text-xs ' + color + ' flex gap-2';
+
+        var timestamp = document.createElement('span');
+        timestamp.className = 'font-mono text-[10px] opacity-60';
+        timestamp.textContent = new Date(event.timestamp).toLocaleTimeString([], { hour12: false });
+
+        var step = document.createElement('span');
+        step.className = 'font-semibold';
+        step.textContent = event.step;
+
+        var message = document.createElement('span');
+        message.textContent = event.message;
+
+        line.appendChild(timestamp);
+        line.appendChild(step);
+        line.appendChild(message);
+        return line;
     }
 
-    if (!row.getAttribute('hx-trigger')) {
-        row.classList.add('hidden');
+    function appendEvent(deployID, event) {
+        var target = content(deployID);
+        if (!target) return;
+
+        if (target.children.length === 1 && target.firstElementChild && target.firstElementChild.classList.contains('text-muted')) {
+            target.innerHTML = '';
+        }
+
+        target.appendChild(renderEventNode(event));
+        while (target.childElementCount > maxEvents) {
+            target.removeChild(target.firstElementChild);
+        }
     }
+
+    function disconnectStream() {
+        if (source) {
+            source.close();
+            source = null;
+        }
+        if (sourceDeployID !== null) {
+            var openRow = row(sourceDeployID);
+            if (openRow) {
+                openRow.dataset.streaming = 'false';
+            }
+        }
+        sourceDeployID = null;
+    }
+
+    function refreshSummaryRow(deployID) {
+        fetch('/partials/deploy-row/' + deployID, { headers: { 'HX-Request': 'true' } })
+            .then(function(response) {
+                if (!response.ok) throw new Error('failed to refresh deploy row');
+                return response.text();
+            })
+            .then(function(html) {
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                var nextSummary = doc.getElementById('deploy-' + deployID);
+                var currentSummary = document.getElementById('deploy-' + deployID);
+                var nextBlock = doc.getElementById('deploy-block-' + deployID);
+                if (nextSummary && currentSummary) {
+                    currentSummary.replaceWith(nextSummary);
+                }
+                if (nextBlock) {
+                    updateSummaryStatus(deployID, nextBlock.dataset.deployStatus || '');
+                }
+            })
+            .catch(function() {});
+    }
+
+    function fetchSnapshot(deployID) {
+        var eventsRow = row(deployID);
+        if (!eventsRow) return Promise.resolve();
+
+        setPlaceholder(deployID, 'Loading deploy events...');
+        return fetch('/api/deploys/' + deployID + '/events')
+            .then(function(response) {
+                if (!response.ok) throw new Error('failed to load deploy events');
+                return response.json();
+            })
+            .then(function(events) {
+                var target = content(deployID);
+                if (!target) return;
+                target.innerHTML = '';
+                if (!events.length) {
+                    setPlaceholder(deployID, 'No events recorded yet.');
+                } else {
+                    events.forEach(function(event) { appendEvent(deployID, event); });
+                }
+                eventsRow.dataset.loaded = 'true';
+            })
+            .catch(function() {
+                setPlaceholder(deployID, 'Failed to load deploy events.');
+            });
+    }
+
+    function connectStream(deployID) {
+        if (sourceDeployID === deployID && source) {
+            return;
+        }
+
+        disconnectStream();
+        sourceDeployID = deployID;
+
+        var eventsRow = row(deployID);
+        if (!eventsRow) return;
+        eventsRow.dataset.streaming = 'true';
+        eventsRow.dataset.loaded = 'true';
+        setPlaceholder(deployID, 'Connecting to deploy event stream...');
+
+        source = new EventSource('/api/deploys/' + deployID + '/events/stream');
+        source.addEventListener('deploy_event', function(event) {
+            var payload = JSON.parse(event.data);
+            appendEvent(deployID, payload);
+            if (payload.step === 'start') {
+                updateSummaryStatus(deployID, 'running');
+            }
+        });
+        source.addEventListener('status', function(event) {
+            var payload = JSON.parse(event.data);
+            if (payload.deploy_status) {
+                updateSummaryStatus(deployID, payload.deploy_status);
+            }
+            if (payload.state === 'terminal' || terminalStatuses[payload.deploy_status]) {
+                disconnectStream();
+                refreshSummaryRow(deployID);
+            }
+        });
+        source.onerror = function() {
+            disconnectStream();
+        };
+    }
+
+    function newestActiveDeployID() {
+        var active = document.querySelector('tbody[data-deploy-status="pending"], tbody[data-deploy-status="running"]');
+        if (!active) return null;
+        return parseInt(active.dataset.deployId, 10);
+    }
+
+    function autoOpenActiveDeploy() {
+        var deployID = newestActiveDeployID();
+        if (!deployID) return;
+
+        var eventsRow = row(deployID);
+        if (!eventsRow) return;
+
+        eventsRow.classList.remove('hidden');
+        connectStream(deployID);
+    }
+
+    window.addEventListener('beforeunload', disconnectStream);
+    document.body.addEventListener('htmx:afterSwap', function() {
+        autoOpenActiveDeploy();
+    });
+
+    return {
+        toggle: function(deployID) {
+            var eventsRow = row(deployID);
+            if (!eventsRow) return;
+
+            var isHidden = eventsRow.classList.contains('hidden');
+            var deployStatus = eventsRow.dataset.deployStatus || '';
+
+            if (isHidden) {
+                eventsRow.classList.remove('hidden');
+                if (deployStatus === 'pending' || deployStatus === 'running') {
+                    connectStream(deployID);
+                } else if (eventsRow.dataset.loaded !== 'true') {
+                    fetchSnapshot(deployID);
+                }
+                return;
+            }
+
+            if (sourceDeployID === deployID) {
+                disconnectStream();
+            }
+            eventsRow.classList.add('hidden');
+        },
+        autoOpenActiveDeploy: autoOpenActiveDeploy
+    };
+})();
+
+window.toggleDeployEvents = function(deployID) {
+    window.__talosDeployEvents.toggle(deployID);
 };
+window.__talosDeployEvents.autoOpenActiveDeploy();
 </script>
 {{end}}

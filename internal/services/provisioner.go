@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"math/big"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -430,7 +431,7 @@ func (p *Provisioner) buildContainerConfigFromJSON(svc *domain.Service, credJSON
 // Credential generators
 
 func GeneratePassword(length int) string {
-	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.~"
 	result := make([]byte, length)
 	for i := range result {
 		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
@@ -542,8 +543,14 @@ func FormatEnvVars(svc *domain.Service, creds interface{}, alias string) []strin
 	switch svc.Type {
 	case domain.ServicePostgres:
 		c := creds.(*domain.PostgresCredentials)
+		connURL := (&url.URL{
+			Scheme: "postgres",
+			User:   url.UserPassword(c.User, c.Password),
+			Host:   fmt.Sprintf("%s:%d", c.Host, c.Port),
+			Path:   "/" + c.Database,
+		}).String()
 		vars = []string{
-			fmt.Sprintf("%s_URL=postgres://%s:%s@%s:%d/%s", prefix, c.User, c.Password, c.Host, c.Port, c.Database),
+			fmt.Sprintf("%s_URL=%s", prefix, connURL),
 			fmt.Sprintf("%s_HOST=%s", prefix, c.Host),
 			fmt.Sprintf("%s_PORT=%d", prefix, c.Port),
 			fmt.Sprintf("%s_USER=%s", prefix, c.User),
@@ -553,8 +560,14 @@ func FormatEnvVars(svc *domain.Service, creds interface{}, alias string) []strin
 
 	case domain.ServiceMySQL:
 		c := creds.(*domain.MySQLCredentials)
+		connURL := (&url.URL{
+			Scheme: "mysql",
+			User:   url.UserPassword(c.User, c.Password),
+			Host:   fmt.Sprintf("%s:%d", c.Host, c.Port),
+			Path:   "/" + c.Database,
+		}).String()
 		vars = []string{
-			fmt.Sprintf("%s_URL=mysql://%s:%s@%s:%d/%s", prefix, c.User, c.Password, c.Host, c.Port, c.Database),
+			fmt.Sprintf("%s_URL=%s", prefix, connURL),
 			fmt.Sprintf("%s_HOST=%s", prefix, c.Host),
 			fmt.Sprintf("%s_PORT=%d", prefix, c.Port),
 			fmt.Sprintf("%s_USER=%s", prefix, c.User),
@@ -564,8 +577,13 @@ func FormatEnvVars(svc *domain.Service, creds interface{}, alias string) []strin
 
 	case domain.ServiceRedis:
 		c := creds.(*domain.RedisCredentials)
+		connURL := (&url.URL{
+			Scheme: "redis",
+			User:   url.UserPassword("", c.Password),
+			Host:   fmt.Sprintf("%s:%d", c.Host, c.Port),
+		}).String()
 		vars = []string{
-			fmt.Sprintf("%s_URL=redis://:%s@%s:%d", prefix, c.Password, c.Host, c.Port),
+			fmt.Sprintf("%s_URL=%s", prefix, connURL),
 			fmt.Sprintf("%s_HOST=%s", prefix, c.Host),
 			fmt.Sprintf("%s_PORT=%d", prefix, c.Port),
 			fmt.Sprintf("%s_PASSWORD=%s", prefix, c.Password),
