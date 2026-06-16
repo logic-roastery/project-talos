@@ -30,6 +30,16 @@ func TestGeneratePassword(t *testing.T) {
 			t.Errorf("expected different passwords, both got %q", a)
 		}
 	})
+
+	t.Run("uses URL-safe characters", func(t *testing.T) {
+		pw := GeneratePassword(128)
+		const allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.~"
+		for _, ch := range pw {
+			if !strings.ContainsRune(allowed, ch) {
+				t.Fatalf("password contains non URL-safe character %q in %q", ch, pw)
+			}
+		}
+	})
 }
 
 func TestGenerateAccessKey(t *testing.T) {
@@ -169,17 +179,17 @@ func TestFormatEnvVars(t *testing.T) {
 			Port:     5432,
 			Database: "app",
 			User:     "postgres",
-			Password: "secret123",
+			Password: "s#cr@t:123",
 		}
 		vars := FormatEnvVars(svc, creds, "DB")
 		joined := strings.Join(vars, "\n")
 
 		for _, want := range []string{
-			"DB_URL=",
+			"DB_URL=postgres://postgres:s%23cr%40t%3A123@pg-host:5432/app",
 			"DB_HOST=",
 			"DB_PORT=",
 			"DB_USER=",
-			"DB_PASSWORD=",
+			"DB_PASSWORD=s#cr@t:123",
 			"DB_NAME=",
 		} {
 			if !strings.Contains(joined, want) {
@@ -195,17 +205,17 @@ func TestFormatEnvVars(t *testing.T) {
 			Port:     3306,
 			Database: "app",
 			User:     "mysql",
-			Password: "secret456",
+			Password: "s#cr@t:456",
 		}
 		vars := FormatEnvVars(svc, creds, "DB")
 		joined := strings.Join(vars, "\n")
 
 		for _, want := range []string{
-			"DB_URL=",
+			"DB_URL=mysql://mysql:s%23cr%40t%3A456@my-host:3306/app",
 			"DB_HOST=",
 			"DB_PORT=",
 			"DB_USER=",
-			"DB_PASSWORD=",
+			"DB_PASSWORD=s#cr@t:456",
 			"DB_NAME=",
 		} {
 			if !strings.Contains(joined, want) {
@@ -219,16 +229,16 @@ func TestFormatEnvVars(t *testing.T) {
 		creds := &domain.RedisCredentials{
 			Host:     "cache-host",
 			Port:     6379,
-			Password: "secret789",
+			Password: "s#cr@t:789",
 		}
 		vars := FormatEnvVars(svc, creds, "CACHE")
 		joined := strings.Join(vars, "\n")
 
 		for _, want := range []string{
-			"CACHE_URL=",
+			"CACHE_URL=redis://:s%23cr%40t%3A789@cache-host:6379",
 			"CACHE_HOST=",
 			"CACHE_PORT=",
-			"CACHE_PASSWORD=",
+			"CACHE_PASSWORD=s#cr@t:789",
 		} {
 			if !strings.Contains(joined, want) {
 				t.Errorf("expected output to contain %q", want)
