@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -51,7 +52,7 @@ func TestDeployHandlerStreamEventsBackfillsAndStreamsNewEvents(t *testing.T) {
 	req := deployRequest(t, http.MethodGet, "/api/deploys/1/events/stream", 1)
 	ctx, cancel := context.WithCancel(req.Context())
 	req = req.WithContext(ctx)
-	rec := httptest.NewRecorder()
+	rec := newSafeRecorder()
 
 	done := make(chan struct{})
 	go func() {
@@ -60,7 +61,8 @@ func TestDeployHandlerStreamEventsBackfillsAndStreamsNewEvents(t *testing.T) {
 	}()
 
 	waitForCondition(t, time.Second, func() bool {
-		return strings.Contains(rec.Body.String(), `"deploy queued"`) && strings.Contains(rec.Body.String(), `"state":"connected"`)
+		body := rec.BodyString()
+		return strings.Contains(body, `"deploy queued"`) && strings.Contains(body, `"state":"connected"`)
 	})
 
 	store.setStatus(deployID, domain.DeployStatusSuccess)
@@ -75,7 +77,7 @@ func TestDeployHandlerStreamEventsBackfillsAndStreamsNewEvents(t *testing.T) {
 	broadcaster.Publish(liveEvent)
 
 	waitForCondition(t, time.Second, func() bool {
-		body := rec.Body.String()
+		body := rec.BodyString()
 		return strings.Contains(body, `"deploy completed successfully"`) && strings.Contains(body, `"state":"terminal"`) && strings.Contains(body, `"deploy_status":"success"`)
 	})
 
@@ -102,7 +104,7 @@ func TestDeployHandlerStreamEventsCleansUpSubscriberOnDisconnect(t *testing.T) {
 	req := deployRequest(t, http.MethodGet, "/api/deploys/1/events/stream", 1)
 	ctx, cancel := context.WithCancel(req.Context())
 	req = req.WithContext(ctx)
-	rec := httptest.NewRecorder()
+	rec := newSafeRecorder()
 
 	done := make(chan struct{})
 	go func() {
@@ -141,10 +143,10 @@ func TestDeployHandlerStreamEventsReturnsTerminalStatusWithoutSubscription(t *te
 	}
 
 	req := deployRequest(t, http.MethodGet, "/api/deploys/1/events/stream", 1)
-	rec := httptest.NewRecorder()
+	rec := newSafeRecorder()
 	handler.StreamEvents(rec, req)
 
-	events := parseSSE(t, rec.Body.String())
+	events := parseSSE(t, rec.BodyString())
 	if len(events["status"]) < 2 {
 		t.Fatalf("expected connected and terminal status events, got %#v", events["status"])
 	}
@@ -300,4 +302,45 @@ func deployRequest(t *testing.T, method, target string, deployID int64) *http.Re
 	routeCtx := chi.NewRouteContext()
 	routeCtx.URLParams.Add("deployID", strconv.FormatInt(deployID, 10))
 	return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
+}
+
+type safeRecorder struct {
+	mu         sync.Mutex
+	header     http.Header
+	body       bytes.Buffer
+	statusCode int
+}
+
+func newSafeRecorder() *safeRecorder {
+	return &safeRecorder{
+		header:     make(http.Header),
+		statusCode: http.StatusOK,
+	}
+}
+
+func (r *safeRecorder) Header() http.Header {
+	return r.header
+}
+
+func (r *safeRecorder) Write(data []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.body.Write(data)
+}
+
+func (r *safeRecorder) WriteHeader(statusCode int) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.statusCode = statusCode
+}
+
+func (r *safeRecorder) Flush() {}
+
+func (r *safeRecorder) BodyString() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.body.String()
 }
