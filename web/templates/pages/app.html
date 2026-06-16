@@ -188,7 +188,7 @@
             </div>
             <div class="space-y-4">
                 <div id="deploy-feedback" class="hidden"></div>
-                <form id="deploy-form" hx-post="/apps/{{.App.ID}}/deploy" hx-target="#deploy-history" hx-swap="afterbegin"
+                <form id="deploy-form" hx-post="/apps/{{.App.ID}}/deploy" hx-target="#deploy-history-anchor" hx-swap="afterend"
                     class="flex flex-col gap-3 sm:flex-row sm:items-end">
                     {{if eq .App.BuildMode "talos_build"}}
                     <div class="min-w-0 flex-1">
@@ -212,7 +212,7 @@
                     </button>
                 </form>
 
-                <form id="rollback-form" hx-post="/apps/{{.App.ID}}/rollback" hx-target="#deploy-history" hx-swap="afterbegin">
+                <form id="rollback-form" hx-post="/apps/{{.App.ID}}/rollback" hx-target="#deploy-history-anchor" hx-swap="afterend">
                     <button type="button" onclick="confirmRollback()"
                         class="inline-flex items-center gap-2 rounded-xl border border-hairline bg-canvas-dark/40 px-4 py-2.5 text-sm text-body transition hover:bg-canvas-dark/70 cursor-pointer">
                         Rollback
@@ -239,16 +239,17 @@
                             <th class="px-6 py-3">Time</th>
                         </tr>
                     </thead>
-                    <tbody id="deploy-history">
-                        {{range .Deploys}}
-                        {{template "deploy_row.html" dict "Deploy" . "AppID" $.App.ID}}
-                        {{end}}
-                        {{if not .Deploys}}
+                    <tbody id="deploy-history-anchor"></tbody>
+                    {{range .Deploys}}
+                    {{template "deploy_row.html" dict "Deploy" . "AppID" $.App.ID}}
+                    {{end}}
+                    {{if not .Deploys}}
+                    <tbody id="deploy-history-empty">
                         <tr>
                             <td colspan="6" class="px-6 py-8 text-center text-muted">No deploys yet.</td>
                         </tr>
-                        {{end}}
                     </tbody>
+                    {{end}}
                 </table>
             </div>
         </section>
@@ -410,6 +411,8 @@
                 showFeedback(event.detail.xhr.responseText);
             } else {
                 clearFeedback();
+                var emptyState = document.getElementById('deploy-history-empty');
+                if (emptyState) emptyState.remove();
             }
         });
     });
@@ -451,5 +454,24 @@ async function confirmRollback() {
     try { await showConfirm({ title: 'Rollback', message: 'Rollback to last successful deploy?', confirmText: 'Rollback', variant: 'warning' }); } catch { return; }
     htmx.trigger('#rollback-form', 'submit');
 }
+
+window.toggleDeployEvents = function(deployID) {
+    var row = document.getElementById('deploy-events-' + deployID);
+    if (!row) return;
+
+    var isHidden = row.classList.contains('hidden');
+    if (isHidden) {
+        row.classList.remove('hidden');
+        if (row.dataset.loaded !== 'true') {
+            row.dataset.loaded = 'true';
+            htmx.ajax('GET', '/api/deploys/' + deployID + '/events', { target: '#deploy-events-' + deployID, swap: 'innerHTML' });
+        }
+        return;
+    }
+
+    if (!row.getAttribute('hx-trigger')) {
+        row.classList.add('hidden');
+    }
+};
 </script>
 {{end}}

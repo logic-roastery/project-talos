@@ -5,10 +5,7 @@
     {{end}}>
     <tr id="deploy-{{.Deploy.ID}}"
         class="border-b border-hairline/50 cursor-pointer"
-        hx-get="/api/deploys/{{.Deploy.ID}}/events"
-        hx-trigger="click"
-        hx-target="#deploy-events-{{.Deploy.ID}}"
-        hx-swap="innerHTML">
+        onclick="toggleDeployEvents({{.Deploy.ID}})">
         <td class="px-4 py-3 text-muted">#{{.Deploy.ID}}</td>
         <td class="px-4 py-3 text-subtle font-mono text-xs">{{if .Deploy.ImageRef}}{{.Deploy.ImageRef}}{{else}}building...{{end}}</td>
         <td class="px-4 py-3">
@@ -25,9 +22,16 @@
         <td class="px-4 py-3 text-muted font-mono text-xs">{{if .Deploy.CommitSHA}}{{truncateSHA .Deploy.CommitSHA}}{{else}}pending{{end}}</td>
         <td class="px-4 py-3 text-muted text-xs">{{timeAgo .Deploy.CreatedAt}}</td>
     </tr>
-    <tr id="deploy-events-{{.Deploy.ID}}" class="hidden">
+    <tr id="deploy-events-{{.Deploy.ID}}"
+        class="{{if or (eq .Deploy.Status "running") (eq .Deploy.Status "pending")}}{{else}}hidden{{end}}"
+        data-loaded="{{if or (eq .Deploy.Status "running") (eq .Deploy.Status "pending")}}true{{else}}false{{end}}"
+        {{if or (eq .Deploy.Status "running") (eq .Deploy.Status "pending")}}
+        hx-get="/api/deploys/{{.Deploy.ID}}/events"
+        hx-trigger="load, every 2s"
+        hx-swap="innerHTML"
+        {{end}}>
         <td colspan="6" class="px-4 py-2 bg-surface/50">
-            <div class="text-xs text-muted">Click to load events...</div>
+            <div class="text-xs text-muted">{{if or (eq .Deploy.Status "running") (eq .Deploy.Status "pending")}}Loading deploy events...{{else}}Click to load events...{{end}}</div>
         </td>
     </tr>
 </tbody>
