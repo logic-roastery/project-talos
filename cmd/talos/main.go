@@ -31,19 +31,50 @@ import (
 // Version is set at build time via ldflags.
 var Version = "dev"
 
-// persistEncryptionKey writes or updates TALOS_ENCRYPTION_KEY in the .env file.
-func persistEncryptionKey(key string) error {
-	envPath := ".env"
+const (
+	defaultDockerEnvPath = "/opt/talos/.env"
+	legacyBareEnvPath    = "/etc/talos/.env"
+)
+
+// resolveEnvFilePath returns the most likely persisted env file path.
+func resolveEnvFilePath() string {
+	if envPath := strings.TrimSpace(os.Getenv("TALOS_ENV_FILE")); envPath != "" {
+		return envPath
+	}
+
+	candidates := []string{
+		defaultDockerEnvPath,
+		legacyBareEnvPath,
+		filepath.Join(".", ".env"),
+	}
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+
+	return defaultDockerEnvPath
+}
+
+// persistEncryptionKey writes or updates TALOS_ENCRYPTION_KEY in the persisted env file.
+func persistEncryptionKey(key string) (string, error) {
+	envPath := resolveEnvFilePath()
 
 	data, err := os.ReadFile(envPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return os.WriteFile(envPath, []byte("TALOS_ENCRYPTION_KEY="+key+"\n"), 0600)
+			if err := os.MkdirAll(filepath.Dir(envPath), 0755); err != nil {
+				return "", err
+			}
+			return envPath, os.WriteFile(envPath, []byte("TALOS_ENCRYPTION_KEY="+key+"\n"), 0600)
 		}
-		return err
+		return "", err
 	}
 
 	lines := strings.Split(string(data), "\n")
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
 	found := false
 	for i, line := range lines {
 		if strings.HasPrefix(line, "TALOS_ENCRYPTION_KEY=") {
@@ -56,7 +87,7 @@ func persistEncryptionKey(key string) error {
 		lines = append(lines, "TALOS_ENCRYPTION_KEY="+key)
 	}
 
-	return os.WriteFile(envPath, []byte(strings.Join(lines, "\n")), 0600)
+	return envPath, os.WriteFile(envPath, []byte(strings.Join(lines, "\n")), 0600)
 }
 
 func main() {
@@ -118,10 +149,11 @@ func main() {
 	if encKeyStr == "" {
 		key := crypto.GenerateKey()
 		encKeyStr = crypto.EncodeKey(key)
-		if err := persistEncryptionKey(encKeyStr); err != nil {
+		envPath, err := persistEncryptionKey(encKeyStr)
+		if err != nil {
 			logger.Warn("could not persist encryption key to .env", "error", err)
 		} else {
-			logger.Info("auto-generated encryption key and saved to .env")
+			logger.Info("auto-generated encryption key and saved", "env_path", envPath)
 		}
 	}
 	encKey, err := crypto.DecodeKey(encKeyStr)
