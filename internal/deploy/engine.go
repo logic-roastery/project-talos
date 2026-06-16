@@ -446,13 +446,13 @@ func (e *Engine) collectEnvVars(ctx context.Context, app *domain.App) []string {
 		}
 	}
 
-	// Fetch app-level env vars
-	appVars, err := e.services.GetAppEnvVars(ctx, app.ID)
+	// Fetch app-level env vars directly from the stored snapshot so secret masking never affects runtime injection.
+	appVars, err := e.services.GetAppEnvVarsSnapshot(ctx, app.ID)
 	if err != nil {
 		e.logger.Warn("get app env vars", "error", err)
 	} else {
-		for _, v := range appVars {
-			envVars = append(envVars, v.Key+"="+v.Value)
+		for key, value := range appVars {
+			envVars = append(envVars, key+"="+value)
 		}
 	}
 

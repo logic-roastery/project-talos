@@ -317,7 +317,9 @@ func (testServiceStore) SetAppEnvVar(context.Context, *domain.AppEnvVar) error {
 	panic("unexpected call")
 }
 func (testServiceStore) GetAppEnvVars(context.Context, int64) ([]*domain.AppEnvVar, error) {
-	return nil, nil
+	return []*domain.AppEnvVar{
+		{Key: "SECRET_VALUE", Value: "shhh", IsSecret: true},
+	}, nil
 }
 func (testServiceStore) DeleteAppEnvVar(context.Context, int64, string) error {
 	panic("unexpected call")
@@ -326,5 +328,7 @@ func (testServiceStore) GetAppEnvVarHistory(context.Context, int64, string) ([]*
 	panic("unexpected call")
 }
 func (testServiceStore) GetAppEnvVarsSnapshot(context.Context, int64) (map[string]string, error) {
-	return map[string]string{}, nil
+	return map[string]string{
+		"SECRET_VALUE": "shhh",
+	}, nil
 }

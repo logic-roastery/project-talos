@@ -494,25 +494,28 @@ function buildConnectionDetails(creds) {
     const type = '{{.Service.Type}}';
     const summary = [];
     let connectionString = '';
+    const encodedUser = creds.user ? encodeURIComponent(creds.user) : '';
+    const encodedPassword = creds.password ? encodeURIComponent(creds.password) : '';
+    const encodedDatabase = creds.database ? encodeURIComponent(creds.database) : '';
 
     if (type === 'redis') {
         if (creds.host) summary.push({ label: 'Host', value: creds.host });
         if (creds.port) summary.push({ label: 'Port', value: String(creds.port) });
         connectionString = creds.password
-            ? 'redis://:' + creds.password + '@' + creds.host + ':' + creds.port
+            ? 'redis://:' + encodedPassword + '@' + creds.host + ':' + creds.port
             : 'redis://' + creds.host + ':' + creds.port;
     } else if (type === 'postgres') {
         if (creds.host) summary.push({ label: 'Host', value: creds.host });
         if (creds.database) summary.push({ label: 'Database', value: creds.database });
         if (creds.port) summary.push({ label: 'Port', value: String(creds.port) });
         if (creds.user) summary.push({ label: 'User', value: creds.user });
-        connectionString = 'postgresql://' + creds.user + ':' + creds.password + '@' + creds.host + ':' + creds.port + '/' + creds.database;
+        connectionString = 'postgresql://' + encodedUser + ':' + encodedPassword + '@' + creds.host + ':' + creds.port + '/' + encodedDatabase;
     } else if (type === 'mysql') {
         if (creds.host) summary.push({ label: 'Host', value: creds.host });
         if (creds.database) summary.push({ label: 'Database', value: creds.database });
         if (creds.port) summary.push({ label: 'Port', value: String(creds.port) });
         if (creds.user) summary.push({ label: 'User', value: creds.user });
-        connectionString = 'mysql://' + creds.user + ':' + creds.password + '@' + creds.host + ':' + creds.port + '/' + creds.database;
+        connectionString = 'mysql://' + encodedUser + ':' + encodedPassword + '@' + creds.host + ':' + creds.port + '/' + encodedDatabase;
     } else if (type === 'garage') {
         if (creds.endpoint) summary.push({ label: 'Endpoint', value: creds.endpoint });
         if (creds.bucket) summary.push({ label: 'Bucket', value: creds.bucket });

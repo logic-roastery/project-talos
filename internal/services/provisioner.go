@@ -292,7 +292,15 @@ func (p *Provisioner) StartService(ctx context.Context, svc *domain.Service) err
 
 	svc.ContainerID = containerID
 	svc.Status = domain.ServiceStatusActive
-	return p.services.UpdateService(ctx, svc)
+	if err := p.services.UpdateService(ctx, svc); err != nil {
+		return err
+	}
+
+	if err := p.reconcileManagedServiceCredentials(ctx, svc, containerName, credJSON); err != nil {
+		p.logger.Warn("reconcile managed service credentials", "service", svc.Name, "type", svc.Type, "error", err)
+	}
+
+	return nil
 }
 
 // DecryptCredentials decrypts a service's credentials and unmarshals into the target.
@@ -316,6 +324,45 @@ func (p *Provisioner) EncryptCredentials(svc *domain.Service, creds interface{})
 	}
 	svc.Credentials = encrypted
 	return nil
+}
+
+func (p *Provisioner) reconcileManagedServiceCredentials(ctx context.Context, svc *domain.Service, containerName, credJSON string) error {
+	switch svc.Type {
+	case domain.ServicePostgres:
+		var pc domain.PostgresCredentials
+		if err := json.Unmarshal([]byte(credJSON), &pc); err != nil {
+			return fmt.Errorf("decode postgres credentials: %w", err)
+		}
+		return p.syncPostgresPassword(ctx, containerName, &pc)
+	default:
+		return nil
+	}
+}
+
+func (p *Provisioner) syncPostgresPassword(ctx context.Context, containerName string, creds *domain.PostgresCredentials) error {
+	if creds == nil {
+		return nil
+	}
+
+	sql := fmt.Sprintf(
+		"ALTER USER %s WITH PASSWORD %s;",
+		quotePostgresIdentifier(creds.User),
+		quotePostgresLiteral(creds.Password),
+	)
+
+	cmd := []string{"psql", "-v", "ON_ERROR_STOP=1", "-d", "postgres", "-c", sql}
+	if _, err := p.docker.ExecAs(ctx, containerName, "postgres", cmd); err != nil {
+		return fmt.Errorf("sync postgres password: %w", err)
+	}
+	return nil
+}
+
+func quotePostgresIdentifier(value string) string {
+	return `"` + strings.ReplaceAll(value, `"`, `""`) + `"`
+}
+
+func quotePostgresLiteral(value string) string {
+	return `'` + strings.ReplaceAll(value, `'`, `''`) + `'`
 }
 
 func (p *Provisioner) buildContainerConfig(svc *domain.Service, creds interface{}, volHost string) (docker.ContainerConfig, error) {

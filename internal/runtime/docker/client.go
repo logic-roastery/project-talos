@@ -390,10 +390,16 @@ func (c *Client) StreamLogs(ctx context.Context, containerID string, tail string
 
 // Exec runs a command in a running container and returns the combined stdout output.
 func (c *Client) Exec(ctx context.Context, containerName string, cmd []string) ([]byte, error) {
+	return c.ExecAs(ctx, containerName, "", cmd)
+}
+
+// ExecAs runs a command in a running container as the given user and returns combined stdout output.
+func (c *Client) ExecAs(ctx context.Context, containerName, user string, cmd []string) ([]byte, error) {
 	execCfg := client.ExecCreateOptions{
 		Cmd:          cmd,
 		AttachStdout: true,
 		AttachStderr: true,
+		User:         user,
 	}
 
 	resp, err := c.cli.ExecCreate(ctx, containerName, execCfg)
