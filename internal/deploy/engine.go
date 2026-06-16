@@ -153,22 +153,24 @@ func (e *Engine) Rollback(ctx context.Context, appID int64) (*domain.Deploy, err
 	}
 
 	backgroundDeploy := *d
-	go e.execute(context.Background(), app, &backgroundDeploy)
+	go e.execute(context.Background(), app, &backgroundDeploy, false)
 
 	return d, nil
 }
 
 func (e *Engine) executeQueued(ctx context.Context, app *domain.App, d *domain.Deploy) {
 	e.emitEvent(ctx, d.ID, "info", "queue", "deploy queued")
+	skipPull := false
 
 	if app.BuildMode == domain.BuildModeTalosBuild && d.ImageRef == "" {
 		if err := e.prepareTalosBuild(ctx, app, d); err != nil {
 			e.failDeploy(ctx, d, err.Error())
 			return
 		}
+		skipPull = true
 	}
 
-	e.execute(ctx, app, d)
+	e.execute(ctx, app, d, skipPull)
 }
 
 func (e *Engine) prepareTalosBuild(ctx context.Context, app *domain.App, d *domain.Deploy) error {
@@ -213,7 +215,7 @@ func (e *Engine) prepareTalosBuild(ctx context.Context, app *domain.App, d *doma
 	return nil
 }
 
-func (e *Engine) execute(ctx context.Context, app *domain.App, d *domain.Deploy) {
+func (e *Engine) execute(ctx context.Context, app *domain.App, d *domain.Deploy, skipPull bool) {
 	now := time.Now()
 	d.StartedAt = &now
 	d.Status = domain.DeployStatusRunning
@@ -235,14 +237,18 @@ func (e *Engine) execute(ctx context.Context, app *domain.App, d *domain.Deploy)
 		d.EnvSnapshot = string(envJSON)
 	}
 
-	// Pull image
-	e.emitEvent(ctx, d.ID, "info", "pull", "pulling image "+d.ImageRef)
-	if err := e.docker.PullImage(ctx, d.ImageRef); err != nil {
-		e.emitEvent(ctx, d.ID, "error", "pull", fmt.Sprintf("pull failed: %v", err))
-		e.failDeploy(ctx, d, fmt.Sprintf("pull image: %v", err))
-		return
+	// Pull image unless it was just built locally by Talos.
+	if skipPull {
+		e.emitEvent(ctx, d.ID, "info", "pull", "skipping image pull because the image was built locally")
+	} else {
+		e.emitEvent(ctx, d.ID, "info", "pull", "pulling image "+d.ImageRef)
+		if err := e.docker.PullImage(ctx, d.ImageRef); err != nil {
+			e.emitEvent(ctx, d.ID, "error", "pull", fmt.Sprintf("pull failed: %v", err))
+			e.failDeploy(ctx, d, fmt.Sprintf("pull image: %v", err))
+			return
+		}
+		e.emitEvent(ctx, d.ID, "info", "pull", "image pulled successfully")
 	}
-	e.emitEvent(ctx, d.ID, "info", "pull", "image pulled successfully")
 
 	// Blue/green: start staging container alongside the live one
 	stagingName := fmt.Sprintf("talos-%s-%d", app.Name, d.ID)
