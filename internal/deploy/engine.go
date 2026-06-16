@@ -93,7 +93,8 @@ func (e *Engine) Deploy(ctx context.Context, appID int64, imageRef, commitSHA, b
 		return nil, fmt.Errorf("create deploy: %w", err)
 	}
 
-	go e.executeQueued(context.Background(), app, d)
+	backgroundDeploy := *d
+	go e.executeQueued(context.Background(), app, &backgroundDeploy)
 
 	return d, nil
 }
@@ -151,7 +152,8 @@ func (e *Engine) Rollback(ctx context.Context, appID int64) (*domain.Deploy, err
 		return nil, fmt.Errorf("create rollback deploy: %w", err)
 	}
 
-	go e.execute(context.Background(), app, d)
+	backgroundDeploy := *d
+	go e.execute(context.Background(), app, &backgroundDeploy)
 
 	return d, nil
 }
