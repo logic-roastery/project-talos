@@ -72,7 +72,7 @@ All credentials are encrypted at rest using AES-256-GCM:
 4. Credentials are decrypted only when needed for injection into app containers.
 
 :::danger
-If you lose `TALOS_ENCRYPTION_KEY`, encrypted credentials in the database and backups are unrecoverable. Always back up your `.env` file.
+If you lose `TALOS_ENCRYPTION_KEY`, encrypted credentials in the database and backups are unrecoverable. Always back up your `.env` file. If you intentionally regenerate the key, existing encrypted service credentials must be restored from the old key or recreated.
 :::
 
 ### Viewing Credentials

@@ -89,6 +89,8 @@ curl -sSL https://raw.githubusercontent.com/logic-roastery/project-talos/master/
 
 Do not rely on `docker restart talos` after a new image pull. Restarting an existing container keeps it on the old image; Talos must recreate the container to apply the new version.
 
+Normal upgrades preserve `TALOS_ENCRYPTION_KEY`. Talos only auto-generates that key on first install. If an existing install starts without `TALOS_ENCRYPTION_KEY`, Talos now fails fast instead of generating a replacement key that would break access to stored service credentials.
+
 ## Domain Setup
 
 The installer will ask if you have a domain. You have two options:
@@ -120,7 +122,7 @@ All configuration is via environment variables. Copy `.env.example` to `.env` an
 | `TALOS_SESSION_MAX_AGE` | `604800` | Session lifetime in seconds (7 days) |
 | `TALOS_DOCKER_HOST` | `unix:///var/run/docker.sock` | Docker daemon socket |
 | `TALOS_DOCKER_NETWORK` | `talos` | Docker network name for containers |
-| `TALOS_ENCRYPTION_KEY` | auto-generated | Base64 AES-256 key for credential encryption |
+| `TALOS_ENCRYPTION_KEY` | auto-generated on first install | Base64 AES-256 key for credential encryption |
 | `TALOS_TRAEFIK_IMAGE` | `traefik:v3.0` | Traefik reverse proxy image |
 | `TALOS_TRAEFIK_DASHBOARD` | `false` | Enable Traefik dashboard |
 | `TALOS_BACKUP_DIR` | `data/backups` | Directory for backup files |
@@ -420,7 +422,7 @@ Everything is bundled into a single `.tar.gz` file.
 
 Backups are stored in `data/backups/` by default. Configure with `TALOS_BACKUP_DIR`.
 
-> **Important:** Always keep the `.env` file safe — it contains `TALOS_ENCRYPTION_KEY` which is required to decrypt service credentials. Without it, encrypted credentials in backups are unrecoverable.
+> **Important:** Always keep the `.env` file safe — it contains `TALOS_ENCRYPTION_KEY` which is required to decrypt service credentials. Without it, encrypted credentials in backups are unrecoverable. If you intentionally rotate the key, existing encrypted service credentials must be restored from the old key or recreated.
 
 ## Docker
 

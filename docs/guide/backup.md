@@ -19,7 +19,7 @@ Each backup captures the full state of your Talos installation:
 Everything is bundled into a single `.tar.gz` file stored in the backup directory.
 
 :::danger
-Always keep the `.env` file safe. It contains `TALOS_ENCRYPTION_KEY`, which is required to decrypt service credentials stored in backups. Without this key, encrypted credentials are unrecoverable.
+Always keep the `.env` file safe. It contains `TALOS_ENCRYPTION_KEY`, which is required to decrypt service credentials stored in backups. Without this key, encrypted credentials are unrecoverable. If you intentionally replace the key later, old backups still require the original `.env` file.
 :::
 
 ## Manual Backup
