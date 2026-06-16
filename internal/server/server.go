@@ -341,6 +341,7 @@ func New(
 		r.Post("/apps/{appID}/rollback", pageH.TriggerRollback)
 		r.Delete("/apps/{appID}", pageH.DeleteApp)
 		r.Get("/partials/deploy-status/{deployID}", pageH.DeployStatusPartial)
+		r.Get("/partials/deploy-row/{deployID}", pageH.DeployRowPartial)
 		r.Get("/partials/app-row/{appID}", pageH.AppRowPartial)
 		r.Get("/services", pageH.ServicesPage)
 		r.Get("/services/new", pageH.ServiceCreatePage)

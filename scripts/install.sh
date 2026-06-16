@@ -23,6 +23,7 @@ TALOS_HOME="/opt/talos"
 TALOS_BIN="/usr/local/bin/talos"
 TALOS_ENV="${TALOS_HOME}/.env"
 TALOS_DATA="${TALOS_HOME}/data"
+TALOS_GITHUB_PRIVATE_KEY="${TALOS_HOME}/github-app.private-key.pem"
 TRAEFIK_CONTAINER="talos-traefik"
 DOCKER_NETWORK="talos"
 TRAEFIK_IMAGE="traefik:v3.0"
@@ -57,6 +58,12 @@ info()  { echo -e "${CYAN}[info]${NC}  $*"; }
 ok()    { echo -e "${GREEN}[ok]${NC}    $*"; }
 warn()  { echo -e "${YELLOW}[warn]${NC}  $*"; }
 die()   { echo -e "${RED}[error]${NC} $*" >&2; exit 1; }
+
+talos_github_key_mount_args() {
+    if [[ -f "${TALOS_GITHUB_PRIVATE_KEY}" ]]; then
+        printf -- '-v\n%s:%s:ro\n' "${TALOS_GITHUB_PRIVATE_KEY}" "${TALOS_GITHUB_PRIVATE_KEY}"
+    fi
+}
 
 detect_host_ip() {
     local ip=""
@@ -370,6 +377,7 @@ if [[ "${UPGRADE_MODE}" == "true" ]]; then
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "${TALOS_DATA}:/data" \
             -v "${TALOS_ENV}:${TALOS_ENV}" \
+            $(talos_github_key_mount_args) \
             --env-file "${TALOS_ENV}" \
             "${TALOS_LABEL_ARGS[@]}" \
             "${GHCR_IMAGE_BASE}:${IMAGE_TAG}" \
@@ -397,6 +405,9 @@ if [[ "${UPGRADE_MODE}" == "true" ]]; then
             echo "      -v /var/run/docker.sock:/var/run/docker.sock \\"
             echo "      -v ${TALOS_DATA}:/data \\"
             echo "      -v ${TALOS_ENV}:${TALOS_ENV} \\"
+            if [[ -f "${TALOS_GITHUB_PRIVATE_KEY}" ]]; then
+                echo "      -v ${TALOS_GITHUB_PRIVATE_KEY}:${TALOS_GITHUB_PRIVATE_KEY}:ro \\"
+            fi
             echo "      --env-file ${TALOS_ENV} \\"
             echo "      ${GHCR_IMAGE_BASE}:rollback-${BACKUP_TAG}"
             echo ""
@@ -751,6 +762,7 @@ EOF
         -v /var/run/docker.sock:/var/run/docker.sock \
         -v "${TALOS_DATA}:/data" \
         -v "${TALOS_ENV}:${TALOS_ENV}" \
+        $(talos_github_key_mount_args) \
         --env-file "${TALOS_ENV}" \
         "${TALOS_LABEL_ARGS[@]}" \
         "${GHCR_IMAGE}" \

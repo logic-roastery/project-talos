@@ -77,31 +77,8 @@ func (e *Engine) Deploy(ctx context.Context, appID int64, imageRef, commitSHA, b
 	if err != nil && err != domain.ErrNotFound {
 		return nil, fmt.Errorf("check running deploy: %w", err)
 	}
-	if latest != nil && latest.Status == domain.DeployStatusRunning {
+	if latest != nil && (latest.Status == domain.DeployStatusRunning || latest.Status == domain.DeployStatusPending) {
 		return nil, domain.ErrDeployInProgress
-	}
-
-	// For talos_build mode, build the image locally if no imageRef provided
-	if app.BuildMode == domain.BuildModeTalosBuild && imageRef == "" {
-		b := e.getBuilder()
-		if b == nil {
-			return nil, fmt.Errorf("GitHub App is not connected — go to Settings → GitHub to set it up, then try again")
-		}
-		if app.RepoURL == "" {
-			return nil, fmt.Errorf("no repository URL set for this app — edit the app settings to add one")
-		}
-		if commitSHA == "" {
-			resolvedSHA, err := e.resolveBuildCommitSHA(ctx, app, branch)
-			if err != nil {
-				return nil, err
-			}
-			commitSHA = resolvedSHA
-		}
-		result, err := b.CloneAndBuild(ctx, app, commitSHA)
-		if err != nil {
-			return nil, fmt.Errorf("build failed: %w", err)
-		}
-		imageRef = result.ImageRef
 	}
 
 	d := &domain.Deploy{
@@ -116,7 +93,7 @@ func (e *Engine) Deploy(ctx context.Context, appID int64, imageRef, commitSHA, b
 		return nil, fmt.Errorf("create deploy: %w", err)
 	}
 
-	go e.execute(context.Background(), app, d)
+	go e.executeQueued(context.Background(), app, d)
 
 	return d, nil
 }
@@ -177,6 +154,59 @@ func (e *Engine) Rollback(ctx context.Context, appID int64) (*domain.Deploy, err
 	go e.execute(context.Background(), app, d)
 
 	return d, nil
+}
+
+func (e *Engine) executeQueued(ctx context.Context, app *domain.App, d *domain.Deploy) {
+	e.emitEvent(ctx, d.ID, "info", "queue", "deploy queued")
+
+	if app.BuildMode == domain.BuildModeTalosBuild && d.ImageRef == "" {
+		if err := e.prepareTalosBuild(ctx, app, d); err != nil {
+			e.failDeploy(ctx, d, err.Error())
+			return
+		}
+	}
+
+	e.execute(ctx, app, d)
+}
+
+func (e *Engine) prepareTalosBuild(ctx context.Context, app *domain.App, d *domain.Deploy) error {
+	b := e.getBuilder()
+	if b == nil {
+		e.emitEvent(ctx, d.ID, "error", "build_setup", "GitHub App is not connected")
+		return fmt.Errorf("GitHub App is not connected — go to Settings → GitHub to set it up, then try again")
+	}
+	if app.RepoURL == "" {
+		e.emitEvent(ctx, d.ID, "error", "build_setup", "repository URL is not configured")
+		return fmt.Errorf("no repository URL set for this app — edit the app settings to add one")
+	}
+
+	if d.CommitSHA == "" {
+		e.emitEvent(ctx, d.ID, "info", "resolve_commit", "resolving branch HEAD for "+d.Branch)
+		resolvedSHA, err := e.resolveBuildCommitSHA(ctx, app, d.Branch)
+		if err != nil {
+			e.emitEvent(ctx, d.ID, "error", "resolve_commit", err.Error())
+			return err
+		}
+		d.CommitSHA = resolvedSHA
+		if err := e.deploys.UpdateDeploy(ctx, d); err != nil {
+			e.logger.Error("update deploy commit sha", "deploy_id", d.ID, "error", err)
+		}
+		e.emitEvent(ctx, d.ID, "info", "resolve_commit", "resolved commit "+shortSHA(d.CommitSHA))
+	}
+
+	e.emitEvent(ctx, d.ID, "info", "build", "cloning repository and building image")
+	result, err := b.CloneAndBuild(ctx, app, d.CommitSHA)
+	if err != nil {
+		e.emitEvent(ctx, d.ID, "error", "build", fmt.Sprintf("build failed: %v", err))
+		return fmt.Errorf("build failed: %w", err)
+	}
+
+	d.ImageRef = result.ImageRef
+	if err := e.deploys.UpdateDeploy(ctx, d); err != nil {
+		e.logger.Error("update deploy image ref", "deploy_id", d.ID, "error", err)
+	}
+	e.emitEvent(ctx, d.ID, "info", "build", "image built successfully: "+d.ImageRef)
+	return nil
 }
 
 func (e *Engine) execute(ctx context.Context, app *domain.App, d *domain.Deploy) {
@@ -336,6 +366,13 @@ func (e *Engine) execute(ctx context.Context, app *domain.App, d *domain.Deploy)
 
 	e.emitEvent(ctx, d.ID, "info", "finalize", "deploy completed successfully")
 	e.logger.Info("deploy completed", "deploy_id", d.ID, "app", app.Name)
+}
+
+func shortSHA(sha string) string {
+	if len(sha) >= 7 {
+		return sha[:7]
+	}
+	return sha
 }
 
 // collectEnvVars gathers env vars from linked services and app env vars.

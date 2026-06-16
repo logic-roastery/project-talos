@@ -71,7 +71,7 @@ func (b *Builder) CloneAndBuild(ctx context.Context, app *domain.App, commitSHA 
 
 	// Build Docker image (auto-detects if no Dockerfile)
 	imageRef := b.buildImageRef(app, commitSHA)
-	result, err := b.buildImage(ctx, cloneDir, imageRef, string(app.ProjectType))
+	result, err := b.buildImage(ctx, cloneDir, imageRef, string(app.ProjectType), app.InternalPort)
 	if err != nil {
 		return nil, fmt.Errorf("build image: %w", err)
 	}
@@ -140,7 +140,7 @@ func (b *Builder) cloneRepo(ctx context.Context, repoURL, branch, commitSHA, des
 
 // buildImage builds a Docker image from the specified directory.
 // If no Dockerfile exists, auto-detects the project type and generates one.
-func (b *Builder) buildImage(ctx context.Context, buildDir, imageRef, projectType string) (*CloneAndBuildResult, error) {
+func (b *Builder) buildImage(ctx context.Context, buildDir, imageRef, projectType string, configuredPort int) (*CloneAndBuildResult, error) {
 	dockerfilePath := filepath.Join(buildDir, "Dockerfile")
 	result := &CloneAndBuildResult{ImageRef: imageRef}
 
@@ -150,6 +150,7 @@ func (b *Builder) buildImage(ctx context.Context, buildDir, imageRef, projectTyp
 		if err != nil {
 			return nil, fmt.Errorf("no Dockerfile and auto-detection failed: %w", err)
 		}
+		plan.Port = effectivePlanPort(plan.Port, configuredPort)
 		if projectType != "" {
 			b.logger.Info("using configured project type",
 				"provider", plan.Provider,
@@ -195,4 +196,11 @@ func shortCommitSHA(commitSHA string) string {
 		return commitSHA
 	}
 	return "manual"
+}
+
+func effectivePlanPort(detectedPort, configuredPort int) int {
+	if configuredPort > 0 {
+		return configuredPort
+	}
+	return detectedPort
 }

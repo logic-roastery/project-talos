@@ -112,7 +112,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /{{.BinaryName}} {{.BuildTarget}}
+RUN CGO_ENABLED=0 go build -p=1 -ldflags="-s -w" -o /{{.BinaryName}} {{.BuildTarget}}
 
 FROM alpine:3.23
 RUN apk --no-cache add ca-certificates

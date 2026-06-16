@@ -1,7 +1,7 @@
 {{define "deploy_row.html"}}
 <tr id="deploy-{{.Deploy.ID}}"
     {{if or (eq .Deploy.Status "running") (eq .Deploy.Status "pending")}}
-    hx-get="/partials/deploy-status/{{.Deploy.ID}}" hx-trigger="every 2s" hx-swap="outerHTML"
+    hx-get="/partials/deploy-row/{{.Deploy.ID}}" hx-trigger="every 2s" hx-swap="outerHTML"
     {{end}}
     class="border-b border-hairline/50 cursor-pointer"
     hx-get="/api/deploys/{{.Deploy.ID}}/events"
@@ -9,7 +9,7 @@
     hx-target="#deploy-events-{{.Deploy.ID}}"
     hx-swap="innerHTML">
     <td class="px-4 py-3 text-muted">#{{.Deploy.ID}}</td>
-    <td class="px-4 py-3 text-subtle font-mono text-xs">{{.Deploy.ImageRef}}</td>
+    <td class="px-4 py-3 text-subtle font-mono text-xs">{{if .Deploy.ImageRef}}{{.Deploy.ImageRef}}{{else}}building...{{end}}</td>
     <td class="px-4 py-3">
         <span class="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full {{deployBg .Deploy.Status}} {{deployText .Deploy.Status}} border {{deployBorder .Deploy.Status}}">
             {{if or (eq .Deploy.Status "running") (eq .Deploy.Status "pending")}}
@@ -21,7 +21,7 @@
         </span>
     </td>
     <td class="px-4 py-3 text-muted text-xs">{{.Deploy.TriggeredBy}}</td>
-    <td class="px-4 py-3 text-muted font-mono text-xs">{{truncateSHA .Deploy.CommitSHA}}</td>
+    <td class="px-4 py-3 text-muted font-mono text-xs">{{if .Deploy.CommitSHA}}{{truncateSHA .Deploy.CommitSHA}}{{else}}pending{{end}}</td>
     <td class="px-4 py-3 text-muted text-xs">{{timeAgo .Deploy.CreatedAt}}</td>
 </tr>
 <tr id="deploy-events-{{.Deploy.ID}}" class="hidden">
