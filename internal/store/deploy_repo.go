@@ -127,7 +127,7 @@ func (s *SQLiteStore) CreateDeployEvent(ctx context.Context, e *domain.DeployEve
 
 func (s *SQLiteStore) ListDeployEvents(ctx context.Context, deployID int64) ([]*domain.DeployEvent, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, deploy_id, timestamp, level, step, message FROM deploy_events WHERE deploy_id = ? ORDER BY timestamp ASC`,
+		`SELECT id, deploy_id, timestamp, level, step, message FROM deploy_events WHERE deploy_id = ? ORDER BY timestamp ASC, id ASC`,
 		deployID)
 	if err != nil {
 		return nil, fmt.Errorf("list deploy events: %w", err)

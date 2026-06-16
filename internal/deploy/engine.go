@@ -28,6 +28,7 @@ type Engine struct {
 	ghClient    *github.AppClient
 	dataDir     string
 	logger      *slog.Logger
+	events      *EventBroadcaster
 }
 
 func NewEngine(apps store.AppStore, deploys store.DeployStore, services store.ServiceStore, provisioner *services.Provisioner, docker *docker.Client, proxy *traefik.Manager, builder *builder.Builder, ghClient *github.AppClient, dataDir string, logger *slog.Logger) *Engine {
@@ -42,7 +43,12 @@ func NewEngine(apps store.AppStore, deploys store.DeployStore, services store.Se
 		ghClient:    ghClient,
 		dataDir:     dataDir,
 		logger:      logger,
+		events:      NewEventBroadcaster(),
 	}
+}
+
+func (e *Engine) EventBroadcaster() *EventBroadcaster {
+	return e.events
 }
 
 func (e *Engine) getBuilder() *builder.Builder {
@@ -476,7 +482,9 @@ func (e *Engine) emitEvent(ctx context.Context, deployID int64, level, step, mes
 	}
 	if err := e.deploys.CreateDeployEvent(ctx, event); err != nil {
 		e.logger.Error("emit deploy event", "error", err)
+		return
 	}
+	e.events.Publish(event)
 }
 
 func (e *Engine) validateEnvVars(ctx context.Context, app *domain.App) error {

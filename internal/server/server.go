@@ -101,6 +101,7 @@ func New(
 		})
 		r.Get("/api/deploys/{deployID}", deployH.Get)
 		r.Get("/api/deploys/{deployID}/events", deployH.ListEvents)
+		r.Get("/api/deploys/{deployID}/events/stream", deployH.StreamEvents)
 
 		// Live log streaming
 		logH := handlers.NewLogHandler(apps, dockerClient, logger)

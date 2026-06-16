@@ -1,8 +1,5 @@
 {{define "deploy_row.html"}}
-<tbody id="deploy-block-{{.Deploy.ID}}"
-    {{if or (eq .Deploy.Status "running") (eq .Deploy.Status "pending")}}
-    hx-get="/partials/deploy-row/{{.Deploy.ID}}" hx-trigger="every 2s" hx-swap="outerHTML"
-    {{end}}>
+<tbody id="deploy-block-{{.Deploy.ID}}" data-deploy-id="{{.Deploy.ID}}" data-deploy-status="{{.Deploy.Status}}">
     <tr id="deploy-{{.Deploy.ID}}"
         class="border-b border-hairline/50 cursor-pointer"
         onclick="toggleDeployEvents({{.Deploy.ID}})">
@@ -24,14 +21,13 @@
     </tr>
     <tr id="deploy-events-{{.Deploy.ID}}"
         class="{{if or (eq .Deploy.Status "running") (eq .Deploy.Status "pending")}}{{else}}hidden{{end}}"
-        data-loaded="{{if or (eq .Deploy.Status "running") (eq .Deploy.Status "pending")}}true{{else}}false{{end}}"
-        {{if or (eq .Deploy.Status "running") (eq .Deploy.Status "pending")}}
-        hx-get="/api/deploys/{{.Deploy.ID}}/events"
-        hx-trigger="load, every 2s"
-        hx-swap="innerHTML"
-        {{end}}>
+        data-loaded="false"
+        data-deploy-status="{{.Deploy.Status}}"
+        data-streaming="false">
         <td colspan="6" class="px-4 py-2 bg-surface/50">
-            <div class="text-xs text-muted">{{if or (eq .Deploy.Status "running") (eq .Deploy.Status "pending")}}Loading deploy events...{{else}}Click to load events...{{end}}</div>
+            <div id="deploy-events-content-{{.Deploy.ID}}" class="space-y-1">
+                <div class="text-xs text-muted">{{if or (eq .Deploy.Status "running") (eq .Deploy.Status "pending")}}Connecting to deploy event stream...{{else}}Click to load events...{{end}}</div>
+            </div>
         </td>
     </tr>
 </tbody>

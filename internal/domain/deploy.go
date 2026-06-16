@@ -30,3 +30,12 @@ type Deploy struct {
 	RollbackOfID *int64       `json:"rollback_of_id,omitempty"`
 	CreatedAt    time.Time    `json:"created_at"`
 }
+
+func (s DeployStatus) IsTerminal() bool {
+	switch s {
+	case DeployStatusSuccess, DeployStatusFailed, DeployStatusAutoRollback, DeployStatusRollback:
+		return true
+	default:
+		return false
+	}
+}
