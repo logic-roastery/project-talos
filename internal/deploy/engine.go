@@ -194,8 +194,10 @@ func (e *Engine) prepareTalosBuild(ctx context.Context, app *domain.App, d *doma
 		e.emitEvent(ctx, d.ID, "info", "resolve_commit", "resolved commit "+shortSHA(d.CommitSHA))
 	}
 
-	e.emitEvent(ctx, d.ID, "info", "build", "cloning repository and building image")
-	result, err := b.CloneAndBuild(ctx, app, d.CommitSHA)
+	e.emitEvent(ctx, d.ID, "info", "build", "starting repository clone and image build")
+	result, err := b.CloneAndBuildWithProgress(ctx, app, d.CommitSHA, func(level, step, message string) {
+		e.emitEvent(ctx, d.ID, level, step, message)
+	})
 	if err != nil {
 		e.emitEvent(ctx, d.ID, "error", "build", fmt.Sprintf("build failed: %v", err))
 		return fmt.Errorf("build failed: %w", err)

@@ -23,6 +23,8 @@ type Builder struct {
 	dataDir  string
 }
 
+type ProgressFunc func(level, step, message string)
+
 // CloneAndBuildResult holds the build output.
 type CloneAndBuildResult struct {
 	ImageRef string
@@ -43,6 +45,12 @@ func NewBuilder(ghClient *github.AppClient, docker *docker.Client, logger *slog.
 // CloneAndBuild clones the repository and builds a Docker image.
 // Returns the build result with image reference, detected port, and provider.
 func (b *Builder) CloneAndBuild(ctx context.Context, app *domain.App, commitSHA string) (*CloneAndBuildResult, error) {
+	return b.CloneAndBuildWithProgress(ctx, app, commitSHA, nil)
+}
+
+// CloneAndBuildWithProgress clones the repository and builds a Docker image while
+// emitting optional progress callbacks for UI/event reporting.
+func (b *Builder) CloneAndBuildWithProgress(ctx context.Context, app *domain.App, commitSHA string, progress ProgressFunc) (*CloneAndBuildResult, error) {
 	if app.GitHubInstallationID == nil {
 		return nil, fmt.Errorf("app %d has no GitHub installation", app.ID)
 	}
@@ -51,10 +59,12 @@ func (b *Builder) CloneAndBuild(ctx context.Context, app *domain.App, commitSHA 
 	}
 
 	// Get installation token for cloning
+	emitProgress(progress, "info", "build_auth", "requesting GitHub installation token")
 	token, err := b.ghClient.GetInstallationToken(ctx, *app.GitHubInstallationID)
 	if err != nil {
 		return nil, fmt.Errorf("get installation token: %w", err)
 	}
+	emitProgress(progress, "info", "build_auth", "GitHub installation token ready")
 
 	// Create temporary directory for clone
 	cloneDir := filepath.Join(b.dataDir, "builds", fmt.Sprintf("%d-%s", app.ID, shortCommitSHA(commitSHA)))
@@ -65,13 +75,13 @@ func (b *Builder) CloneAndBuild(ctx context.Context, app *domain.App, commitSHA 
 
 	// Clone the repository
 	repoURL := b.buildAuthURL(app.RepoURL, token)
-	if err := b.cloneRepo(ctx, repoURL, app.Branch, commitSHA, cloneDir); err != nil {
+	if err := b.cloneRepo(ctx, repoURL, app.Branch, commitSHA, cloneDir, progress); err != nil {
 		return nil, fmt.Errorf("clone repo: %w", err)
 	}
 
 	// Build Docker image (auto-detects if no Dockerfile)
 	imageRef := b.buildImageRef(app, commitSHA)
-	result, err := b.buildImage(ctx, cloneDir, imageRef, string(app.ProjectType), app.InternalPort)
+	result, err := b.buildImage(ctx, cloneDir, imageRef, string(app.ProjectType), app.InternalPort, progress)
 	if err != nil {
 		return nil, fmt.Errorf("build image: %w", err)
 	}
@@ -110,8 +120,9 @@ func (b *Builder) buildImageRef(app *domain.App, commitSHA string) string {
 }
 
 // cloneRepo clones the repository to the specified directory.
-func (b *Builder) cloneRepo(ctx context.Context, repoURL, branch, commitSHA, destDir string) error {
+func (b *Builder) cloneRepo(ctx context.Context, repoURL, branch, commitSHA, destDir string, progress ProgressFunc) error {
 	// Clone with depth 1 for efficiency
+	emitProgress(progress, "info", "clone", "cloning repository branch "+branch)
 	cmd := exec.CommandContext(ctx, "git", "clone",
 		"--depth", "1",
 		"--branch", branch,
@@ -124,15 +135,18 @@ func (b *Builder) cloneRepo(ctx context.Context, repoURL, branch, commitSHA, des
 	if err != nil {
 		return fmt.Errorf("git clone failed: %s: %w", string(output), err)
 	}
+	emitProgress(progress, "info", "clone", "repository cloned successfully")
 
 	// Checkout specific commit if not HEAD
 	if commitSHA != "" {
+		emitProgress(progress, "info", "clone", "checking out commit "+shortCommitSHA(commitSHA))
 		checkoutCmd := exec.CommandContext(ctx, "git", "checkout", commitSHA)
 		checkoutCmd.Dir = destDir
 		output, err := checkoutCmd.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("git checkout failed: %s: %w", string(output), err)
 		}
+		emitProgress(progress, "info", "clone", "checked out commit "+shortCommitSHA(commitSHA))
 	}
 
 	return nil
@@ -140,12 +154,13 @@ func (b *Builder) cloneRepo(ctx context.Context, repoURL, branch, commitSHA, des
 
 // buildImage builds a Docker image from the specified directory.
 // If no Dockerfile exists, auto-detects the project type and generates one.
-func (b *Builder) buildImage(ctx context.Context, buildDir, imageRef, projectType string, configuredPort int) (*CloneAndBuildResult, error) {
+func (b *Builder) buildImage(ctx context.Context, buildDir, imageRef, projectType string, configuredPort int, progress ProgressFunc) (*CloneAndBuildResult, error) {
 	dockerfilePath := filepath.Join(buildDir, "Dockerfile")
 	result := &CloneAndBuildResult{ImageRef: imageRef}
 
 	// If no Dockerfile, auto-detect and generate one
 	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
+		emitProgress(progress, "info", "build_detect", "detecting project type and generating Dockerfile")
 		plan, err := detect.DetectAs(buildDir, projectType)
 		if err != nil {
 			return nil, fmt.Errorf("no Dockerfile and auto-detection failed: %w", err)
@@ -170,9 +185,13 @@ func (b *Builder) buildImage(ctx context.Context, buildDir, imageRef, projectTyp
 		}
 		result.Port = plan.Port
 		result.Provider = plan.Provider
+		emitProgress(progress, "info", "build_detect", fmt.Sprintf("generated %s Dockerfile on port %d", plan.Provider, plan.Port))
+	} else {
+		emitProgress(progress, "info", "build_detect", "using repository Dockerfile")
 	}
 
 	// Build the image using docker build
+	emitProgress(progress, "info", "build_image", "building Docker image "+imageRef)
 	cmd := exec.CommandContext(ctx, "docker", "build",
 		"-t", imageRef,
 		".",
@@ -185,6 +204,7 @@ func (b *Builder) buildImage(ctx context.Context, buildDir, imageRef, projectTyp
 	}
 
 	b.logger.Info("docker image built", "image", imageRef)
+	emitProgress(progress, "info", "build_image", "Docker image built successfully")
 	return result, nil
 }
 
@@ -203,4 +223,10 @@ func effectivePlanPort(detectedPort, configuredPort int) int {
 		return configuredPort
 	}
 	return detectedPort
+}
+
+func emitProgress(progress ProgressFunc, level, step, message string) {
+	if progress != nil {
+		progress(level, step, message)
+	}
 }
