@@ -9,7 +9,7 @@ Talos is configured through environment variables stored in `/opt/talos/.env`.
 | `TALOS_PORT` | `3000` | Port for the Talos web UI |
 | `TALOS_DB_PATH` | `data/talos.db` | Path to SQLite database |
 | `TALOS_DATA_DIR` | `data` | Base data directory |
-| `TALOS_ENCRYPTION_KEY` | _(auto-generated)_ | Key for encrypting secrets at rest |
+| `TALOS_ENCRYPTION_KEY` | _(auto-generated on first install)_ | Key for encrypting secrets at rest |
 | `TALOS_DOMAIN` | _(empty)_ | Public hostname for the Talos UI |
 | `TALOS_ACME_EMAIL` | _(empty)_ | Contact email for internal Traefik TLS |
 | `TALOS_PROXY_MODE` | `internal` | `internal` for Talos-managed Traefik, `external` for a shared edge proxy |
@@ -67,8 +67,24 @@ TALOS_BACKUP_RETAIN_COUNT=10
 ```
 
 ::: warning
-Never commit your `.env` file to version control. The `TALOS_ENCRYPTION_KEY` is auto-generated on first run and protects all encrypted secrets.
+Never commit your `.env` file to version control. `TALOS_ENCRYPTION_KEY` is auto-generated on first install and protects all encrypted secrets. On existing installs, Talos requires this key to be present and fails to start if it is missing.
 :::
+
+## Regenerating the Encryption Key
+
+Use the installer only when you intentionally want to replace the key:
+
+```bash
+sudo bash install.sh --upgrade --regenerate-encryption-key
+```
+
+For Docker mode:
+
+```bash
+sudo bash install.sh --upgrade --docker --regenerate-encryption-key
+```
+
+This does not re-encrypt existing service credentials. After regeneration, restore the old key or recreate affected managed services.
 
 ## Proxy Modes
 

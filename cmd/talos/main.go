@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -35,6 +36,8 @@ const (
 	defaultDockerEnvPath = "/opt/talos/.env"
 	legacyBareEnvPath    = "/etc/talos/.env"
 )
+
+var errMissingEncryptionKey = errors.New("existing install detected but TALOS_ENCRYPTION_KEY is missing")
 
 // resolveEnvFilePath returns the most likely persisted env file path.
 func resolveEnvFilePath() string {
@@ -90,6 +93,39 @@ func persistEncryptionKey(key string) (string, error) {
 	return envPath, os.WriteFile(envPath, []byte(strings.Join(lines, "\n")), 0600)
 }
 
+func databaseExists(path string) (bool, error) {
+	info, err := os.Stat(path)
+	if err == nil {
+		return !info.IsDir(), nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
+}
+
+func initializeEncryptionKey(encKeyStr, dbPath string) (string, string, error) {
+	if encKeyStr != "" {
+		return encKeyStr, "", nil
+	}
+
+	dbExists, err := databaseExists(dbPath)
+	if err != nil {
+		return "", "", fmt.Errorf("check existing database: %w", err)
+	}
+	if dbExists {
+		return "", "", errMissingEncryptionKey
+	}
+
+	key := crypto.GenerateKey()
+	encKeyStr = crypto.EncodeKey(key)
+	envPath, err := persistEncryptionKey(encKeyStr)
+	if err != nil {
+		return "", "", fmt.Errorf("persist generated encryption key: %w", err)
+	}
+	return encKeyStr, envPath, nil
+}
+
 func main() {
 	// Handle --version flag
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
@@ -102,6 +138,29 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		logger.Error("failed to load config", "error", err)
+		os.Exit(1)
+	}
+
+	// Initialize encryption key. New installs generate one; existing installs must provide it.
+	encKeyStr, envPath, err := initializeEncryptionKey(cfg.EncryptionKey, cfg.Database.Path)
+	if err != nil {
+		if errors.Is(err, errMissingEncryptionKey) {
+			logger.Error("missing encryption key for existing install",
+				"db_path", cfg.Database.Path,
+				"env_path", resolveEnvFilePath(),
+				"error", err,
+			)
+		} else {
+			logger.Error("failed to initialize encryption key", "error", err)
+		}
+		os.Exit(1)
+	}
+	if envPath != "" {
+		logger.Info("auto-generated encryption key and saved", "env_path", envPath)
+	}
+	encKey, err := crypto.DecodeKey(encKeyStr)
+	if err != nil {
+		logger.Error("invalid encryption key", "error", err)
 		os.Exit(1)
 	}
 
@@ -143,24 +202,6 @@ func main() {
 	}
 
 	authSvc := auth.NewService(db, cfg.Auth.SessionSecret, time.Duration(cfg.Auth.SessionMaxAge)*time.Second)
-
-	// Initialize encryption key — auto-generate if not set
-	encKeyStr := cfg.EncryptionKey
-	if encKeyStr == "" {
-		key := crypto.GenerateKey()
-		encKeyStr = crypto.EncodeKey(key)
-		envPath, err := persistEncryptionKey(encKeyStr)
-		if err != nil {
-			logger.Warn("could not persist encryption key to .env", "error", err)
-		} else {
-			logger.Info("auto-generated encryption key and saved", "env_path", envPath)
-		}
-	}
-	encKey, err := crypto.DecodeKey(encKeyStr)
-	if err != nil {
-		logger.Error("invalid encryption key", "error", err)
-		os.Exit(1)
-	}
 
 	dataDir := filepath.Dir(cfg.Database.Path)
 	provisioner := services.NewProvisioner(db, dockerClient, dataDir, cfg.Docker.HostDataRoot, encKey, logger)

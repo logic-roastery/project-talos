@@ -37,6 +37,7 @@ FROM_SOURCE=false
 DOCKER_MODE=false
 UPGRADE_MODE=false
 TARGET_VERSION=""
+REGENERATE_ENCRYPTION_KEY=false
 TALOS_PORT=3000
 DOCKER_GROUP="docker"
 TALOS_PROXY_MODE="internal"
@@ -137,6 +138,74 @@ talos_external_label_args() {
         "--label" "traefik.http.services.talos.loadbalancer.server.port=3000"
 }
 
+read_env_value() {
+    local key="$1"
+    local env_file="${2:-${TALOS_ENV}}"
+
+    if [[ -f "${env_file}" ]] && grep -q "^${key}=" "${env_file}" 2>/dev/null; then
+        grep "^${key}=" "${env_file}" | cut -d= -f2-
+    fi
+}
+
+upsert_env_value() {
+    local key="$1"
+    local value="$2"
+    local env_file="${3:-${TALOS_ENV}}"
+
+    if [[ ! -f "${env_file}" ]]; then
+        mkdir -p "$(dirname "${env_file}")"
+        printf '%s=%s\n' "${key}" "${value}" > "${env_file}"
+        return 0
+    fi
+
+    local tmp_file
+    tmp_file=$(mktemp)
+    awk -v key="${key}" -v value="${value}" '
+        BEGIN { updated = 0 }
+        index($0, key "=") == 1 {
+            print key "=" value
+            updated = 1
+            next
+        }
+        { print }
+        END {
+            if (!updated) {
+                print key "=" value
+            }
+        }
+    ' "${env_file}" > "${tmp_file}"
+    mv "${tmp_file}" "${env_file}"
+}
+
+generate_encryption_key() {
+    head -c 32 /dev/urandom | base64 | tr -d '\n'
+}
+
+confirm_encryption_key_regeneration() {
+    echo ""
+    warn "You are about to replace TALOS_ENCRYPTION_KEY."
+    warn "Existing encrypted service credentials will become unreadable."
+    warn "Restore the old key or recreate affected services after regeneration."
+    echo ""
+    read -rp "Type REGENERATE to continue: " confirm
+    [[ "${confirm}" == "REGENERATE" ]] || die "Encryption key regeneration cancelled."
+}
+
+maybe_regenerate_encryption_key() {
+    if [[ "${REGENERATE_ENCRYPTION_KEY}" != "true" ]]; then
+        return 0
+    fi
+
+    [[ -f "${TALOS_ENV}" ]] || die "No .env found at ${TALOS_ENV}. Run install.sh first."
+    confirm_encryption_key_regeneration
+
+    local new_key
+    new_key=$(generate_encryption_key)
+    upsert_env_value "TALOS_ENCRYPTION_KEY" "${new_key}" "${TALOS_ENV}"
+    chmod 600 "${TALOS_ENV}"
+    ok "Regenerated TALOS_ENCRYPTION_KEY in ${TALOS_ENV}."
+}
+
 # ---------------------------------------------------------------------------
 # Argument parsing
 # ---------------------------------------------------------------------------
@@ -148,9 +217,10 @@ while [[ $# -gt 0 ]]; do
         --port)         TALOS_PORT="$2"; shift 2 ;;
         --upgrade)      UPGRADE_MODE=true; shift ;;
         --version-tag)  TARGET_VERSION="$2"; shift 2 ;;
+        --regenerate-encryption-key) REGENERATE_ENCRYPTION_KEY=true; shift ;;
         -h|--help)
             echo "Usage: sudo bash install.sh [OPTIONS]"
-            echo "       sudo bash install.sh --upgrade [--docker] [--version-tag vX.Y.Z]"
+            echo "       sudo bash install.sh --upgrade [--docker] [--version-tag vX.Y.Z] [--regenerate-encryption-key]"
             echo ""
             echo "Install Options:"
             echo "  --docker          Install as a Docker container (easier upgrades)"
@@ -160,6 +230,7 @@ while [[ $# -gt 0 ]]; do
             echo "Upgrade Options:"
             echo "  --upgrade         Upgrade Talos to the latest version (preserves config & data)"
             echo "  --version-tag X   Upgrade to a specific version (e.g. v0.2.0)"
+            echo "  --regenerate-encryption-key  Replace TALOS_ENCRYPTION_KEY explicitly"
             exit 0
             ;;
         *) die "Unknown option: $1" ;;
@@ -189,6 +260,8 @@ if [[ "${UPGRADE_MODE}" == "true" ]]; then
 
     INSTALL_MODE=$(detect_install_mode)
     BACKUP_TAG=$(date +%Y%m%d-%H%M%S)
+
+    maybe_regenerate_encryption_key
 
     # --- Resolve target version string ---
     if [[ -z "${TARGET_VERSION}" ]]; then
@@ -545,12 +618,24 @@ ok "Directories created at ${TALOS_HOME}."
 # ---------------------------------------------------------------------------
 
 SESSION_SECRET=""
-if [[ -f "${TALOS_ENV}" ]] && grep -q "TALOS_SESSION_SECRET" "${TALOS_ENV}" 2>/dev/null; then
-    SESSION_SECRET=$(grep "^TALOS_SESSION_SECRET=" "${TALOS_ENV}" | cut -d= -f2-)
+if [[ -n "$(read_env_value "TALOS_SESSION_SECRET")" ]]; then
+    SESSION_SECRET=$(read_env_value "TALOS_SESSION_SECRET")
     ok "Session secret already configured."
 else
     SESSION_SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '/+=' | head -c 40)
     info "Generated new session secret."
+fi
+
+ENCRYPTION_KEY=""
+if [[ -n "$(read_env_value "TALOS_ENCRYPTION_KEY")" ]]; then
+    ENCRYPTION_KEY=$(read_env_value "TALOS_ENCRYPTION_KEY")
+    ok "Encryption key already configured."
+elif [[ "${REGENERATE_ENCRYPTION_KEY}" == "true" ]]; then
+    ENCRYPTION_KEY=$(generate_encryption_key)
+    info "Generated replacement encryption key."
+else
+    ENCRYPTION_KEY=$(generate_encryption_key)
+    info "Generated new encryption key."
 fi
 
 # ---------------------------------------------------------------------------
@@ -716,6 +801,7 @@ TALOS_DB_PATH=/data/talos.db
 # Auth
 TALOS_SESSION_SECRET=${SESSION_SECRET}
 TALOS_SESSION_MAX_AGE=604800
+TALOS_ENCRYPTION_KEY=${ENCRYPTION_KEY}
 
 # Docker
 TALOS_DOCKER_HOST=unix:///var/run/docker.sock
@@ -850,6 +936,7 @@ TALOS_DB_PATH=${TALOS_DATA}/talos.db
 # Auth
 TALOS_SESSION_SECRET=${SESSION_SECRET}
 TALOS_SESSION_MAX_AGE=604800
+TALOS_ENCRYPTION_KEY=${ENCRYPTION_KEY}
 
 # Docker
 TALOS_DOCKER_HOST=unix:///var/run/docker.sock

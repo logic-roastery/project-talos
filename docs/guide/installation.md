@@ -106,4 +106,20 @@ curl -fsSL https://raw.githubusercontent.com/logic-roastery/project-talos/master
 
 The upgrade process preserves your configuration and data, and automatically rolls back on failure.
 
+Talos generates `TALOS_ENCRYPTION_KEY` only on first install. On later upgrades or restarts, if the database already exists and the key is missing from `/opt/talos/.env`, Talos exits with an error instead of generating a new key. Keep `/opt/talos/.env` with your database and backups.
+
+If you intentionally need a new encryption key, use:
+
+```bash
+sudo bash install.sh --upgrade --regenerate-encryption-key
+```
+
+For Docker mode:
+
+```bash
+sudo bash install.sh --upgrade --docker --regenerate-encryption-key
+```
+
+That operation makes previously encrypted service credentials unreadable unless you restore the old key or recreate the affected services.
+
 See [Upgrading](/guide/upgrading) for details.
